@@ -45,6 +45,10 @@ Re-run `php artisan vendor:publish --tag="visual-feedback-assets" --force` after
 package update. The capture bundle under `public/vendor/visual-feedback` is a copy, and
 a stale copy is the one failure this setup produces on its own.
 
+`php artisan about` says whether that was needed: under **Visual Feedback** it carries a
+**Published bundle** line reading `up to date`, `OUT OF DATE` with the command to run, or
+`not published`. With `APP_DEBUG=true` a stale copy also writes a warning to the log.
+
 ### 3. Apply the package
 
 Three things go in the layout: the stylesheet, the widget, the script tag.

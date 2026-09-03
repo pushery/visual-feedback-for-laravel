@@ -36,6 +36,14 @@
             $bundleVersion .= '.'.substr($reference, 0, 8);
         }
     }
+
+    // The token above solves "republished but still cached". This line answers the other failure
+    // shape: NOT republished at all, so `public/` still holds the previous release's bundle. It
+    // measures server-side out of `vendor/`, which is why it works on the FIRST request after an
+    // upgrade — a client-side stamp would be executed by the stale copy itself. It reads nothing
+    // from disk unless APP_DEBUG is on, and renders no inline script, because this package
+    // carries no CSP nonce to attach to one.
+    app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfStale();
 @endphp
 {{-- Master switch. The host places this tag in ITS own layout, so the widget cannot take it away
      by rendering nothing itself — this component has to ask too, exactly as the fab and the

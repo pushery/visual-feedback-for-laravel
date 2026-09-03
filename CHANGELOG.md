@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.3.0] - 2026-09-04
+
+### Added
+
+- **The published copy of the capture bundle says when it is out of date.** `php artisan about` carries its state under **Visual Feedback**, and with `APP_DEBUG=true` a stale copy also writes a warning to the log. Forgetting `vendor:publish --tag=visual-feedback-assets --force` after an upgrade is the one failure this setup can produce and was the only one with no signal at all — the old copy keeps working and is simply the previous release, so it surfaces weeks later as a report about behavior that was already fixed. The check runs on the server rather than in the browser, which is what makes it work on the very first request after an upgrade: anything shipped in the bundle would be executed by the stale copy itself.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
@@ -67,7 +73,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.3.0...HEAD
+
+[0.3.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.2.0...v0.3.0
 
 [0.2.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.1.0...v0.2.0
 
