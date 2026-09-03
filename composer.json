@@ -1,0 +1,112 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "pushery/visual-feedback-for-laravel",
+    "description": "In-page feedback widget with client-side screenshot capture for Laravel and Livewire.",
+    "keywords": [
+        "laravel",
+        "livewire",
+        "feedback",
+        "screenshot",
+        "bug-report",
+        "widget"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "homepage": "https://github.com/pushery/visual-feedback-for-laravel",
+    "support": {
+        "issues": "https://github.com/pushery/visual-feedback-for-laravel/issues",
+        "source": "https://github.com/pushery/visual-feedback-for-laravel",
+        "docs": "https://docs.pushery.com/visual-feedback-for-laravel/"
+    },
+    "require": {
+        "php": "^8.4",
+        "ext-fileinfo": "*",
+        "ext-filter": "*",
+        "ext-hash": "*",
+        "ext-intl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "laravel/framework": "^13.0",
+        "livewire/livewire": "^4.3",
+        "psr/log": "^1.0 || ^2.0 || ^3.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "3.10.0",
+        "laravel/pao": "^1.1",
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^5.0",
+        "pestphp/pest-plugin-agent": "^5.0",
+        "pestphp/pest-plugin-browser": "^5.0",
+        "pestphp/pest-plugin-evals": "^5.0",
+        "pestphp/pest-plugin-laravel": "^5.0",
+        "pestphp/pest-plugin-phpstan": "5.2.0",
+        "pestphp/pest-plugin-rector": "5.0.4",
+        "pestphp/pest-plugin-type-coverage": "^5.0",
+        "phpstan/phpstan": "2.2.12",
+        "pushery/legal-consent-for-laravel": "^0.10 || ^0.11 || ^0.12 || ^0.13 || ^0.14 || ^0.15 || ^0.16 || ^0.17 || ^0.18 || ^0.19 || ^0.20",
+        "pushery/matomo-analytics-for-laravel": "^0.17 || ^0.19 || ^0.20 || ^0.21 || ^0.22 || ^0.23 || ^0.24",
+        "pushery/webhooks-for-laravel": "^2.0",
+        "pushery/wirekit": "^2.21",
+        "rector/rector": "2.6.5",
+        "spaze/phpstan-disallowed-calls": "4.14.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pushery\\VisualFeedback\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pushery\\VisualFeedback\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test:coverage": "@php -d pcov.directory=. vendor/bin/pest --coverage --min=100",
+        "test:type-coverage": "pest --type-coverage --min=100",
+        "test:browser": "pest tests/Browser",
+        "test:database": "pest --testsuite=Postgres,MySql",
+        "test:evals": "pest tests/Evals --evals",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "format:test": "pint --test",
+        "rector": "rector process",
+        "rector:test": "rector process --dry-run",
+        "mutate": "@php -d pcov.directory=. vendor/bin/pest --mutate --everything --covered-only --min=85",
+        "mutate:detect": "@php -d pcov.directory=. vendor/bin/pest --mutate --everything --covered-only --parallel --processes=4 --min=85",
+        "qa": [
+            "@format:test",
+            "@rector:test",
+            "@analyse",
+            "@test:type-coverage",
+            "@test:coverage"
+        ]
+    },
+    "suggest": {
+        "pushery/wirekit": "^2.21 — publish the token-styled WireKit view tree (visual-feedback-wirekit) instead of the framework-free plain tree. 2.21 is a floor, not a preference: that tree builds its trigger from <x-wirekit::fab.button> with the placement prop and the accessible-name path that release introduced.",
+        "pushery/webhooks-for-laravel": "^2.0 — Deliver reports through signed webhooks via the WebhookChannel. 2.0 is a floor, not a preference: the bridge probes for the facade by its v2 name, Pushery\\Webhooks\\Facades\\Webhooks, and v1 published the same class as Webhooks\\Facades\\Webhooks without the vendor prefix. On v1 that probe is simply false, so the platform fan-out disappears with no error at all — and a host that configured no webhook.url gets a job that throws instead of a delivery.",
+        "pushery/legal-consent-for-laravel": "^0.10 — put the sentence legal-consent actually published on the guest's acknowledgement checkbox (privacy.source = legal-consent). It is a floor, not a preference: the bridge reads the acceptance fingerprint and the tenant from the returned document, and both arrived in 0.7. The floor is 0.10 because that is the release that made ui_wording nullable, and this bridge publishes documents without one — measured, not reasoned: a prefer-lowest run at 0.9.0 dies on NOT NULL constraint failed: legal_documents.ui_wording. 0.9 stood here until that run, which was the first this package ever had against its own floor.",
+        "pushery/matomo-analytics-for-laravel": "^0.17 — Track feedback submissions as Matomo events. 0.17 is the oldest minor a test run here has actually covered, not a capability boundary: the bridge calls one method. For a 0.x package a caret is a ceiling as well as a floor, so each proven minor is named separately in require-dev rather than assumed.",
+        "anthropic-ai/sdk": "Score the bundled Boost skill with an LLM judge (composer test:evals). Deliberately not a dev dependency: without it every eval still runs and only the judge-backed expectations skip, so an ordinary test run costs nothing."
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "process-timeout": 0
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Pushery\\VisualFeedback\\VisualFeedbackServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
