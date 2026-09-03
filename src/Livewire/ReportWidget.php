@@ -168,7 +168,7 @@ class ReportWidget extends Component
 
     /**
      * Which field the last failure belongs to — `privacy` when the guest privacy
-     * acknowledgement is missing, otherwise `message`. Without it every failure focused the
+     * acknowledgment is missing, otherwise `message`. Without it every failure focused the
      * message field, including the one caused by an unticked privacy checkbox further down
      * the form: the reporter was dropped on a control that had nothing to do with the error.
      */
@@ -189,7 +189,7 @@ class ReportWidget extends Component
      * because the widget is switched off.
      *
      * So the discrimination happens where the reason is still known: only
-     * `RejectionReason::Validation` — and the privacy acknowledgement, which is a field error the
+     * `RejectionReason::Validation` — and the privacy acknowledgment, which is a field error the
      * reporter can fix on the spot — set this. Everything else leaves it false and the message
      * stays in the shared alert region, unattributed, which is the honest place for it.
      */
@@ -259,9 +259,20 @@ class ReportWidget extends Component
         $this->context = array_values(array_filter($context, is_array(...)));
         $this->fields = $fields;
         $this->category = $this->firstCategory();
-        // The inline widget is open from the moment it renders, so mount IS its open. A
-        // modal re-stamps this when it actually opens — see markOpened().
-        $this->openedAt = Carbon::now()->getTimestamp();
+        // The inline widget is open from the moment it renders, so mount IS its open — and
+        // nothing else will ever stamp it, because the open listener is modal-only. A modal is
+        // NOT open at mount: markOpened() stamps it when the panel actually opens.
+        //
+        // The difference is not cosmetic. Stamping every mount put a second-resolution timestamp
+        // into the rendered markup of every page carrying the widget, so the same page was
+        // byte-different from one second to the next — enough to defeat any full-page cache or
+        // ETag a host puts in front of it. A modal that is never opened now renders identically
+        // all day.
+        //
+        // This moves WITH the abuse floor, not before it: BuiltinAbuseGate refuses a submission
+        // that carries no open time while the trap is armed, so the unstamped modal is refused
+        // rather than exempted.
+        $this->openedAt = $this->mode === 'inline' ? Carbon::now()->getTimestamp() : 0;
     }
 
     /**
@@ -373,7 +384,7 @@ class ReportWidget extends Component
         // resolves the notice by READING the published document through the bridge, and a disabled
         // package has no business reading anything. A guest who has not acknowledged now gets the
         // operator's "the form is off" instead of a privacy error, which is the more accurate of
-        // the two answers anyway — the acknowledgement is not what stopped the report.
+        // the two answers anyway — the acknowledgment is not what stopped the report.
         if ($enabled && $reporterDto->isGuest && ! $this->privacyAcknowledged && app(PrivacyNotice::class)->required()) {
             // Named like every other failure. This was the last one that still fell back to the
             // generic line, and it is a rejection the reporter can act on immediately.
@@ -391,7 +402,7 @@ class ReportWidget extends Component
             $metadata['capture_method'] = $this->screenshotStage;
         }
 
-        // Which published notice this acknowledgement belongs to. Added AFTER sanitization, from a
+        // Which published notice this acknowledgment belongs to. Added AFTER sanitization, from a
         // server-side read — the reporter's browser never sends any of it, and MetadataSanitizer
         // strips the reserved prefix unconditionally so it cannot be forged even if a consuming
         // application adds one of these keys to `metadata.collect`.
@@ -399,7 +410,7 @@ class ReportWidget extends Component
         // Read at SUBMIT, not carried from render: component state makes a round trip through the
         // browser, and provenance that the client could return is not provenance. The README names
         // the consequence — publish a new version while a widget is open and the recorded version
-        // is the newer one — and, like the acknowledgement check above, not read at all while the
+        // is the newer one — and, like the acknowledgment check above, not read at all while the
         // package is switched off, because with the legal-consent source this is the second call
         // that reaches for a published document.
         $metadata = $enabled
@@ -759,7 +770,7 @@ class ReportWidget extends Component
             // see PrivacyNotice::required().
             'privacyNoticeUrl' => $privacyNoticeUrl,
             // The sentence for that checkbox when the source supplies one (the legal-consent
-            // bridge hands over the PUBLISHED acknowledgement wording), else null and the views
+            // bridge hands over the PUBLISHED acknowledgment wording), else null and the views
             // fall back to this package's own lang line. Plain text, escaped by the templates:
             // legal-consent never runs this field through its sanitizer.
             //

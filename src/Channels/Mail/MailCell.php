@@ -23,6 +23,36 @@ final class MailCell
     }
 
     /**
+     * Free-form reporter text rendered in a LIVE-Markdown position — a list item, a bold line.
+     *
+     * `cell()` is not enough here, and the gap is not cosmetic. It escapes pipes and folds
+     * newlines, so a value cannot restructure a table or end its own row; it does nothing about
+     * Markdown itself. Measured against the converter Laravel actually builds for a mail
+     * (`allow_unsafe_links` off, CommonMark core plus tables): a reporter value of
+     * `[click me](http://evil.example)` arrived in the rendered mail as a real `<a href>`, and
+     * `![x](...)` as a real `<img src>`. That is the hole `fence()` exists for, one position
+     * over, and its docblock already names the stake — a link in a maintainer's inbox that
+     * appears to come from their own tooling.
+     *
+     * The escape set is deliberately NARROWER than "all ASCII punctuation", and the reason is
+     * the other half of the mail. `renderText()` does not parse Markdown; it entity-decodes the
+     * rendered body, so every backslash added here is VISIBLE in the text/plain alternative.
+     * Escaping `.`, an apostrophe or `-` would put slashes through an ordinary name in a large
+     * share of the mails a host ever sends. `<`, `>` and `&` are left out for the opposite
+     * reason: Blade's echo and the converter's `html_input: escape` already render them inert.
+     *
+     * Both `preg_replace` results are cast to `string`. That is not style either: the function
+     * returns null on an engine failure, and with `failOnDeprecation` on, a null flowing onward
+     * is a red run at the first host that hits a backtrack limit.
+     */
+    public static function text(string $value): string
+    {
+        $folded = (string) preg_replace('/[\r\n]+/', ' ', $value);
+
+        return (string) preg_replace('/[\\\\`*_\[\]()~|!]/', '\\\\$0', $folded);
+    }
+
+    /**
      * The opening/closing delimiter for a fenced code block that $value cannot break out of.
      *
      * A hardcoded ``` fence does not make user text inert, and the mail template's own comment

@@ -34,7 +34,7 @@ php artisan vendor:publish --tag=visual-feedback
 
 Then place the widget once in your layout and point the mail channel somewhere —
 `VISUAL_FEEDBACK_MAIL_TO` ships empty, and a report with nowhere to go still shows the
-reporter a success screen. Needs PHP 8.4+, Laravel 13+ and Livewire 4.3+.
+reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3+.
 
 ## What it does
 

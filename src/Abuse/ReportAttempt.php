@@ -12,10 +12,15 @@ use Pushery\VisualFeedback\Data\Reporter;
  * more — it is transport-agnostic like the rest of the pipeline, so the Livewire component
  * resolves the request-bound pieces (IP, the honeypot value) and hands them in as plain data.
  *
- * `formOpenedAt` is the SERVER-anchored time the form was opened (the widget stamps it on mount,
- * inside Livewire's checksum-protected state, so a bot cannot forge a slow fill). The time trap
- * compares elapsedSeconds() against the configured minimum; a null open time means it was not
- * tracked, and the trap simply does not apply rather than guessing.
+ * `formOpenedAt` is the SERVER-anchored time the form was opened — an inline widget stamps it at
+ * mount, a modal when it actually opens — inside Livewire's checksum-protected state, so a bot
+ * cannot forge a slow fill. The time trap compares elapsedSeconds() against the configured
+ * minimum.
+ *
+ * A NULL open time is a refusal while the trap is armed, not an exemption from it. It used to
+ * mean "not tracked, so the trap does not apply", and that reading hands an attacker a way past
+ * the trap by omitting one field. Only `min_fill_seconds = 0` — the documented way to switch the
+ * trap off — makes a missing stamp harmless again.
  */
 final readonly class ReportAttempt
 {

@@ -15,7 +15,7 @@ use Throwable;
 
 /**
  * The optional bridge to pushery/legal-consent: with `privacy.source = legal-consent` the guest's
- * checkbox carries the PUBLISHED acknowledgement sentence instead of this package's own lang line.
+ * checkbox carries the PUBLISHED acknowledgment sentence instead of this package's own lang line.
  *
  * It READS legal-consent and never writes to it. Its recording API takes a Model subject on every
  * method and this widget's whole point is GUEST reports that have none; a synthetic subject was
@@ -36,7 +36,7 @@ use Throwable;
  *
  * Everything below refuses rather than improvises, and every refusal falls back to this package's
  * own sentence — never to another locale's text, and never to leaving the checkbox out. A silent
- * omission would drop the acknowledgement altogether; a substituted locale would show German under
+ * omission would drop the acknowledgment altogether; a substituted locale would show German under
  * an English UI, exactly what legal-consent's reader is written to prevent.
  */
 final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
@@ -95,7 +95,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // must show the text of the locale it claims to be showing, or nothing". This package
             // ships seven locales and legal-consent's default config publishes two, so this is the
             // ordinary case rather than an edge one — hence a notice, not an error.
-            $this->logger->notice('visual-feedback: no legal-consent document published for this key and locale — the built-in acknowledgement wording is used', [
+            $this->logger->notice('visual-feedback: no legal-consent document published for this key and locale — the built-in acknowledgment wording is used', [
                 'document_key' => $key,
                 'locale' => $locale,
             ]);
@@ -121,7 +121,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
         if ($document->type !== DocumentType::PrivacyNotice) {
             // "I have read …" over a contract or an opt-in misstates what the reporter is doing,
             // and an opt-in must never be a precondition at all (Art. 7(4)).
-            return $this->fallback('the configured legal-consent document is not a privacy notice, so presenting it as a passive acknowledgement would misstate it', [
+            return $this->fallback('the configured legal-consent document is not a privacy notice, so presenting it as a passive acknowledgment would misstate it', [
                 'document_key' => $key,
                 'type' => $document->type->value,
             ]);
@@ -132,7 +132,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // Upstream forbids publishing a privacy notice that way, but the mode is DERIVED for a
             // legacy row (notice_mode null + requires_reconsent true), so the combination is
             // reachable — and a passive checkbox would claim a legal effect that does not occur.
-            return $this->fallback('the configured legal-consent document is in a gating notice mode, which a passive acknowledgement cannot express', [
+            return $this->fallback('the configured legal-consent document is in a gating notice mode, which a passive acknowledgment cannot express', [
                 'document_key' => $key,
                 'notice_mode' => $document->noticeMode->value,
             ]);
@@ -188,7 +188,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
      * A warning rather than an exception, because there is no earlier place to throw from: the
      * source is resolved while rendering a guest's widget, so failing hard here would answer a
      * misconfiguration with a 500 on a public page. Nothing is lost by falling back — the
-     * acknowledgement still happens, the link is still there, and because this returns null the
+     * acknowledgment still happens, the link is still there, and because this returns null the
      * caller uses its own wording and can never attribute it to a published document.
      *
      * The return type is `null` and not `?string` on purpose: this method has exactly one answer,
@@ -201,7 +201,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
     {
         // Loud for the same reason AbuseGateRegistry is loud about an unregistered driver: the
         // alternative is a configuration that looks honored and is not.
-        $this->logger->warning('visual-feedback: '.$reason.' — the built-in acknowledgement wording is used instead', $context);
+        $this->logger->warning('visual-feedback: '.$reason.' — the built-in acknowledgment wording is used instead', $context);
 
         return null;
     }

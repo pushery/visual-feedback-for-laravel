@@ -49,19 +49,33 @@
 {!! $report->message !!}
 {!! \Pushery\VisualFeedback\Channels\Mail\MailCell::fence($report->message) !!}
 
-{{-- The reporter's phone, when they gave one.
+{{-- Who reported it, when, and from which trigger.
 
-     Name and email are NOT repeated here on purpose: the envelope carries them, and Reply-To
-     points at the reporter, so a maintainer answers by hitting reply. A phone number has no such
-     carrier. It was collected, validated and stored on the report, and then reached neither of
-     the two default channels — asked for and thrown away, which is the worst of both: the
-     reporter believed it was useful and the package held personal data with no purpose.
+     Name and email used to be omitted here, on the argument that the envelope carries them. It
+     carries ONE of them, conditionally: Reply-To is the reporter's EMAIL, only while
+     `mail.reply_to_reporter` is on and only when they gave an address — and `guests.require_email`
+     ships false, so most guests give none. The NAME has no carrier at all. It is asked for and
+     validated at 150 characters, and a host running the mail channel alone persists the report
+     nowhere: what this template omits is gone the moment the mail is sent, per report.
 
-     MailCell, like every other user-influenced value in this body: pipes escaped, newlines
-     folded, so it can neither restructure the table below nor end its own line early. --}}
-@if (is_string($report->reporter->phone) && trim($report->reporter->phone) !== '')
-**{{ __('visual-feedback::messages.mail.phone') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell($report->reporter->phone) }}
+     Every reporter-typed value here goes through MailCell::text(), not ::cell(). These sit in a
+     LIVE-Markdown position — a bold line, a list item — and cell() escapes pipes but not links.
+     Measured before this block existed: a phone value of `[click me](http://evil.example)`
+     reached the rendered mail as a real anchor. --}}
+**{{ __('visual-feedback::messages.mail.reporter') }}**
+
+- **{{ __('visual-feedback::messages.mail.reporter_type') }}:** {{ $report->reporter->isGuest ? __('visual-feedback::messages.mail.reporter_guest') : __('visual-feedback::messages.mail.reporter_member') }}
+@if (is_string($report->reporter->name) && trim($report->reporter->name) !== '')
+- **{{ __('visual-feedback::messages.mail.reporter_name') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->reporter->name) }}
 @endif
+@if (is_string($report->reporter->email) && trim($report->reporter->email) !== '')
+- **{{ __('visual-feedback::messages.mail.reporter_email') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->reporter->email) }}
+@endif
+@if (is_string($report->reporter->phone) && trim($report->reporter->phone) !== '')
+- **{{ __('visual-feedback::messages.mail.phone') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->reporter->phone) }}
+@endif
+- **{{ __('visual-feedback::messages.mail.submitted_at') }}:** {{ $report->submittedAt->format(DATE_ATOM) }}
+- **{{ __('visual-feedback::messages.mail.mode') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->mode) }}
 
 @if (count($report->context) > 0)
 **{{ __('visual-feedback::messages.mail.context') }}**

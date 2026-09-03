@@ -42,7 +42,7 @@ final readonly class MetadataSanitizer
 
         foreach ($this->allowedKeys() as $key) {
             // RESERVED keys are the server's alone. `privacy_notice_*` records which published
-            // legal document an acknowledgement belongs to, and it is written after this method
+            // legal document an acknowledgment belongs to, and it is written after this method
             // returns, from a server-side read. Stripped here unconditionally rather than relying
             // on the allowlist: the allowlist belongs to the CONSUMING application, so a consumer
             // that adds one of these keys to `metadata.collect` would otherwise let a browser

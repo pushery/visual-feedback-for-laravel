@@ -53,6 +53,15 @@ final readonly class MailChannel implements ReportChannel
             backoffSeconds: $this->backoff(),
         );
 
+        // Connection before queue, matching the order a host reads them in the config file.
+        // This is a QUEUE connection, so it decides which worker carries the job — a host
+        // that leaves it unset keeps the application default, which is the common case.
+        $connection = $this->config->get('visual-feedback.channels.mail.connection');
+
+        if (is_string($connection) && $connection !== '') {
+            $job->onConnection($connection);
+        }
+
         $queue = $this->config->get('visual-feedback.channels.mail.queue');
 
         if (is_string($queue) && $queue !== '') {

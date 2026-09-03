@@ -274,7 +274,7 @@ mirrors in a right-to-left application.
 
 ### 9. Ask guests to acknowledge a privacy notice (optional)
 
-Guests get an acknowledgement checkbox as soon as `privacy.url` points somewhere. That URL
+Guests get an acknowledgment checkbox as soon as `privacy.url` points somewhere. That URL
 is what decides it — the reporter has to be able to open the full text, or the tick means
 nothing.
 
@@ -450,7 +450,7 @@ means off, silently:
 ],
 ```
 
-`enabled` is the only key the package reads for a channel of yours; the `queue`, `tries` and
+`enabled` is the only key the package reads for a channel of yours; the `connection`, `queue`, `tries` and
 `backoff` entries beside it are read by the built-in channels for their own jobs. Channels
 are isolated from each other: one failing never stops the rest.
 

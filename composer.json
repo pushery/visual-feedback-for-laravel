@@ -26,7 +26,7 @@
         "ext-intl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "laravel/framework": "^13.0",
+        "laravel/framework": "^12.0 || ^13.0",
         "livewire/livewire": "^4.3",
         "psr/log": "^1.0 || ^2.0 || ^3.0"
     },
@@ -34,7 +34,7 @@
         "larastan/larastan": "3.10.0",
         "laravel/pao": "^1.1",
         "laravel/pint": "^1.0",
-        "orchestra/testbench": "^11.0",
+        "orchestra/testbench": "^10.0 || ^11.0",
         "pestphp/pest": "^5.0",
         "pestphp/pest-plugin-agent": "^5.0",
         "pestphp/pest-plugin-browser": "^5.0",
@@ -71,6 +71,10 @@
         "test:browser": "pest tests/Browser",
         "test:database": "pest --testsuite=Postgres,MySql",
         "test:evals": "pest tests/Evals --evals",
+        "test:framework-floors": [
+            "tools/framework-floor-probe.sh 12",
+            "tools/framework-floor-probe.sh 13"
+        ],
         "analyse": "phpstan analyse --memory-limit=1G",
         "format": "pint",
         "format:test": "pint --test",
@@ -89,7 +93,7 @@
     "suggest": {
         "pushery/wirekit": "^2.21 — publish the token-styled WireKit view tree (visual-feedback-wirekit) instead of the framework-free plain tree. 2.21 is a floor, not a preference: that tree builds its trigger from <x-wirekit::fab.button> with the placement prop and the accessible-name path that release introduced.",
         "pushery/webhooks-for-laravel": "^2.0 — Deliver reports through signed webhooks via the WebhookChannel. 2.0 is a floor, not a preference: the bridge probes for the facade by its v2 name, Pushery\\Webhooks\\Facades\\Webhooks, and v1 published the same class as Webhooks\\Facades\\Webhooks without the vendor prefix. On v1 that probe is simply false, so the platform fan-out disappears with no error at all — and a host that configured no webhook.url gets a job that throws instead of a delivery.",
-        "pushery/legal-consent-for-laravel": "^0.10 — put the sentence legal-consent actually published on the guest's acknowledgement checkbox (privacy.source = legal-consent). It is a floor, not a preference: the bridge reads the acceptance fingerprint and the tenant from the returned document, and both arrived in 0.7. The floor is 0.10 because that is the release that made ui_wording nullable, and this bridge publishes documents without one — measured, not reasoned: a prefer-lowest run at 0.9.0 dies on NOT NULL constraint failed: legal_documents.ui_wording. 0.9 stood here until that run, which was the first this package ever had against its own floor.",
+        "pushery/legal-consent-for-laravel": "^0.10 — put the sentence legal-consent actually published on the guest's acknowledgment checkbox (privacy.source = legal-consent). It is a floor, not a preference: the bridge reads the acceptance fingerprint and the tenant from the returned document, and both arrived in 0.7. The floor is 0.10 because that is the release that made ui_wording nullable, and this bridge publishes documents without one — measured, not reasoned: a prefer-lowest run at 0.9.0 dies on NOT NULL constraint failed: legal_documents.ui_wording. 0.9 stood here until that run, which was the first this package ever had against its own floor.",
         "pushery/matomo-analytics-for-laravel": "^0.17 — Track feedback submissions as Matomo events. 0.17 is the oldest minor a test run here has actually covered, not a capability boundary: the bridge calls one method. For a 0.x package a caret is a ceiling as well as a floor, so each proven minor is named separately in require-dev rather than assumed.",
         "anthropic-ai/sdk": "Score the bundled Boost skill with an LLM judge (composer test:evals). Deliberately not a dev dependency: without it every eval still runs and only the judge-backed expectations skip, so an ordinary test run costs nothing."
     },
