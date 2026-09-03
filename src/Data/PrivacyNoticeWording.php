@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Data;
 
 /**
- * The acknowledgement sentence a guest was shown, plus what identifies the document it came from.
+ * The acknowledgment sentence a guest was shown, plus what identifies the document it came from.
  *
  * All five fields or none: `text` is what the checkbox says, and `key`, `locale`, `version` and
- * `acceptanceFingerprint` are what makes a recorded acknowledgement resolvable later. Dropping any
+ * `acceptanceFingerprint` are what makes a recorded acknowledgment resolvable later. Dropping any
  * of the four is not a simplification — a published document row may legitimately be deleted
  * (legal-consent calls that an ordinary admin/retention action and removed the foreign key on
  * purpose), and after that the record is only as good as what it carries itself. `version` alone

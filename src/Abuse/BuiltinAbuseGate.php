@@ -63,9 +63,23 @@ final readonly class BuiltinAbuseGate implements AbuseGate
             return AbuseDecision::reject(RejectionReason::Honeypot);
         }
 
+        $minimum = $this->settings->minFillSeconds();
         $elapsed = $attempt->elapsedSeconds();
 
-        if ($elapsed !== null && $elapsed < $this->settings->minFillSeconds()) {
+        // FAIL-CLOSED on a missing open time, and this is the half that has to move together
+        // with the widget: a submission that cannot say when its form was opened is not a
+        // submission the trap can judge, so while the trap is armed it is refused rather than
+        // waved through. Read the other way round — null meaning "the trap does not apply" —
+        // an attacker skips the trap entirely by omitting one field.
+        //
+        // `$minimum > 0` is the whole condition, because `min_fill_seconds = 0` is the
+        // documented way to switch the trap OFF. A host that turned it off must not start
+        // getting rejections from it.
+        if ($minimum > 0 && $elapsed === null) {
+            return AbuseDecision::reject(RejectionReason::Honeypot);
+        }
+
+        if ($elapsed !== null && $elapsed < $minimum) {
             return AbuseDecision::reject(RejectionReason::Honeypot);
         }
 

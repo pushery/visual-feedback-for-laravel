@@ -1,7 +1,6 @@
 {{--
     Plain-tree stylesheet — framework-free, no Tailwind, no build step. Include it ONCE
-    in your layout <head> (a WireKit app uses the wirekit tree instead and does not need
-    this):
+    in your layout <head>:
 
         @include('visual-feedback::style')
 
@@ -11,6 +10,15 @@
 
         php artisan vendor:publish --tag=visual-feedback-views
 --}}
+{{-- Nothing at all when the WireKit tree is the one rendering. That tree is styled by the
+     application's own design tokens, so this stylesheet would be dead weight at best and would
+     fight it at worst.
+
+     The guard is here rather than in the host's layout because `ui.variant` defaults to `auto`:
+     installing WireKit now switches the tree WITHOUT the host touching their layout, so an
+     @include they wrote once would otherwise start shipping CSS for a tree that is no longer
+     being served. --}}
+@if (! app(\Pushery\VisualFeedback\Support\Settings::class)->servesWireKitViews())
 <style>
     :root {
         --vf-bg: #ffffff;
@@ -200,7 +208,7 @@
     }
     .visual-feedback-dialog textarea { min-height: 6rem; resize: vertical; }
 
-    /* The privacy acknowledgement is the one control a guest cannot submit without, and it was
+    /* The privacy acknowledgment is the one control a guest cannot submit without, and it was
        the UA default: a 13x13 box on a 20px-tall label block. Sized here rather than restyled —
        `appearance: none` would hand this package the tick, the checked, indeterminate and focus
        states, and the dark scheme that `color-scheme: light dark` above currently gets from the
@@ -217,10 +225,10 @@
 
          - `min-height: 44px` with `align-items: center` makes the row itself 44px tall whatever
            the host's line height is;
-         - `gap: 1.25rem` beside the 1.5rem box puts the first glyph of the acknowledgement at
+         - `gap: 1.25rem` beside the 1.5rem box puts the first glyph of the acknowledgment at
            44px, so the column to the LEFT of it is a contiguous 44x44 region that ticks the box.
-           That column is what the reporter actually has: the acknowledgement text is the privacy
-           anchor (deliberately — the link is what makes the acknowledgement informed), and a tap
+           That column is what the reporter actually has: the acknowledgment text is the privacy
+           anchor (deliberately — the link is what makes the acknowledgment informed), and a tap
            on interactive content runs no label activation behavior, it navigates;
          - `display: flex` is what keeps that column 44px wide when the sentence wraps to three
            lines on a 320px phone, which a plain inline layout does not.
@@ -379,3 +387,4 @@
         cursor: pointer;
     }
 </style>
+@endif

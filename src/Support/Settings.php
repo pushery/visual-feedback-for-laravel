@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Support;
 
 use Illuminate\Contracts\Config\Repository;
+use Pushery\VisualFeedback\VisualFeedbackServiceProvider;
 
 /**
  * Typed, drift-safe reader for the package config.
@@ -27,6 +28,41 @@ final readonly class Settings
     {
         // Cosmetic-ish master switch: absence defaults to enabled (the documented default).
         return (bool) ($this->config->get('visual-feedback.enabled') ?? true);
+    }
+
+    /**
+     * Which view tree to render: `auto`, `plain` or `wirekit`.
+     *
+     * An unrecognized value falls back to `auto` rather than throwing. A typo in a host's `.env`
+     * must not take their feedback widget off the page — `auto` still renders something correct,
+     * which is the failure direction to prefer.
+     */
+    public function uiVariant(): string
+    {
+        $variant = $this->config->get('visual-feedback.ui.variant', 'auto');
+
+        return in_array($variant, ['auto', 'plain', 'wirekit'], true) ? $variant : 'auto';
+    }
+
+    /**
+     * Whether the WireKit tree is the one that should render.
+     *
+     * `auto` asks whether a new enough WireKit is actually installed, so a host that has it gets
+     * the token-styled tree without configuring anything and a host that does not is never
+     * served templates whose components do not exist. `wirekit` forces it — and forcing it
+     * without the package present is a host's own decision to make, so it is not second-guessed
+     * here; the components will simply fail to resolve, loudly, which is the right outcome for
+     * an explicit setting.
+     */
+    public function servesWireKitViews(): bool
+    {
+        $variant = $this->uiVariant();
+
+        if ($variant !== 'auto') {
+            return $variant === 'wirekit';
+        }
+
+        return VisualFeedbackServiceProvider::wireKitIsUsable();
     }
 
     /**

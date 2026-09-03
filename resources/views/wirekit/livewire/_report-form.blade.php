@@ -216,7 +216,7 @@
                 {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
                 <div x-show="status === 'captured'">
                     <img class="visual-feedback-preview" :src="previewUrl"
-                        alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}">
+                        alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" loading="lazy" decoding="async">
                     <div class="visual-feedback-preview-actions">
                         <x-wirekit::button type="button" intent="primary" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
                         <x-wirekit::button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
@@ -297,7 +297,7 @@
                 :label="$privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge')" />
             {{-- The anchor stays a SIBLING of the checkbox here, unlike the plain tree where it
                  sits inside the `<label>`: that is what keeps the checkbox's accessible name the
-                 bare acknowledgement sentence, with no link text folded into it. So the link
+                 bare acknowledgment sentence, with no link text folded into it. So the link
                  needs a text of its own, and it deliberately does NOT repeat the sentence the
                  label already carries — a second copy of it would render twice on screen and
                  read as a link that never says where it goes. It names the destination instead. --}}

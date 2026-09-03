@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback;
 
+use Composer\InstalledVersions;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +35,86 @@ use Pushery\VisualFeedback\Support\Settings;
 
 final class VisualFeedbackServiceProvider extends ServiceProvider
 {
+    /**
+     * The WireKit release that first carried what the WireKit tree binds to.
+     *
+     * 2.21 introduced the `placement` prop and the accessible-name path `<x-wirekit::fab.button>`
+     * needs. Serving the tree against anything older renders a trigger with no accessible name,
+     * which is worse than not serving it at all — so `auto` refuses below that line.
+     */
+    public const string WIREKIT_MINIMUM = '2.21.0';
+
+    /**
+     * Whether an installed WireKit is new enough for the tree this package ships.
+     *
+     * Split from the check itself so a test can drive the comparison without installing four
+     * versions of a package. A null version means "not installed", which is a no.
+     */
+    public static function wireKitVersionSatisfies(?string $version): bool
+    {
+        if (! is_string($version)) {
+            return false;
+        }
+
+        // The leading `v` has to go, and it is not cosmetic. Composer's getPrettyVersion returns
+        // the tag as written — `v2.42.0` for this package's own vendor — and version_compare
+        // reads a leading letter as a pre-release marker, so `v2.42.0` compares BELOW `2.21.0`.
+        // Measured here on the real vendor tree: the check said no while WireKit 2.42 was
+        // installed, which would have served the plain tree to every host that has WireKit.
+        return version_compare(ltrim($version, 'vV'), self::WIREKIT_MINIMUM, '>=');
+    }
+
+    /**
+     * The view paths, in resolution ORDER, for the tree the settings select.
+     *
+     * A named method rather than an inline ternary so the order can be asserted directly. It has
+     * to be asserted directly, because asserting it through a second boot() does not work:
+     * Laravel's loadViewsFrom APPENDS to a namespace's hints rather than replacing them, so a
+     * test that boots twice reads the paths of the first boot with the second appended — and
+     * reports the wrong tree for the right reason.
+     *
+     * @return list<string>
+     */
+    public static function viewPaths(Settings $settings): array
+    {
+        $plain = __DIR__.'/../resources/views';
+
+        // WireKit FIRST when it is served: the finder walks these in turn, so a view that exists
+        // in both trees resolves to the WireKit one while everything that exists only in the
+        // plain tree keeps working untouched.
+        return $settings->servesWireKitViews()
+            ? [$plain.'/wirekit', $plain]
+            : [$plain];
+    }
+
+    /**
+     * Whether a package is installed at a version this package's WireKit tree can use.
+     *
+     * Takes the package NAME rather than hardcoding it, and that is what makes the not-installed
+     * branch reachable from a test: with the name fixed, every branch below is decided by this
+     * repository's own vendor tree, where WireKit is always present — so the guard clause would
+     * be a line no run can enter, and a line no run can enter is one the 100% floor blocks the
+     * release on. A caller passing a name that is genuinely absent exercises it honestly.
+     *
+     * The `class_exists` check that used to sit here is gone rather than hidden: this package is
+     * installed by Composer, so Composer's own runtime class is present by construction. It was
+     * a guard against a state that cannot occur, and it read as caution while being dead weight.
+     */
+    public static function packageSatisfiesWireKitFloor(string $package): bool
+    {
+        if (! InstalledVersions::isInstalled($package)) {
+            return false;
+        }
+
+        return self::wireKitVersionSatisfies(InstalledVersions::getPrettyVersion($package));
+    }
+
+    /** Whether WireKit is installed at a version this package's WireKit tree can use. */
+    public static function wireKitIsUsable(): bool
+    {
+        return self::packageSatisfiesWireKitFloor('pushery/wirekit');
+    }
+
     #[Override]
     public function register(): void
     {
@@ -72,7 +153,20 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'visual-feedback');
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'visual-feedback');
+        // A LIST, and the order is the whole mechanism: Laravel resolves a namespaced view
+        // against these paths in turn, so putting the WireKit directory first makes every view
+        // that exists in both trees resolve to the WireKit one, while everything that exists in
+        // only the plain tree keeps working untouched.
+        //
+        // Done here rather than by choosing a view name in render(), and that is not a style
+        // preference: the anonymous components <x-visual-feedback::fab> and ::trigger never go
+        // through render(), so a name-based choice would serve a WireKit panel behind a plain
+        // trigger. A path list covers every resolution in the package at once.
+        //
+        // A host's published copy in resources/views/vendor still wins over both — Laravel puts
+        // it ahead of any package path — so publishing remains the way to actually EDIT the
+        // templates, and this key is the way to CHOOSE between them without maintaining a copy.
+        $this->loadViewsFrom(self::viewPaths(app(Settings::class)), 'visual-feedback');
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);
 

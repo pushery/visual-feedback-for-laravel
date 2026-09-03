@@ -7,7 +7,7 @@ namespace Pushery\VisualFeedback\Contracts;
 use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
 
 /**
- * A notice source that supplies the acknowledgement SENTENCE, not only a link to a page.
+ * A notice source that supplies the acknowledgment SENTENCE, not only a link to a page.
  *
  * Kept separate from PrivacyNoticeSource rather than added to it, because supplying a wording is
  * a capability, not a duty: a host that has nothing but a privacy URL implements the base

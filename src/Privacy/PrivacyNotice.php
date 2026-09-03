@@ -18,7 +18,7 @@ use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
  *  - null            → no notice (nothing to acknowledge),
  *  - 'url'           → the configured `privacy.url`,
  *  - 'legal-consent' → the pushery/legal-consent bridge: the configured `privacy.url` PLUS the
- *                      published acknowledgement sentence as the label,
+ *                      published acknowledgment sentence as the label,
  *  - a FQCN          → a host PrivacyNoticeSource resolved from the container.
  *
  * A notice is required exactly when there is a URL, whatever the source. That is deliberate and

@@ -4,6 +4,36 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.2.0] - 2026-09-04
+
+### Added
+
+- **Every channel can name its own queue connection**, not just its queue — `channels.mail.connection`, `channels.database.connection`, `channels.webhook.connection`, each with an environment variable. That is the difference between report delivery having its own lane and having its own worker: a host that runs a separate worker for slow or third-party work can now route these jobs to it. Left unset, the job stays on the application default, which is what almost every installation wants.
+- **The report mail says who reported it.** A "Reported by" block carries the reporter's name, whether they were a guest or a signed-in member, their email and phone when given, the submission time and the widget mode. This matters most for the shipped default: with only the mail channel enabled the report is persisted nowhere, so anything the mail omitted was gone the moment it was sent. The envelope was never a substitute — `Reply-To` carries the email only while `mail.reply_to_reporter` is on and only when a guest supplied one, and `guests.require_email` ships off; the name had no carrier at all.
+
+### Changed
+
+- **The WireKit view tree is chosen in configuration, not by publishing it.** `ui.variant` takes `auto`, `plain` or `wirekit`, and ships as `auto` — an application with WireKit 2.21 or newer gets the token-styled widget without configuring anything. Until now the only way to use that tree was `vendor:publish`, which meant keeping a COPY of these templates in your application, and a copy is what a package update silently leaves behind. Publishing still works and still wins; its job is now to EDIT the templates rather than to select them. `visual-feedback::style` also renders nothing while the WireKit tree is served, so an `@include` written once no longer ships CSS for a tree that is no longer rendering.
+
+  **Upgrade:** nothing to do if you already publish the WireKit tree — a published view still takes precedence. If you have WireKit installed and want the framework-free tree, set `VISUAL_FEEDBACK_UI_VARIANT=plain`, because `auto` will now pick WireKit for you.
+
+- **A modal widget stamps its open time when it opens, not when it mounts** — and the abuse floor now refuses a submission that carries no open time at all, while the time trap is armed. The two move together on purpose: the old stamp put a second-resolution timestamp into the rendered markup of every page carrying the widget, so the same page was byte-different from one second to the next and no full-page cache, ETag or CDN revalidation downstream could ever hit. Deferring it without closing the trap would have turned "no open time" into a way past the trap.
+
+  **Upgrade:** if you drive the widget from your own tests, a modal now needs `->call('markOpened')` before a submission, exactly as a reporter opening the panel would. Without it the submission is refused as having no open time. An inline widget is unaffected — it is open the moment it renders. Setting `abuse.min_fill_seconds` to `0` disarms the trap and, with it, this refusal.
+
+### Fixed
+
+- **Three capture boundaries the documentation warned about do not exist.** Measured against the bundled renderer in the same browser the suite drives: deep stacking and clipping reproduce exactly — a negatively layered element, an opacity or transform stacking context, and a positioned descendant clipped by an ancestor's `overflow` all came back matching the live page pixel for pixel — and `text-decoration` reproduces to the declared thickness. Both are gone from the list. The `<canvas>`/WebGL/`<video>` entry was too broad in the same direction: a 2D canvas, a video frame and a WebGL canvas created with `preserveDrawingBuffer: true` all reproduce, and only the default `preserveDrawingBuffer: false` case is a real limit. A caution about something that works costs a reader the same as a missing one.
+- **The screen-share hint no longer appears where the page forbids screen capture.** `Permissions-Policy: display-capture=()` leaves the API in place and makes the call reject, so the widget promised a permission prompt that never came. It asks the policy now, and the auto cascade skips an attempt it knows will fail. Where a browser exposes no way to ask, the answer is "allowed" — a missing introspection API must not take the native stage away from everyone who has it.
+- **The native capture hides the same surfaces the DOM capture does.** It carried its own list of two selectors and knew nothing about the WireKit panel or about teleported overlays, so a reporter on the WireKit tree photographed the feedback form along with the page — the defect the DOM stage had already been fixed for, one stage over. There is one list now, read by both.
+- **The screenshot preview carries `loading="lazy"` and `decoding="async"` in both view trees.** It holds a data URL of a full-page capture and is by far the heaviest element the widget renders, so a host auditing their own pages had a finding the package could simply not produce. Lazy rather than eager on purpose: the preview lives inside a panel the reporter has already opened, so it is never the page's LCP element.
+- **US spelling throughout.** One British `acknowledgement` had reached the shipped views, the config comments and the published documentation; the spelling ratchet now names that form, so it cannot come back.
+
+### Security
+
+- **Reporter-typed values can no longer inject Markdown into the report mail.** The name, email and phone are rendered through a new escape that neutralizes inline Markdown openers, not just table pipes. Before this, a phone number of `[click me](http://evil.example)` reached the maintainer's inbox as a working link inside a mail that appears to come from their own tooling — measured against the converter Laravel builds for a Markdown mailable, with images arriving the same way. The escape set is deliberately narrow: the plain-text alternative is entity-decoded rather than parsed, so escaping ordinary punctuation would put visible backslashes through names like `Dr. O'Brien-Smith`.
+
+
 ## [0.1.0] - 2026-09-03
 
 First public release.
@@ -24,7 +54,7 @@ First public release.
 - **Report context from the host through a provider contract**, plus per-widget mount overrides for categories, fields, recipient and capture.
 - **Seven bundled locales — de, en, es, fr, it, nl, pt — every string translated in an informal register.** Only a category you add yourself needs a label of your own.
 - **Built to WCAG 2.1 AA.** Both view trees hold the 44px touch target and the 16px font size below which iOS Safari zooms the page, honor `prefers-reduced-motion`, move focus to the control that was rejected, and announce the character counter from a separate live region once typing has paused.
-- **Optional bridges to the rest of the fleet, each a switched-off feature when its package is absent.** `pushery/webhooks-for-laravel` takes over the fan-out, `pushery/matomo-analytics-for-laravel` tracks accepted reports as events, and `privacy.source = legal-consent` puts the sentence `pushery/legal-consent-for-laravel` published on the acknowledgement checkbox.
+- **Optional bridges to the rest of the fleet, each a switched-off feature when its package is absent.** `pushery/webhooks-for-laravel` takes over the fan-out, `pushery/matomo-analytics-for-laravel` tracks accepted reports as events, and `privacy.source = legal-consent` puts the sentence `pushery/legal-consent-for-laravel` published on the acknowledgment checkbox.
 - **A Laravel Boost skill**, so an agent working in a consuming application knows how to adopt the package.
 
 ### Requirements
@@ -37,6 +67,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.2.0...HEAD
+
+[0.2.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.1.0...v0.2.0
 
 [0.1.0]: https://github.com/pushery/visual-feedback-for-laravel/releases/tag/v0.1.0

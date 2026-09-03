@@ -344,7 +344,7 @@
                         {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
                         <div x-show="status === 'captured'">
                             <img class="visual-feedback-preview" :src="previewUrl"
-                                alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}">
+                                alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" loading="lazy" decoding="async">
                             <div class="visual-feedback-preview-actions">
                                 <button type="button" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</button>
                                 <button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</button>
@@ -461,7 +461,7 @@
                     @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
                 </div>
 
-                {{-- Guest privacy acknowledgement — required only when a notice URL is configured.
+                {{-- Guest privacy acknowledgment — required only when a notice URL is configured.
                      `required` can be stated unconditionally INSIDE this branch because the branch
                      is the same condition the server checks: PrivacyNotice::required() is literally
                      `url() !== null`, and submit() rejects on exactly that. The two cannot drift.
@@ -470,7 +470,7 @@
                 @if ($showGuestFields && $privacyNoticeUrl)
                     <label class="visual-feedback-privacy" for="visual-feedback-privacy">
                         <input id="visual-feedback-privacy" @if ($vfInvalidField === 'privacy') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="checkbox" wire:model="privacyAcknowledged" required>
-                        {{-- The link is what makes the acknowledgement informed, so it stays the
+                        {{-- The link is what makes the acknowledgment informed, so it stays the
                              anchor whatever the wording says. `$privacyNoticeWording` is the
                              PUBLISHED sentence when a source supplies one; it is plain text that
                              legal-consent never sanitizes, so it is escaped here like any other

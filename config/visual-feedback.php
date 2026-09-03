@@ -223,7 +223,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Privacy acknowledgement
+    | Privacy acknowledgment
     |--------------------------------------------------------------------------
     |
     | The privacy notice shown to guests before they submit. `source` chooses where
@@ -237,7 +237,7 @@ return [
         'url' => env('VISUAL_FEEDBACK_PRIVACY_URL'),
 
         // Which pushery/legal-consent document the `legal-consent` source reads its
-        // acknowledgement sentence from. Only used by that source.
+        // acknowledgment sentence from. Only used by that source.
         //
         // `url` above stays REQUIRED with this source: legal-consent registers no public route
         // that displays a document (deliberately — the page belongs to your app), and a required
@@ -253,25 +253,34 @@ return [
     |--------------------------------------------------------------------------
     |
     | Where a report is delivered. Each channel is its own array (not a bare
-    | boolean) so every channel — not just mail — gets independent queue tuning.
+    | boolean) so every channel — not just mail — gets independent queue tuning:
+    | its own `connection`, `queue`, `tries` and `backoff`.
+    |
+    | `connection` is the name of a QUEUE connection from config/queue.php — the worker
+    | that carries the job — not a database connection. Left unset, the job runs on the
+    | application's default queue connection, which is what almost every host wants; set
+    | it when report delivery should not share a worker with the rest of the app.
     | `database` uses the optional migration; it is off by default.
     |
     */
     'channels' => [
         'mail' => [
             'enabled' => env('VISUAL_FEEDBACK_CHANNEL_MAIL', true),
+            'connection' => env('VISUAL_FEEDBACK_MAIL_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_MAIL_QUEUE'),
             'tries' => 3,
             'backoff' => 30,
         ],
         'database' => [
             'enabled' => env('VISUAL_FEEDBACK_CHANNEL_DATABASE', false),
+            'connection' => env('VISUAL_FEEDBACK_DATABASE_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_DATABASE_QUEUE'),
             'tries' => 3,
             'backoff' => 30,
         ],
         'webhook' => [
             'enabled' => env('VISUAL_FEEDBACK_CHANNEL_WEBHOOK', false),
+            'connection' => env('VISUAL_FEEDBACK_WEBHOOK_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_WEBHOOK_QUEUE'),
             'tries' => 3,
             'backoff' => 30,
@@ -386,6 +395,15 @@ return [
     |
     */
     'ui' => [
+        // Which view tree renders. `auto` serves the WireKit tree when a new enough WireKit is
+        // installed and the framework-free tree otherwise; `plain` and `wirekit` force one.
+        //
+        // Before this key the WireKit tree was reachable ONLY by publishing it into the host's
+        // resources/views/vendor — so using it meant maintaining a COPY of these templates, and
+        // every package update silently left that copy behind. Choosing at runtime keeps the
+        // templates in the package where updates reach them; publishing still works and still
+        // wins, for a host that genuinely wants to edit them.
+        'variant' => env('VISUAL_FEEDBACK_UI_VARIANT', 'auto'), // auto|plain|wirekit
         'trigger' => env('VISUAL_FEEDBACK_UI_TRIGGER', 'fab'), // fab|inline|none
         'position' => env('VISUAL_FEEDBACK_UI_POSITION', 'bottom-right'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
