@@ -6,6 +6,7 @@ namespace Pushery\VisualFeedback;
 
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -31,6 +32,7 @@ use Pushery\VisualFeedback\Listeners\TrackReportSubmission;
 use Pushery\VisualFeedback\Livewire\ReportWidget;
 use Pushery\VisualFeedback\Reporter\GuardReporterResolver;
 use Pushery\VisualFeedback\Support\CategoryLabels;
+use Pushery\VisualFeedback\Support\PublishedBundle;
 use Pushery\VisualFeedback\Support\Settings;
 
 final class VisualFeedbackServiceProvider extends ServiceProvider
@@ -121,6 +123,10 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/visual-feedback.php', 'visual-feedback');
 
         $this->app->singleton(Settings::class);
+        // Singleton so the memoized measurement happens once per request: two
+        // <x-visual-feedback::scripts /> tags on one page would otherwise hash the same
+        // two files twice.
+        $this->app->singleton(PublishedBundle::class);
         $this->app->singleton(CategoryLabels::class);
         $this->app->singleton(ContextRegistry::class);
         $this->app->bind(ResolvesReporter::class, GuardReporterResolver::class);
@@ -185,6 +191,17 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->registerPublishing();
             $this->commands([PruneReports::class, ForgetReporter::class, SweepOrphanAttachments::class]);
+
+            // `php artisan about` carries the state of the published bundle. Forgetting to
+            // republish after an upgrade is the one failure this setup produces, and it was the
+            // only one with no signal — the old copy keeps working and is simply the previous
+            // release. The closure defers the measurement to the moment somebody asks, and the
+            // console guard keeps it off every web request entirely.
+            if (class_exists(AboutCommand::class)) {
+                AboutCommand::add('Visual Feedback', fn (): array => [
+                    'Published bundle' => $this->app->make(PublishedBundle::class)->label(),
+                ]);
+            }
         }
     }
 
