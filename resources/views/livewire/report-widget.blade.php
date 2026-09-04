@@ -17,82 +17,20 @@
          the app appearance (`.dark`/`.light` on <html>) before the OS preference, so a
          light app on a dark OS is not mislabeled. `user_agent` is deliberately omitted
          here — the server overrides it with the request's own, unspoofable value. --}}
-    x-data="{
-        vfMeta() {
-            const de = document.documentElement;
-            const dark = de.classList.contains('dark')
-                ? true
-                : (de.classList.contains('light') ? false : window.matchMedia('(prefers-color-scheme: dark)').matches);
-            return {
-                url: location.href,
-                title: document.title,
-                referrer: document.referrer,
-                viewport_width: window.innerWidth,
-                viewport_height: window.innerHeight,
-                screen_width: window.screen.width,
-                screen_height: window.screen.height,
-                device_pixel_ratio: window.devicePixelRatio,
-                scroll_y: window.scrollY,
-                language: navigator.language,
-                languages: (navigator.languages || []).join(','),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                platform: navigator.platform,
-                touch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
-                online: navigator.onLine,
-                cookies_enabled: navigator.cookieEnabled,
-                dark_mode: dark,
-            };
-        },
+    {{-- Everything that used to live in this attribute now lives in the bundle, as a
+         registered Alpine component. Not a CSP variant of the template — the SAME form serves
+         both Alpine builds, and it is three lines instead of sixty-three.
 
-        {{-- Focus rescue. Whenever a control disappears because the state moved on — the
-             capture button while capturing, the discard button after discarding, the last
-             remove button after removing it — the browser drops focus onto <body> (or, in a
-             modal, onto the <dialog> itself) and the keyboard user is back at the top. This
-             puts focus on the control that took its place, but ONLY when it was actually
-             lost: if the reporter has meanwhile tabbed somewhere themselves, moving their
-             focus would be the worse bug. --}}
-        vfFocusIfLost(el, outgoing = document.activeElement, attempts = 12) {
-            if (! el) {
-                return;
-            }
-
-            const active = document.activeElement;
-
-            {{-- Focus is LOST when it sits on <body>, on the dialog itself, or on an element
-                 that no longer has a box — hiding the focused control does not blur it
-                 synchronously, so it can still be document.activeElement while rendering
-                 nothing. --}}
-            const lost = ! active || active === document.body || active.tagName === 'DIALOG'
-                || active.getClientRects().length === 0;
-
-            if (lost) {
-                {{-- focus() on a display:none element does not throw, it silently does
-                     nothing — so wait until the successor is actually rendered. --}}
-                if (el.getClientRects().length > 0) {
-                    el.focus();
-                } else {
-                    attempts > 0 && requestAnimationFrame(() => this.vfFocusIfLost(el, outgoing, attempts - 1));
-                }
-
-                return;
-            }
-
-            {{-- Not lost YET, and that is the trap: for a frame or two after the state
-                 changed, the control being replaced still holds focus AND still has a box,
-                 so a single verdict taken here always reads "fine" and the drop to <body>
-                 happens with nobody watching. Keep looking while focus still sits on that
-                 outgoing control — and the moment it rests anywhere the reporter put it,
-                 stop and leave it alone. --}}
-            if (active === outgoing && attempts > 0) {
-                requestAnimationFrame(() => this.vfFocusIfLost(el, outgoing, attempts - 1));
-            }
-        },
-    }"
+         The move was forced: an object literal with method shorthand, `const`, `if`, `return`,
+         default parameters, arrow functions and bare `document`/`window` is outside the CSP
+         grammar on six independent counts, and a rejected `x-data` leaves the element with an
+         EMPTY scope — every directive beneath it then silently does nothing. --}}
+    x-data="visualFeedbackWidget()"
     {{-- Single open handler for ALL three trigger paths (built-in FAB, standalone
          <x-visual-feedback::fab> / <x-visual-feedback::trigger>, and a host's own
          $dispatch('visual-feedback:open')). Each dispatches this window event; here we
          re-measure metadata and open the native modal. --}}
-    x-on:visual-feedback:open.window="$refs.dialog && !$refs.dialog.open && ($wire.metadata = vfMeta(), $wire.markOpened(), $refs.dialog.showModal())"
+    x-on:visual-feedback:open.window="vfOpen()"
 >
     @if ($showFab)
         {{-- Built-in FAB (modal mode) — the same component a host can also place itself. --}}
@@ -137,13 +75,13 @@
         <div role="status" aria-live="polite"
             {{-- Focus management: after a successful submit the form is gone, so move focus
                  to the "report another" button instead of letting it fall to <body>. --}}
-            x-effect="$wire.submitted && $nextTick(() => $refs.reportAnother && $refs.reportAnother.focus())">
+            x-effect="vfFocusReportAnother()">
             @if ($submitted)
                 <p>{{ __('visual-feedback::messages.widget.success') }}</p>
                 {{-- Resetting removes this very button, so the round-trip hands focus on to
                      the message field of the fresh form instead of leaving it on <body>. --}}
                 <button type="button" x-ref="reportAnother"
-                    x-on:click="$wire.resetWidget().then(() => $nextTick(() => vfFocusIfLost(document.getElementById('visual-feedback-message'))))">
+                    x-on:click="vfResetAndFocus()">
                     {{ __('visual-feedback::messages.widget.report_another') }}
                 </button>
             @endif
@@ -242,31 +180,11 @@
                 {{-- The counter's locale comes from the app (never a hardcoded literal
                      such as 'de-DE'), so the thousands separator matches the
                      reporter's language. --}}
-                <div x-data="{
-                    count: 0,
-                    {{-- The value the live region carries, kept apart from `count` on purpose:
-                         the visible number has to move with the keystroke and the announced one
-                         must not. --}}
-                    announced: '',
-                    settle: null,
-                    max: {{ $messageMax }},
-                    locale: @js($appLocale),
-                    init() {
-                        {{-- Populate the region once at boot, so its tally is readable before the
-                             first keystroke rather than only after one. --}}
-                        this.announced = this.tally();
-                    },
-                    tally() {
-                        const number = new Intl.NumberFormat(this.locale);
-
-                        return number.format(this.count) + ' / ' + number.format(this.max);
-                    },
-                    measure(value) {
-                        this.count = [...value].length;
-                        clearTimeout(this.settle);
-                        this.settle = setTimeout(() => { this.announced = this.tally(); }, 700);
-                    },
-                }">
+                {{-- A scalar object literal, spelled out rather than handed over as one
+                     Blade-encoded array: `@js()` on a scalar renders a plain literal, but on an
+                     ARRAY it renders `JSON.parse('…')` — and `JSON` is an identifier Alpine's
+                     CSP evaluator cannot resolve. --}}
+                <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
                     <label for="visual-feedback-message">
                         {{ __('visual-feedback::messages.widget.message_label') }}
                     </label>
@@ -306,13 +224,20 @@
                          its successor via x-ref, so focus lands there instead of on <body>; the
                          transient states (capturing, uploading) name nothing and are simply
                          skipped, and the next terminal state picks focus back up. --}}
+                    {{-- No arguments, and that is not a simplification for its own sake. The
+                         component already merges the screenshot defaults out of the JSON config
+                         island, so passing them again through `@js()` was redundant — and
+                         actively harmful: `@js()` renders an ARRAY as `JSON.parse('…')`, and
+                         `JSON` is an identifier the CSP evaluator cannot resolve. The audit
+                         substitutes `@js(…)` away before parsing, so it would have called that
+                         green. The uploader seam and the stage callback moved into the
+                         component's own init(), where they can be read and tested. --}}
                     <div class="visual-feedback-screenshot"
-                        x-init="$watch('status', (value) => vfFocusIfLost($refs[value]))"
-                        x-data="visualFeedbackCapture({ ...@js($screenshotCaptureConfig), upload: (file) => new Promise((resolve, reject) => $wire.upload('screenshot', file, resolve, reject)), onStage: (stage) => $wire.set('screenshotStage', stage) })">
+                        x-data="visualFeedbackCapture()">
                         <button type="button" class="visual-feedback-capture"
                             x-ref="idle"
                             x-show="status === 'idle'"
-                            x-on:click="capture(document.documentElement)">
+                            x-on:click="capture()">
                             {{ __('visual-feedback::messages.widget.capture_screenshot') }}
                         </button>
 
@@ -348,19 +273,19 @@
                             <div class="visual-feedback-preview-actions">
                                 <button type="button" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</button>
                                 <button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</button>
-                                <button type="button" x-on:click="retake(document.documentElement)">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
+                                <button type="button" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
                             </div>
                         </div>
 
                         <button type="button" x-ref="attached" x-show="status === 'attached'"
-                            x-on:click="retake(document.documentElement)">
+                            x-on:click="retake()">
                             {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                         </button>
 
                         {{-- B7 fix: a capture failure is VISIBLE with retry, not a silent console.warn. --}}
                         <div x-show="status === 'failed'" role="alert" aria-live="assertive">
                             {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                            <button type="button" x-ref="failed" x-on:click="retake(document.documentElement)">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
+                            <button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
                         </div>
 
                         {{-- Perimeter error surfaced from the screenshot upload validation. --}}
@@ -431,13 +356,7 @@
                                              nothing said. Held in a local, the container survives
                                              the morph because the list element itself is keyed and
                                              kept. --}}
-                                        x-on:click="(() => {
-                                            const box = $el.closest('.visual-feedback-attachments');
-                                            $wire.removeAttachment({{ $index }}).then(() => $nextTick(() => {
-                                                const remaining = box.querySelectorAll('.visual-feedback-remove');
-                                                vfFocusIfLost(remaining[Math.min({{ $index }}, remaining.length - 1)] ?? document.getElementById('visual-feedback-files'));
-                                            }));
-                                        })()"
+                                        x-on:click="vfRemoveAttachment({{ $index }})"
                                         aria-label="{{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}"
                                     >&times;</button>
                                 </li>
@@ -457,7 +376,7 @@
                      they had written correctly. An unknown field still falls back
                      to the message box rather than dropping focus on <body>. --}}
                 <div class="visual-feedback-error" id="visual-feedback-error" role="alert" aria-live="assertive"
-                    x-effect="$wire.failureCount && $nextTick(() => document.getElementById('visual-feedback-' + (['category','subject','message','name','email','phone','privacy','files'].includes($wire.failedField) ? $wire.failedField : 'message'))?.focus())">
+                    x-effect="$wire.failureCount && vfFocusFailedField()">
                     @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
                 </div>
 

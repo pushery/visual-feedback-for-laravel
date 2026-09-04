@@ -62,6 +62,12 @@
      (`defer` does not apply to a cloned element), so the bundle would be re-parsed per
      navigation and leave one more `alpine:init` listener — and its whole module scope —
      retained on `window` each time. --}}
+{{-- The widget bundle, ALWAYS — it is what registers the Alpine components the templates bind
+     to, and under Alpine's CSP build a component that is not registered means the element is
+     never initialized at all: an empty scope, and every directive on it silently dead.
+     Unconditional for that reason and affordable because of its size: about 4 KB against the
+     capture bundle's 268. --}}
+<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($bundleVersion) }}" data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
 <script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" data-navigate-once defer></script>
 @endif

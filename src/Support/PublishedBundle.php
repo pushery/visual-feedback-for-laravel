@@ -27,12 +27,14 @@ use Psr\Log\LoggerInterface;
 final class PublishedBundle
 {
     /**
-     * The only one of the three dist/ files that goes through `public/`.
+     * The IIFE builds — the two files that go through `public/`.
      *
-     * The ESM build is imported straight out of `vendor/` by a consumer's own bundler, so it
-     * cannot go stale in this sense; the chunk is loaded by the IIFE relative to itself.
+     * The ESM builds are imported straight out of `vendor/` by a consumer's own bundler, so they
+     * cannot go stale in this sense; the html2canvas chunk is loaded by the IIFE relative to
+     * itself. Both are checked because a publish that copied one and not the other is exactly
+     * the half-done state this exists to name.
      */
-    private const string BUNDLE = 'visual-feedback.iife.js';
+    private const array BUNDLES = ['visual-feedback-widget.iife.js', 'visual-feedback.iife.js'];
 
     private ?PublishedBundleStatus $status = null;
 
@@ -81,7 +83,7 @@ final class PublishedBundle
             .'is from an earlier release than the one installed.',
             [
                 'hint' => 'php artisan vendor:publish --tag=visual-feedback-assets --force',
-                'published' => $this->publishedPath(),
+                'published' => $this->publishedPath(self::BUNDLES[0]),
             ],
         );
     }
@@ -97,23 +99,25 @@ final class PublishedBundle
             return PublishedBundleStatus::ServedExternally;
         }
 
-        $published = $this->publishedPath();
+        $stale = false;
 
-        if (! is_file($published)) {
-            return PublishedBundleStatus::NotPublished;
+        foreach (self::BUNDLES as $bundle) {
+            $published = $this->publishedPath($bundle);
+
+            if (! is_file($published)) {
+                return PublishedBundleStatus::NotPublished;
+            }
+
+            // xxh128 rather than a cryptographic digest: this compares two files a maintainer
+            // controls, so speed is the only property that matters and there is nothing to forge.
+            $stale = $stale || hash_file('xxh128', $published) !== hash_file('xxh128', dirname(__DIR__, 2).'/dist/'.$bundle);
         }
 
-        $shipped = dirname(__DIR__, 2).'/dist/'.self::BUNDLE;
-
-        // xxh128 rather than a cryptographic digest: this compares two files a maintainer
-        // controls, so speed is the only property that matters and there is nothing to forge.
-        return hash_file('xxh128', $published) === hash_file('xxh128', $shipped)
-            ? PublishedBundleStatus::Current
-            : PublishedBundleStatus::Stale;
+        return $stale ? PublishedBundleStatus::Stale : PublishedBundleStatus::Current;
     }
 
-    private function publishedPath(): string
+    private function publishedPath(string $bundle): string
     {
-        return $this->app->publicPath('vendor/visual-feedback/'.self::BUNDLE);
+        return $this->app->publicPath('vendor/visual-feedback/'.$bundle);
     }
 }

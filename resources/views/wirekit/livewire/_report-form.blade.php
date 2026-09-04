@@ -25,12 +25,12 @@
      expression is null is omitted, which is the behavior this needs anyway. --}}
 {{-- Status region: success + "report another", with focus moved to the button on success. --}}
 <div role="status" aria-live="polite"
-    x-effect="$wire.submitted && $nextTick(() => $refs.reportAnother && $refs.reportAnother.focus())">
+    x-effect="vfFocusReportAnother()">
     @if ($submitted)
         <p>{{ __('visual-feedback::messages.widget.success') }}</p>
         {{-- Resetting removes this button, so hand focus on to the fresh form's message field. --}}
         <x-wirekit::button x-ref="reportAnother"
-            x-on:click="$wire.resetWidget().then(() => $nextTick(() => vfFocusIfLost(document.getElementById('visual-feedback-message'))))">
+            x-on:click="vfResetAndFocus()">
             {{ __('visual-feedback::messages.widget.report_another') }}
         </x-wirekit::button>
     @endif
@@ -135,26 +135,10 @@
              tree had already been fixed. The throttle is on the CONTENT, never on the
              `aria-live` attribute: a region that appears in the same tick as its first text can
              have that first announcement swallowed. --}}
-        <div x-data="{
-            count: 0,
-            announced: '',
-            settle: null,
-            max: {{ $messageMax }},
-            locale: @js($appLocale),
-            init() {
-                this.announced = this.tally();
-            },
-            tally() {
-                const number = new Intl.NumberFormat(this.locale);
-
-                return number.format(this.count) + ' / ' + number.format(this.max);
-            },
-            measure(value) {
-                this.count = [...value].length;
-                clearTimeout(this.settle);
-                this.settle = setTimeout(() => { this.announced = this.tally(); }, 700);
-            },
-        }">
+        {{-- A scalar object literal rather than one Blade-encoded array: `@js()` on a scalar
+             renders a plain literal, but on an ARRAY it renders `JSON.parse('…')`, and `JSON` is
+             an identifier Alpine's CSP evaluator cannot resolve. --}}
+        <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
             <x-wirekit::textarea
                 id="visual-feedback-message" :aria-invalid="$vfInvalidField === 'message' ? 'true' : null" :aria-describedby="$vfInvalidField === 'message' ? 'visual-feedback-error' : null"
                 :label="__('visual-feedback::messages.widget.message_label')"
@@ -180,12 +164,11 @@
                  user is carried along instead of being dropped on <body> when the button they
                  just pressed is swapped out (see the plain tree for the detail). --}}
             <div class="visual-feedback-screenshot"
-                x-init="$watch('status', (value) => vfFocusIfLost($refs[value]))"
-                x-data="visualFeedbackCapture({ ...@js($screenshotCaptureConfig), upload: (file) => new Promise((resolve, reject) => $wire.upload('screenshot', file, resolve, reject)), onStage: (stage) => $wire.set('screenshotStage', stage) })">
+                                x-data="visualFeedbackCapture()">
                 <x-wirekit::button type="button"
                     x-ref="idle"
                     x-show="status === 'idle'"
-                    x-on:click="capture(document.documentElement)">
+                    x-on:click="capture()">
                     {{ __('visual-feedback::messages.widget.capture_screenshot') }}
                 </x-wirekit::button>
 
@@ -220,19 +203,19 @@
                     <div class="visual-feedback-preview-actions">
                         <x-wirekit::button type="button" intent="primary" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
                         <x-wirekit::button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
-                        <x-wirekit::button type="button" x-on:click="retake(document.documentElement)">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </div>
                 </div>
 
                 <x-wirekit::button type="button" x-ref="attached" x-show="status === 'attached'"
-                    x-on:click="retake(document.documentElement)">
+                    x-on:click="retake()">
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
 
                 {{-- A capture failure is VISIBLE with retry, not a silent console.warn. --}}
                 <div x-show="status === 'failed'" role="alert" aria-live="assertive">
                     {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                    <x-wirekit::button type="button" x-ref="failed" x-on:click="retake(document.documentElement)">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                    <x-wirekit::button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                 </div>
 
                 {{-- Perimeter error surfaced from the screenshot upload validation. --}}
@@ -281,7 +264,7 @@
              at the message box, so a typo in the email sent the reporter to the text they had
              written correctly. --}}
         <div class="visual-feedback-error" id="visual-feedback-error" role="alert" aria-live="assertive"
-            x-effect="$wire.failureCount && $nextTick(() => document.getElementById('visual-feedback-' + (['category','subject','message','name','email','phone','privacy','files'].includes($wire.failedField) ? $wire.failedField : 'message'))?.focus())">
+            x-effect="$wire.failureCount && vfFocusFailedField()">
             @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
         </div>
 
