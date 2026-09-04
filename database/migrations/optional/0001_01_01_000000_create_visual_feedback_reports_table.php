@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
  * explicit length because SQLite does not enforce lengths: an over-long value would otherwise
  * only fail in a MySQL/PostgreSQL production (the string-enum-vs-varchar trap).
  *
- * ⚠️ THREE OF THESE WIDTHS ARE THE OTHER HALF OF A CONFIG KNOB, SO WIDEN THE COLUMN WHENEVER
+ * THREE OF THESE WIDTHS ARE THE OTHER HALF OF A CONFIG KNOB, SO WIDEN THE COLUMN WHENEVER
  * YOU TURN THE KNOB PAST IT. `subject` pairs with `fields.subject.max_length` (150),
  * `reporter_phone` with `fields.phone.max_length` (32), and `category` has to hold the longest
  * key in `categories` (64). None of those config values is capped in shipped code — deliberately,

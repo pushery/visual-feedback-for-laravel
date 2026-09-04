@@ -99,7 +99,7 @@ final readonly class MetadataSanitizer
      * `User-Agent` header, the only value on the widget's path that is not already carried
      * through Livewire's own JSON transport.
      *
-     * ⚠️ The note that stood here said json_encode "throws on every retry and wedges the
+     * The note that stood here said json_encode "throws on every retry and wedges the
      * channel". It did neither — it returned false, a `(string)` cast made that `''`, and the
      * delivery went out empty and settled DELIVERED. A reader who believed the old sentence would
      * have concluded the downstream was loud and this scrub redundant. Both jobs now pass

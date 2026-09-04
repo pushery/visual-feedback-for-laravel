@@ -20,7 +20,7 @@ use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
  * The command is HONEST about its reach: mail copies already delivered to the admin inbox live
  * OUTSIDE the package's storage, so erasing those is the host's responsibility — printed as a note.
  *
- * ⚠️ THE MATCH IS AN EXACT EQUALITY, AND WHETHER IT IGNORES CASE IS THE DATABASE'S DECISION,
+ * THE MATCH IS AN EXACT EQUALITY, AND WHETHER IT IGNORES CASE IS THE DATABASE'S DECISION,
  * NOT THIS PACKAGE'S. Nothing normalizes the address — not the widget, not the guard resolver
  * that reads it off the host's user model, and not the write path — so the column's collation
  * decides: MySQL's default `utf8mb4` family matches case-INSENSITIVELY, PostgreSQL and SQLite

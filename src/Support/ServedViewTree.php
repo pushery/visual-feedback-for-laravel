@@ -58,7 +58,7 @@ final readonly class ServedViewTree
         // would be told they are on the plain one and get the plain stylesheet over it — this
         // defect's mirror image.
         //
-        // ⚠️ THE MARKER IS THE TREE'S OWN COMPOSITION, NOT "does WireKit appear anywhere".
+        // THE MARKER IS THE TREE'S OWN COMPOSITION, NOT "does WireKit appear anywhere".
         // The obvious test is `x-wirekit::`, and it reads as safe because the plain widget is
         // framework-free and carries none of them. But this package tells hosts to publish these
         // templates in order to EDIT them — so a host on the plain tree who drops a single

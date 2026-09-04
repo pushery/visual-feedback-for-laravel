@@ -23,7 +23,7 @@ use Throwable;
  * whole context path is server-side: there is no client-callable action that sets
  * context.
  *
- * ⚠️ NOTHING A PROVIDER DOES MAY COST THE REPORT. Context is enrichment — it turns "it's
+ * NOTHING A PROVIDER DOES MAY COST THE REPORT. Context is enrichment — it turns "it's
  * broken" into a diagnosable ticket — so losing it produces a worse ticket, never a lost one.
  * Losing the report is the expensive outcome, and every failure mode here is therefore logged
  * and stepped over: a class that does not implement the contract, a class that cannot be built
@@ -61,7 +61,7 @@ final readonly class ContextRegistry
         $entries = [];
 
         foreach ($this->providerClasses() as $class) {
-            // ⚠️ A CONTEXT PROVIDER MAY NOT COST THE REPORT. This used to call `make()` straight
+            // A CONTEXT PROVIDER MAY NOT COST THE REPORT. This used to call `make()` straight
             // out of the loop, so a host who renamed a class and left the old name in
             // `context_providers` got a `BindingResolutionException` out of `submit()` — a 500 on
             // `/livewire/update` on EVERY submission, with the form still rendering normally
