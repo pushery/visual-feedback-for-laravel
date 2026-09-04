@@ -281,13 +281,22 @@ which is the copy that gets corrected when a dependency moves.
 
 ### 8. Use a WireKit-styled widget (optional)
 
-If the application uses WireKit, publish the WireKit view tree so the widget inherits
-the design tokens. It overwrites the plain views on purpose, so do not include the plain
-stylesheet as well:
+**Nothing to do — an application with WireKit 2.21+ installed already gets it.** The shipped
+`ui.variant` is `auto`, which serves the WireKit tree when a new enough WireKit is present and
+the framework-free one otherwise. Force either tree when the automatic choice is not what the
+application wants:
 
-```bash
-php artisan vendor:publish --tag="visual-feedback-wirekit"
+```php
+// config/visual-feedback.php  —  or VISUAL_FEEDBACK_UI_VARIANT
+'ui' => ['variant' => 'wirekit'],   // auto|plain|wirekit
 ```
+
+**Do not publish the tree to select it.** `vendor:publish --tag="visual-feedback-wirekit"` still
+works and is the right move when the application genuinely wants to **edit** the templates — but
+publishing to merely choose between them leaves the host maintaining a copy of the package's
+views, which every update then silently leaves behind. That is what `ui.variant` was added to
+replace. The stylesheet needs no attention either way: it carries the same switch and renders
+nothing under the WireKit tree.
 
 **Needs WireKit 2.21 or newer** — that tree builds its trigger from `<x-wirekit::fab.button>`
 using the `placement` prop and the accessible-name path 2.21 introduced. Check the installed
@@ -490,12 +499,15 @@ are isolated from each other: one failing never stops the rest.
   same disk the application serves user uploads from.
 - Do not rely on any CSS effect — `filter`, `mask`, `content-visibility` — to hide sensitive
   content from a screenshot; use `data-visual-feedback-redact`.
-- Do not keep `@include('visual-feedback::style')` in the layout once the WireKit tree is
-  published. That tag overwrites the plain views on purpose — publishing the umbrella first
-  and the WireKit tag after it is the intended order — but the plain stylesheet then styles a
-  widget that is no longer there. One consequence follows it out: that stylesheet carries the
-  honeypot's concealment rule, so a policy forbidding style attributes needs the rule written
-  by hand — see the CSP allowances above.
+- Do not publish the WireKit tree in order to **select** it. `ui.variant` chooses the tree, and
+  publishing to choose leaves the application maintaining a copy of the package's templates that
+  every update silently leaves behind. Publish it when you want to edit it, not otherwise.
+- Do not remove `@include('visual-feedback::style')` from the layout on the assumption that the
+  WireKit tree makes it dead. It carries the same switch and renders nothing while that tree is
+  serving, so leaving it in costs nothing and keeps the plain tree styled if `ui.variant` ever
+  moves back. One thing does depend on it: the stylesheet carries the honeypot's concealment
+  rule, so a policy forbidding style attributes needs that rule written by hand — see the CSP
+  allowances above.
 - Do not write a channel that stores reports without `RetainsReport`. Nothing fails when you
   forget it; the attachments are simply gone by the time anyone opens the report.
 - Do not assume a green submit means a delivered report. A missing recipient, an idle queue

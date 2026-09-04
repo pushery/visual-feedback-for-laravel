@@ -16,6 +16,7 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
+use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Attachments\FilenameSanitizer;
 use Pushery\VisualFeedback\Context\ContextRegistry;
 use Pushery\VisualFeedback\Contracts\ResolvesReporter;
@@ -413,7 +414,18 @@ class ReportWidget extends Component
         // is the newer one — and, like the acknowledgment check above, not read at all while the
         // package is switched off, because with the legal-consent source this is the second call
         // that reaches for a published document.
-        $metadata = $enabled
+        //
+        // ⚠️ GATED ON THE SAME CONDITION THAT RENDERS THE NOTICE, not on `$enabled` alone. It was
+        // the looser test, so an AUTHENTICATED reporter — who is never shown the block, because
+        // `render()` asks for the wording behind `$isGuest && $privacyNoticeUrl !== null` — had
+        // `privacy_notice_key/locale/version/fingerprint` merged into their report anyway. The
+        // maintainer then read a provenance record for a notice nobody displayed, in the mail's
+        // technical-details table, in the database row and in the webhook payload. A guest with
+        // `privacy.url` unset got the same, for the same reason.
+        //
+        // Provenance for a document that was never on screen is worse than no provenance: it is
+        // the one field on the report that claims to record what the reporter saw.
+        $metadata = $enabled && $reporterDto->isGuest && app(PrivacyNotice::class)->required()
             ? array_merge($metadata, app(PrivacyNotice::class)->wording()?->toMetadata() ?? [])
             : $metadata;
 
@@ -449,6 +461,13 @@ class ReportWidget extends Component
             formOpenedAt: $this->openedAt > 0 ? new DateTimeImmutable('@'.$this->openedAt) : null,
             recipient: $this->recipient,
             challenge: $this->challenge,
+            // Exactly the keys the picker rendered, so the validator cannot disagree with it.
+            // `array_map` because PHP converts a numeric-STRING array key to an int on write:
+            // a configured `['101', '102']` comes back out of `array_keys()` as `[101, 102]`,
+            // and the pipeline's allowlist is a list of strings. The keys were strings going in
+            // — `categoryOptions()` filters on `is_string($key)` — so casting them back is a
+            // restoration rather than a widening.
+            allowedCategories: array_map(strval(...), array_keys($this->categoryOptions())),
         ));
 
         // Reclaim the files of a submission that produced no report.
@@ -619,7 +638,21 @@ class ReportWidget extends Component
         $disk = is_string($d = config('visual-feedback.attachments.disk')) ? $d : 'local';
 
         try {
-            Storage::disk($disk)->delete($paths);
+            $filesystem = Storage::disk($disk);
+            $filesystem->delete($paths);
+
+            // ⚠️ THE DIRECTORY, TOO. `storeAttachments()` writes each file into its own
+            // `<root>/<random>/` directory, and deleting the file left that directory standing
+            // forever: the orphan sweep only ever yields entries where `isFile()` is true, so an
+            // ALREADY-empty directory is never a candidate, and `PruneReports` / `ForgetReporter`
+            // walk only directories named by a table row — which a rejected submission has not
+            // got. One directory per rejected attempt, unbounded, on a public form where the
+            // rejections are the bot traffic.
+            app(EmptyDirectoryPruner::class)->prune(
+                $filesystem,
+                $paths,
+                is_string($root = config('visual-feedback.attachments.directory')) ? $root : 'visual-feedback',
+            );
         } catch (Throwable) {
             // Left to the orphan sweep, which exists for exactly this residue.
         }

@@ -22,7 +22,7 @@ return [
     // False means, precisely: the widget renders one empty hidden element (a Livewire
     // component must have a root, so that is as close to nothing as markup gets), the
     // <x-visual-feedback::fab>, <x-visual-feedback::trigger> and <x-visual-feedback::scripts>
-    // components render nothing at all — so the capture bundle is not requested either — and
+    // components render nothing at all — so neither JS bundle is requested either — and
     // the submit path refuses every request before it touches a rate limiter, a cache
     // or a disk. The refusal is VISIBLE — a page that was already open when you flipped the
     // switch tells its reporter the form is off, rather than showing a success screen for a
@@ -193,7 +193,15 @@ return [
     |--------------------------------------------------------------------------
     |
     | The built-in floor (honeypot + time trap + rate limits) is ALWAYS active,
-    | even under another driver. `driver` selects an ADDITIONAL layer that runs on
+    | even under another driver — no `driver` value removes it. ONE value does turn
+    | a third of it off, deliberately and by name: `min_fill_seconds = 0` disarms
+    | the time trap, because the whole check is gated on the minimum being above
+    | zero. It exists for test suites, which submit instantly; that is also how it
+    | reaches a published config and then production. Nothing logs it and `php
+    | artisan about` does not mention it, so if you are auditing an install, this
+    | is the value to read.
+    |
+    | `driver` selects an ADDITIONAL layer that runs on
     | top of the floor and can only ever reject more, never less: `builtin` (floor
     | only), `none` (floor still on), or ANY key you register yourself with
     | `VisualFeedback::extendAbuse($key, fn () => new YourGate)`. The set is
@@ -391,7 +399,10 @@ return [
     | A `mode` mount prop on the widget overrides this per instance, so a page can
     | carry both an inline form and a modal.
     |
-    | `assets` is the base URL the published JS bundle is served from.
+    | `assets` is the base URL the published JS bundles are served from. There are two:
+    | `visual-feedback-widget.iife.js`, which registers the Alpine components every template
+    | binds to and is always requested, and `visual-feedback.iife.js`, the capture renderer,
+    | requested only while `screenshot.strategy` is not `off`.
     |
     */
     'ui' => [
