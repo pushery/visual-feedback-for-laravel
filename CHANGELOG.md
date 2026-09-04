@@ -4,6 +4,17 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.4.0] - 2026-09-04
+
+### Fixed
+
+- **The widget works under a Content-Security-Policy without `unsafe-eval`.** It did not, and the failure was the silent kind. Alpine's CSP build parses directive expressions with a small grammar instead of evaluating them, and 25 of this package's expressions were outside it — including both handlers that open the widget, so under such a policy it could not be opened at all. A rejected expression is not degraded, it is never evaluated: the element gets an empty scope and every directive on it stops working, with nothing thrown and nothing logged. A consuming application collected uncaught errors on every page carrying the widget and switched it off rather than ship that.
+
+  All of it now lives in registered Alpine components rather than in the templates, which is the form that parses under **both** builds — so there is no CSP variant of the views, and the templates are considerably shorter. A guard parses the rendered markup on every run and refuses any expression outside the narrow shape those components use; where Alpine's own CSP parser is installed it additionally re-proves that the shape really is inside the grammar, rather than leaving that claim asserted.
+
+  **Upgrade:** the components are registered by a new bundle, `visual-feedback-widget.iife.js`, which `<x-visual-feedback::scripts />` emits on every page carrying the widget — about 4 KB, against the capture bundle's 268. Re-run `php artisan vendor:publish --tag=visual-feedback-assets --force` so the new file reaches `public/`; `php artisan about` names the state of both. If your policy lists the bundle path explicitly, add the second file to `script-src`. And if you have published and edited the view tree, put logic in a component and call a method from the template — an inline arrow function, a template literal or a bare `document` is what a stricter policy refuses.
+
+
 ## [0.3.0] - 2026-09-04
 
 ### Added
@@ -73,7 +84,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.0...HEAD
+
+[0.4.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.3.0...v0.4.0
 
 [0.3.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.2.0...v0.3.0
 

@@ -7,73 +7,12 @@
     handler are framework-agnostic and mirror the plain tree.
 --}}
 <div
-    x-data="{
-        vfMeta() {
-            const de = document.documentElement;
-            const dark = de.classList.contains('dark')
-                ? true
-                : (de.classList.contains('light') ? false : window.matchMedia('(prefers-color-scheme: dark)').matches);
-            return {
-                url: location.href,
-                title: document.title,
-                referrer: document.referrer,
-                viewport_width: window.innerWidth,
-                viewport_height: window.innerHeight,
-                screen_width: window.screen.width,
-                screen_height: window.screen.height,
-                device_pixel_ratio: window.devicePixelRatio,
-                scroll_y: window.scrollY,
-                language: navigator.language,
-                languages: (navigator.languages || []).join(','),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                platform: navigator.platform,
-                touch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
-                online: navigator.onLine,
-                cookies_enabled: navigator.cookieEnabled,
-                dark_mode: dark,
-            };
-        },
-
-        {{-- Focus rescue — the plain tree's twin (see livewire/report-widget.blade.php).
-             Restores focus to the control that replaced a disappearing one, and only when
-             focus was genuinely dropped onto <body>, never when the reporter moved it. --}}
-        vfFocusIfLost(el, outgoing = document.activeElement, attempts = 12) {
-            if (! el) {
-                return;
-            }
-
-            const active = document.activeElement;
-
-            {{-- Focus is LOST when it sits on <body>, on the dialog itself, or on an element
-                 that no longer has a box — hiding the focused control does not blur it
-                 synchronously, so it can still be document.activeElement while rendering
-                 nothing. --}}
-            const lost = ! active || active === document.body || active.tagName === 'DIALOG'
-                || active.getClientRects().length === 0;
-
-            if (lost) {
-                {{-- focus() on a display:none element does not throw, it silently does
-                     nothing — so wait until the successor is actually rendered. --}}
-                if (el.getClientRects().length > 0) {
-                    el.focus();
-                } else {
-                    attempts > 0 && requestAnimationFrame(() => this.vfFocusIfLost(el, outgoing, attempts - 1));
-                }
-
-                return;
-            }
-
-            {{-- Not lost YET, and that is the trap: for a frame or two after the state
-                 changed, the control being replaced still holds focus AND still has a box,
-                 so a single verdict taken here always reads "fine" and the drop to <body>
-                 happens with nobody watching. Keep looking while focus still sits on that
-                 outgoing control — and the moment it rests anywhere the reporter put it,
-                 stop and leave it alone. --}}
-            if (active === outgoing && attempts > 0) {
-                requestAnimationFrame(() => this.vfFocusIfLost(el, outgoing, attempts - 1));
-            }
-        },
-    }"
+    {{-- The same registered component the plain tree uses. It moved into the bundle because an
+         object literal with method shorthand, statements, default parameters, arrow functions
+         and bare `document`/`window` is outside Alpine's CSP grammar on six counts — and a
+         rejected `x-data` leaves the element with an EMPTY scope, so every directive beneath it
+         silently stops working. --}}
+    x-data="visualFeedbackWidget()"
     {{-- Every trigger path (built-in FAB, standalone components, a host's own $dispatch)
          dispatches `visual-feedback:open`; here we re-measure metadata fresh and open the
          WireKit modal by name via its own `wirekit-modal-show` event.
@@ -91,11 +30,13 @@
          renders with a literal `open`, so `!$refs.dialog.open` is permanently false there.
          Same outcome, so this is parity — not a new rule.
 
-         Nothing is lost by dropping the listener inline: `mount()` stamps `openedAt`
-         unconditionally ("the inline widget is open from the moment it renders"), and the
-         metadata is re-measured on the form's own `submit.capture`. --}}
+         Nothing is lost by dropping the listener inline: `mount()` stamps `openedAt` for an
+         INLINE widget — it is open from the moment it renders, and nothing else would ever
+         stamp it, because this listener is the modal path — and the metadata is re-measured on
+         the form's own `submit.capture`. (A modal is deliberately NOT stamped at mount; that is
+         what keeps an unopened widget's markup identical from one second to the next.) --}}
     @if ($mode === 'modal')
-        x-on:visual-feedback:open.window="$wire.metadata = vfMeta(); $wire.markOpened(); $dispatch('wirekit-modal-show', { name: 'visual-feedback' })"
+        x-on:visual-feedback:open.window="vfOpenWireKit()"
     @endif
 >
     @if ($mode === 'modal')

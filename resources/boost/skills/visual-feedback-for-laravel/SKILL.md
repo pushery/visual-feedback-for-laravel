@@ -42,8 +42,14 @@ php artisan vendor:publish --tag="visual-feedback-config"
 Every option in `config/visual-feedback.php` is documented inline.
 
 Re-run `php artisan vendor:publish --tag="visual-feedback-assets" --force` after each
-package update. The capture bundle under `public/vendor/visual-feedback` is a copy, and
+package update. The bundles under `public/vendor/visual-feedback` are copies, and
 a stale copy is the one failure this setup produces on its own.
+
+There are **two** of them, and they fail differently. `visual-feedback.iife.js` is the
+capture renderer (~270 KB) and only ships while `screenshot.strategy` is not `off`.
+`visual-feedback-widget.iife.js` is ~4 KB, always ships, and registers the Alpine
+components the templates bind to — so a page missing that one renders a widget whose
+every control silently does nothing.
 
 `php artisan about` says whether that was needed: under **Visual Feedback** it carries a
 **Published bundle** line reading `up to date`, `OUT OF DATE` with the command to run, or
@@ -152,6 +158,21 @@ failures are silent rather than loud:
   Without it the shot comes back with holes where the icons were.
 - `connect-src` and `font-src` for the origins of any inlined SVG or webfont inside the captured
   region.
+
+**You do not need `unsafe-eval`.** That is worth saying because Alpine normally does: its
+standard build evaluates every directive expression by constructing a function at runtime.
+Alpine ships a CSP build that parses expressions against a small grammar instead, and every
+expression this package renders is a method call on a component registered in the bundle —
+which parses under both builds. So `livewire.csp_safe => true` needs nothing configured here.
+
+Two consequences worth knowing:
+
+- If your `script-src` lists paths rather than a directory, list **both** bundles. Missing the
+  widget bundle is the silent failure above.
+- If you publish the view tree and edit it, keep the rule: **put logic in a component and call
+  a method from the template.** An arrow function, a template literal, an optional chain or a
+  bare `document` in a directive is what the CSP build refuses — and it refuses by not
+  evaluating, so the page renders and the control is dead.
 
 A policy that forbids style **attributes** (`style-src-attr 'none'`, or any `style-src` without
 `'unsafe-inline'`, which it falls back to) also needs one rule of its own in the WireKit tree —
