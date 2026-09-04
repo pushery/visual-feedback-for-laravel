@@ -51,5 +51,23 @@ final readonly class SubmissionInput
          * @var array<string, mixed>
          */
         public array $challenge = [],
+        /**
+         * The categories THIS call site offered, when it offered something other than the
+         * configured list.
+         *
+         * The widget's `categories` mount prop is documented as "the category list this widget
+         * offers", and the shipped example uses a key that is deliberately not in the config —
+         * a billing widget offering `billing`. Validation read the config alone, so that widget
+         * rendered a labeled option the pipeline rejected on every submit, with a message about
+         * an invalid selection and no way for the reporter to get past it.
+         *
+         * ⚠️ SERVER-AUTHORED, and that is what makes trusting it safe. The mount prop is
+         * `#[Locked]`, so a browser cannot widen it after mount, and any other caller of this
+         * pipeline is server code by definition. Empty means "use the configured list", which is
+         * what every caller that offers no list of its own passes.
+         *
+         * @var list<string>
+         */
+        public array $allowedCategories = [],
     ) {}
 }

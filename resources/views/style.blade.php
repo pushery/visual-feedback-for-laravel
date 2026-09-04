@@ -17,8 +17,15 @@
      The guard is here rather than in the host's layout because `ui.variant` defaults to `auto`:
      installing WireKit now switches the tree WITHOUT the host touching their layout, so an
      @include they wrote once would otherwise start shipping CSS for a tree that is no longer
-     being served. --}}
-@if (! app(\Pushery\VisualFeedback\Support\Settings::class)->servesWireKitViews())
+     being served.
+
+     It asks which tree RESOLVES, not which one is configured, and those are different after the
+     documented umbrella publish: that tag copies the plain templates into the host's
+     resources/views/vendor, Laravel puts that path first, and the plain tree then serves while
+     `ui.variant` still says wirekit. Reading the config answer there silenced this stylesheet
+     over a plain widget — no positioning, no dialog styling, and no concealment rule for the
+     honeypot, which lives in here. --}}
+@if (! app(\Pushery\VisualFeedback\Support\ServedViewTree::class)->servingWireKit())
 <style>
     :root {
         --vf-bg: #ffffff;

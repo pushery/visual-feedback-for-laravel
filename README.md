@@ -49,9 +49,12 @@ reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3+.
 - **Delivery channels**: mail, database and signed webhook, each isolated, individually queued,
   extensible with your own.
 - **Abuse protection with no external service** — honeypot, server-anchored time trap and rate
-  limits, running underneath any gate you add rather than instead of it, and no configuration
-  value removes them. The honeypot and the time trap depend on nothing outside the request; the
-  rate limits go through your cache, and what happens when that is down is a setting.
+  limits, running underneath any gate you add rather than instead of it, so a challenge provider
+  being down can never leave the form unprotected. The honeypot and the time trap depend on
+  nothing outside the request; the rate limits go through your cache, and what happens when that
+  is down is a setting. The one deliberate off switch is `abuse.min_fill_seconds = 0`, which
+  disarms the time trap — the value test suites reach for, and worth checking before it reaches
+  a published config.
 - Built to **WCAG 2.1 AA**, proven rather than asserted: a full axe sweep over every widget state
   in both trees, a keyboard-only run through the whole flow, and contrast measured on the values
   the browser actually rendered.

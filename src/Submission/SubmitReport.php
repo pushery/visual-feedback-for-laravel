@@ -234,10 +234,30 @@ final readonly class SubmitReport
 
     private function validate(SubmissionInput $input): ?ValidationFailure
     {
+        // What the call site OFFERED, falling back to the configured list. A widget mounted
+        // with its own `categories` used to render options this rule then rejected — the picker
+        // and the validator disagreed, and the reporter lost.
+        //
+        // ⚠️ An INT IS KEPT AND CAST, NOT DROPPED, and the difference is the whole submission.
+        // This filter used to be `is_string(...)`, which is right for config data — a host can
+        // put anything in there — and catastrophic for the offered list: PHP converts a numeric
+        // -string array key to an int on write, so a configured `['101', '102']` reaches here as
+        // `[101, 102]`, every entry is discarded, `Rule::in([])` renders as a bare `in:`, and
+        // EVERY category is invalid. The reporter is told their choice is wrong with nothing they
+        // can do about it, on a shape this package documents as supported.
+        //
+        // Dropping is still right for a value no category key can be — an array, an object, a
+        // bool, a null. Those cannot round-trip through a form field, so admitting them would
+        // widen the allowlist rather than repair it.
         /** @var list<string> $categories */
-        $categories = array_values(array_filter(
-            is_array($configured = $this->config->get('visual-feedback.categories')) ? $configured : [],
-            is_string(...),
+        $categories = array_values(array_map(
+            strval(...),
+            array_filter(
+                $input->allowedCategories !== []
+                    ? $input->allowedCategories
+                    : (is_array($configured = $this->config->get('visual-feedback.categories')) ? $configured : []),
+                static fn (mixed $key): bool => is_string($key) || is_int($key),
+            )
         ));
 
         $subjectMax = $this->configInt('visual-feedback.fields.subject.max_length', 150);

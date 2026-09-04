@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.4.1] - 2026-09-04
+
+### Fixed
+
+- **A widget mounted with its own `categories` offered options the server then refused.** The mount prop is documented as "the category list this widget offers" and the shipped example is a billing widget offering `billing` — a key deliberately absent from the configured list. It rendered as a normal, labeled option, and choosing it produced "The selected category is invalid" on every attempt, with nothing the reporter could do. Validation now accepts what the call site offered — including a list of numeric ids like `['101', '102']`, which PHP turns into ints on its way through an array key and the pipeline used to discard, allowing nothing at all. Trusting that list is safe because the prop is `#[Locked]`: a browser cannot widen it after mount, and a category nobody offered is still refused.
+- **The documented install left an application with WireKit on an UNSTYLED widget.** `vendor:publish --tag=visual-feedback` copies the plain templates into `resources/views/vendor/visual-feedback`, and Laravel resolves that path before the ones a package registers — so the plain widget served while `ui.variant` still said `wirekit`. That much is correct and is what makes publishing the way to edit the templates. The stylesheet was not: it asked which tree was *configured*, got `wirekit`, and rendered nothing. The result on the happy path was an unpositioned trigger, an unstyled dialog, and no concealment rule for the honeypot, which lives in that stylesheet. `visual-feedback::style` now follows the tree that actually **resolves**.
+
+  **Upgrade — and it is NOT "nothing to do" for the install this entry is about.** The stylesheet is a view, and `vendor:publish --tag=visual-feedback` copies it to `resources/views/vendor/visual-feedback/style.blade.php`. Laravel resolves your published copy before the package's, so an application that ran the documented install still has the old guard on disk and this fix cannot reach it. Re-publish it — `php artisan vendor:publish --tag=visual-feedback-views --force` — or delete that one file if you never edited it. Check first: a copy you HAVE edited will be overwritten by `--force`. If you never published the views, there is genuinely nothing to do.
+
+  If you ran the umbrella publish and expected the WireKit tree, you have also been on the plain one all along; [View trees](https://docs.pushery.com/visual-feedback-for-laravel/view-trees) says how to get back to it.
+- **A fractional `screenshot.scale` was truncated to zero and read back as one.** The capture page tells a host whose shots exceed `screenshot.max_bytes` to lower `screenshot.scale`. `env()` hands back a string, `(int) "0.5"` is `0`, and the client reads `0` as falsy and substitutes `1` — so the documented remedy produced a capture LARGER than configured and said nothing. `1.5` became `1` the same way. Integral values keep their integer type; fractional ones now survive.
+
 ## [0.4.0] - 2026-09-04
 
 ### Fixed
@@ -76,7 +88,7 @@ First public release.
 
 ### Requirements
 
-Needs PHP 8.4+, Laravel 13+ and Livewire 4.3+. The optional bridges have floors of their own: WireKit 2.21+, webhooks-for-laravel 2.0+, legal-consent-for-laravel 0.10+ and matomo-analytics-for-laravel 0.17+.
+Needs PHP 8.4+, **Laravel 12 or 13** and Livewire 4.3+. The optional bridges have floors of their own: WireKit 2.21+, webhooks-for-laravel 2.0+, legal-consent-for-laravel 0.10+ and matomo-analytics-for-laravel 0.17+.
 
 Three things are the host application's job, and the widget cannot supply them: a `<meta name="viewport" content="width=device-width, initial-scale=1">`, a `<main>` landmark, and one `<h1>`.
 
@@ -84,7 +96,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.1...HEAD
+
+[0.4.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.0...v0.4.1
 
 [0.4.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.3.0...v0.4.0
 
