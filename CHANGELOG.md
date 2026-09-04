@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.4.2] - 2026-09-05
+
+### Changed
+
+- **The shipped source carries no emoji in its comments.** Thirteen warning markers sat in the docblocks of ten files that install into your `vendor/` directory, and nothing in this package checked for them — so they had grown rather than been chosen. The warnings themselves are unchanged and still in capitals; only the pictograph in front of them is gone. Nothing you call, configure or render behaves differently.
+
 ## [0.4.1] - 2026-09-04
 
 ### Fixed
@@ -96,7 +102,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.2...HEAD
+
+[0.4.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.1...v0.4.2
 
 [0.4.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.0...v0.4.1
 

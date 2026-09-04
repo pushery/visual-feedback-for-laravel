@@ -131,7 +131,7 @@ final readonly class MailChannel implements ReportChannel
     /**
      * Fold a browser language tag onto a locale that can actually be rendered.
      *
-     * ⚠️ THE DOCBLOCK ABOVE SAID "folded from the metadata" WHILE THE VALUE WAS PASSED THROUGH
+     * THE DOCBLOCK ABOVE SAID "folded from the metadata" WHILE THE VALUE WAS PASSED THROUGH
      * RAW, AND THAT COST THE FEATURE ITS ORDINARY CASE. The tag comes from `navigator.language`,
      * which is BCP-47 and carries a region for most reporters — `de-DE`, `pt-BR`, `en-US`. Laravel
      * does not strip a region: it looks for `de-DE`, does not find it, and falls straight to

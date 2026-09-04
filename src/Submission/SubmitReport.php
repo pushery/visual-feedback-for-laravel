@@ -238,7 +238,7 @@ final readonly class SubmitReport
         // with its own `categories` used to render options this rule then rejected — the picker
         // and the validator disagreed, and the reporter lost.
         //
-        // ⚠️ An INT IS KEPT AND CAST, NOT DROPPED, and the difference is the whole submission.
+        // An INT IS KEPT AND CAST, NOT DROPPED, and the difference is the whole submission.
         // This filter used to be `is_string(...)`, which is right for config data — a host can
         // put anything in there — and catastrophic for the offered list: PHP converts a numeric
         // -string array key to an int on write, so a configured `['101', '102']` reaches here as

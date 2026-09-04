@@ -182,7 +182,7 @@ class ReportWidget extends Component
      * Whether the field named above is genuinely INVALID — as opposed to merely being where the
      * reporter's attention should go.
      *
-     * ⚠️ These are two different questions and the obvious shortcut gets them wrong.
+     * These are two different questions and the obvious shortcut gets them wrong.
      * `$failedField` is a FOCUS TARGET: three paths set it to `message` while the message the
      * reporter wrote is perfectly fine — a listener veto, a rate limit, and the master switch
      * being off (which fabricates a failure on `message` so the operator's line has somewhere to
@@ -415,7 +415,7 @@ class ReportWidget extends Component
         // package is switched off, because with the legal-consent source this is the second call
         // that reaches for a published document.
         //
-        // ⚠️ GATED ON THE SAME CONDITION THAT RENDERS THE NOTICE, not on `$enabled` alone. It was
+        // GATED ON THE SAME CONDITION THAT RENDERS THE NOTICE, not on `$enabled` alone. It was
         // the looser test, so an AUTHENTICATED reporter — who is never shown the block, because
         // `render()` asks for the wording behind `$isGuest && $privacyNoticeUrl !== null` — had
         // `privacy_notice_key/locale/version/fingerprint` merged into their report anyway. The
@@ -641,7 +641,7 @@ class ReportWidget extends Component
             $filesystem = Storage::disk($disk);
             $filesystem->delete($paths);
 
-            // ⚠️ THE DIRECTORY, TOO. `storeAttachments()` writes each file into its own
+            // THE DIRECTORY, TOO. `storeAttachments()` writes each file into its own
             // `<root>/<random>/` directory, and deleting the file left that directory standing
             // forever: the orphan sweep only ever yields entries where `isFile()` is true, so an
             // ALREADY-empty directory is never a candidate, and `PruneReports` / `ForgetReporter`

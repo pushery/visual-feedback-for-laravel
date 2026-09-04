@@ -24,7 +24,7 @@ final class ClientConfig
             // A number, or the literal 'device' (→ devicePixelRatio client-side); anything else
             // is a mistyped config and falls back to the safe default.
             //
-            // ⚠️ INTEGRAL VALUES STAY INTEGERS, FRACTIONAL ONES SURVIVE. This was `(int) $scale`,
+            // INTEGRAL VALUES STAY INTEGERS, FRACTIONAL ONES SURVIVE. This was `(int) $scale`,
             // which truncated: a host following the capture page's advice to "lower
             // `screenshot.scale`" set `0.5`, `env()` handed back the string, and `(int) "0.5"` is
             // `0`. The client's `clampScale` then reads `Math.max(0.1, 0 || 1)` — `0` is falsy —
