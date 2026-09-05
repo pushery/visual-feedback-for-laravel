@@ -4,6 +4,27 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.5] - 2026-09-05
+
+### Changed
+
+- **The documentation names the field length caps, and links the page it had been hiding.** A
+  reader can now find both from where they start.
+
+  The three caps — `subject` 150 characters, `message` 50 000, `phone` 32 — were documented only
+  in the config file's own comments, which you read after publishing it. They are the bounds a
+  reporter runs into, so they belong on the configuration page as well; the counting is in code
+  points rather than bytes, which is what makes `message` at 50 000 admit roughly 200 KB of UTF-8.
+
+  And the report browser had a documentation page that neither the README nor the portal's
+  landing page linked to. It has shipped since 0.5.0 and was findable only by noticing it in the
+  sidebar — so the question it answers, whether you can read your feedback back without building
+  a console, went unanswered for anyone who did not go looking.
+
+  No behavior changed in this release. It exists because the documentation site publishes from a
+  release rather than from the development branch, so a correction to it is not visible until one
+  happens.
+
 ## [0.5.4] - 2026-09-05
 
 ### Changed
@@ -167,7 +188,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.5...HEAD
+
+[0.5.5]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.4...v0.5.5
 
 [0.5.4]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.3...v0.5.4
 
