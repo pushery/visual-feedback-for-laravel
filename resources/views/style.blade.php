@@ -393,5 +393,115 @@
         font-weight: 600;
         cursor: pointer;
     }
+
+    /* ── The report browser ──────────────────────────────────────────────────────────
+       Same custom properties as the widget, so a host that already overrode --vf-accent
+       gets a browser that matches without touching anything else. No new tokens: a
+       second palette to keep in sync is a second palette that drifts. */
+    .visual-feedback-browser {
+        color: var(--vf-fg);
+        font: inherit;
+    }
+
+    .visual-feedback-browser-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--vf-gap);
+        align-items: flex-end;
+        margin-bottom: var(--vf-gap);
+    }
+
+    .visual-feedback-browser-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .visual-feedback-browser-field > span {
+        color: var(--vf-muted);
+        font-size: 0.875rem;
+    }
+
+    .visual-feedback-browser-field select,
+    .visual-feedback-browser-field input {
+        min-height: 44px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius);
+        background: var(--vf-bg);
+        color: var(--vf-fg);
+        font: inherit;
+    }
+
+    .visual-feedback-browser-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .visual-feedback-browser-table th,
+    .visual-feedback-browser-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--vf-border);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .visual-feedback-browser-table th {
+        color: var(--vf-muted);
+        font-weight: 600;
+    }
+
+    /* 44px on every control in the table, the same floor the widget holds. */
+    .visual-feedback-browser-actions button,
+    .visual-feedback-browser-clear,
+    .visual-feedback-browser-detail button {
+        min-height: 44px;
+        padding: 0.5rem 0.875rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius);
+        background: var(--vf-bg);
+        color: var(--vf-fg);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .visual-feedback-browser-empty {
+        padding: var(--vf-gap);
+        color: var(--vf-muted);
+    }
+
+    .visual-feedback-browser-detail {
+        margin-top: var(--vf-gap);
+        padding: var(--vf-gap);
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius);
+        background: var(--vf-bg);
+    }
+
+    .visual-feedback-browser-detail header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--vf-gap);
+    }
+
+    .visual-feedback-browser-message {
+        white-space: pre-wrap;
+    }
+
+    /* The preview is a full-page capture and by far the heaviest thing here. The box keeps
+       its space so the pane does not jump while it decodes. */
+    .visual-feedback-browser-attachment img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius);
+    }
+
+    .visual-feedback-browser-attachment figcaption {
+        color: var(--vf-muted);
+        font-size: 0.8125rem;
+        word-break: break-all;
+    }
 </style>
 @endif
