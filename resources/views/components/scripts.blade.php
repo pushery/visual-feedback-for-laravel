@@ -43,7 +43,7 @@
     // upgrade — a client-side stamp would be executed by the stale copy itself. It reads nothing
     // from disk unless APP_DEBUG is on, and renders no inline script, because this package
     // carries no CSP nonce to attach to one.
-    app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfStale();
+    app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfUnusable();
 @endphp
 {{-- Master switch. The host places this tag in ITS own layout, so the widget cannot take it away
      by rendering nothing itself — this component has to ask too, exactly as the fab and the
