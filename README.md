@@ -82,8 +82,12 @@ Full docs: **[docs.pushery.com/visual-feedback-for-laravel](https://docs.pushery
 
 ## Third-party notices
 
-The capture bundle includes [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.4.1 (MIT).
-The version is named so you can match an advisory against what you actually ship.
+[html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.4.1 (MIT) is bundled, and since
+0.6.0 it sits in a file of its own: `visual-feedback-renderer.iife.js` for the classic build,
+`visual-feedback.chunk.js` for the ESM one. Neither is loaded until a screenshot is actually
+taken. The version and the filename are both named so you can match an advisory against what
+you actually ship -- and, if you serve the bundles from your own origin, know which file has to
+be there for a capture to succeed.
 
 ## Security
 

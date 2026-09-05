@@ -34,6 +34,15 @@ final readonly class SubmissionInput
         public array $attachmentPaths = [],
         public ?string $screenshotPath = null,
         public string $honeypot = '',
+        /**
+         * The reporter's address, and the guest rate limit is keyed on it.
+         *
+         * NULL IS NOT "no limit" — it is a SHARED bucket. Every attempt that arrives without an
+         * address counts against one `unknown` key, so a second adapter that does not fill this
+         * puts all of its guests on one 5/hour allowance between them. That is the deliberate
+         * direction: a transport that cannot say who is calling gets the strictest treatment
+         * available, never an exemption. Fill it.
+         */
         public ?string $ipAddress = null,
         public ?DateTimeImmutable $formOpenedAt = null,
         /** Per-call-site mail recipient, overriding `mail.to` for this report only. */

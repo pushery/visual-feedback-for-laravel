@@ -26,6 +26,9 @@ use Psr\Log\LoggerInterface;
  */
 final class PublishedBundle
 {
+    /** @var array<string, ?string> */
+    private array $integrity = [];
+
     /**
      * The IIFE builds — the two files that go through `public/`.
      *
@@ -146,6 +149,49 @@ final class PublishedBundle
         }
 
         return $stale ? PublishedBundleStatus::Stale : PublishedBundleStatus::Current;
+    }
+
+    /**
+     * The Subresource Integrity digest of a SHIPPED bundle, or null when it cannot be read.
+     *
+     * Computed from `dist/` inside the package -- the bytes this release actually contains --
+     * rather than from whatever a CDN happens to be serving. That is the whole point: the digest
+     * is what a divergence would be measured AGAINST, so taking it from the copy under suspicion
+     * would prove nothing.
+     *
+     * WHICH MEANS IT CAN REFUSE A PAGE, AND THAT IS WHY IT IS OPT-IN. A CDN carrying a
+     * re-minified or older copy fails the check and the browser drops the script -- the widget
+     * then renders and does nothing, which is the failure this package spends most of its guards
+     * on. Turning it on is a statement that the CDN mirrors these files byte for byte.
+     *
+     * `sha384` because that is the SRI middle ground browsers all implement; `xxh128` above is a
+     * different job -- comparing two files a maintainer controls, where speed is the only
+     * property that matters and there is nothing to forge.
+     */
+    public function integrity(string $bundle): ?string
+    {
+        if (! in_array($bundle, self::BUNDLES, true)) {
+            return null;
+        }
+
+        if (array_key_exists($bundle, $this->integrity)) {
+            return $this->integrity[$bundle];
+        }
+
+        // No `is_file()` guard, and its absence is the point rather than an omission. `dist/` is a
+        // REQUIRED ship directory here -- release.yml refuses to publish without it and
+        // DistBundleTest pins every file -- so inside any tree this code can run in, both bundles
+        // exist. A branch for their absence is one no test can enter without writing into the real
+        // repository to create the state, and an unreachable branch is a coverage floor nobody can
+        // meet plus a claim nothing verifies.
+        //
+        // The failure it guarded against is still handled: a missing file makes hash_file() return
+        // false, which is the arm below. The `@` is only there to keep the stream warning out --
+        // the suite runs with failOnWarning, so the warning, not the missing digest, would be what
+        // turned a run red.
+        $digest = @hash_file('sha384', dirname(__DIR__, 2).'/dist/'.$bundle, binary: true);
+
+        return $this->integrity[$bundle] = $digest === false ? null : 'sha384-'.base64_encode($digest);
     }
 
     private function publishedPath(string $bundle): string

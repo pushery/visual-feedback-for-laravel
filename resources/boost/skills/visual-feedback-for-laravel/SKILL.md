@@ -45,11 +45,22 @@ Re-run `php artisan vendor:publish --tag="visual-feedback-assets" --force` after
 package update. The bundles under `public/vendor/visual-feedback` are copies, and
 a stale copy is the one failure this setup produces on its own.
 
-There are **two** of them, and they fail differently. `visual-feedback.iife.js` is the
-capture renderer (~270 KB) and only ships while `screenshot.strategy` is not `off`.
+There are **three** of them since 0.6.0, and they fail differently.
+
 `visual-feedback-widget.iife.js` is ~4 KB, always ships, and registers the Alpine
 components the templates bind to — so a page missing that one renders a widget whose
 every control silently does nothing.
+
+`visual-feedback.iife.js` is ~16 KB and ships while `screenshot.strategy` is not `off`.
+It is the capture state machine, not the renderer.
+
+`visual-feedback-renderer.iife.js` is ~245 KB and is the DOM renderer. Nothing loads it
+until a screenshot is actually taken, and the URL it is fetched from is derived from the
+script that loads it — so it has to sit beside `visual-feedback.iife.js` under the same
+base. `vendor:publish` puts all three there for you. If you serve the bundles from your
+own origin or a CDN instead, upload this one too: without it the capture button gets all
+the way to taking the picture and then reports a failure. A Content-Security-Policy needs
+to allow it under the same `script-src` source as the other two.
 
 `php artisan about` says whether that was needed: under **Visual Feedback** it carries a
 **Published bundle** line reading `up to date`, `OUT OF DATE` with the command to run, or

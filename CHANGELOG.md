@@ -4,6 +4,143 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.6.0] - 2026-09-05
+
+### Added
+
+- **Optional Subresource Integrity on the two script tags**, for the case where you serve the
+  bundles from an origin this application does not own.
+
+  `VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY=true` adds a `sha384` digest and
+  `crossorigin="anonymous"`. The digest is taken from the bundles inside the installed package,
+  which is the whole point: it is the value a divergence is measured against, so taking it from
+  the copy under suspicion would prove nothing. It does nothing while the bundles come from your
+  own `public/` — those are same-origin already.
+
+  **Off by default, and that is the careful answer rather than the lazy one.** Turning it on is a
+  statement that the origin mirrors this release's bundles byte for byte. A CDN that re-minifies,
+  or that still carries the previous version, fails the check — the browser drops the script, and
+  a widget whose bundle never loaded renders perfectly and does nothing. Nobody should acquire
+  that by upgrading.
+
+  **Upgrade:** nothing to do.
+
+- **`ReportRejected` now says WHICH of the three refusals fired.** They all report
+  `RejectionReason::Honeypot`, and one of them is not a bot.
+
+  A filled honeypot, a fill faster than a human manages, and a submission that carries no form-open
+  time at all are three different situations reported under one name. The third is a broken
+  integration rather than traffic: an adapter that never stamps the open time turns every
+  submission into a decoy success, silently, while the only signal you receive looks like bot
+  volume.
+
+  The event's `detail` now carries `honeypot`, `too_fast` or `open_time_missing`. The enum is
+  unchanged — it is small on purpose, and adding a case to it would be an API change.
+
+  **Upgrade:** nothing to do. A listener that ignores `detail` behaves exactly as before. If you
+  alert on rejection volume, `open_time_missing` is the value worth paging on.
+
+### Changed
+
+- **The DOM renderer is fetched when a screenshot is taken, not when the page loads.** The
+  always-loaded capture bundle goes from **263 KB to 16 KB**.
+
+  html2canvas-pro is ~246 KB of what that bundle weighed, and it is reached only when a reporter
+  opens the widget, chooses a screenshot, **and** the browser's native Screen Capture API is
+  unavailable or declined — the fallback path of a fallback path. Every visitor was parsing it on
+  every page. A consuming application measured the widget roughly doubling their landing page's
+  same-origin JavaScript.
+
+  The ESM build has always code-split this dependency. The classic `<script>` build could not —
+  esbuild does not split a classic script — so it is now a **third file**,
+  `visual-feedback-renderer.iife.js`, appended by the capture loader at the moment it is needed.
+
+  **Upgrade:** re-publish the assets (`php artisan vendor:publish --tag=visual-feedback-assets
+  --force`), which you do after every upgrade anyway. If you serve the bundles yourself from
+  `ui.assets`, upload the new file too — its URL is derived from the script that loads it, so it
+  has to sit beside `visual-feedback.iife.js`. A `script-src 'self'` policy needs no change; a
+  policy that enumerates exact script paths needs the new one added.
+
+### Removed
+
+- **`window.VisualFeedback.version` is gone.** It said `0.1.0` while the package shipped 0.5.5.
+
+  The constant had been in the entry module from the very first build, nothing in the package read
+  it, and no page documents it. It also cannot be made true: a Composer package carries no version
+  of its own — Packagist derives one from the tag — and injecting a number at build time would make
+  `dist/` differ between a development tree and a tagged one, which the reproducible-bundle check
+  refuses by construction.
+
+  **Upgrade:** if you read that property, take the version from the script tag's `?id=` instead. It
+  is resolved at request time from the installed package, and it is the number that is true.
+
+### Fixed
+
+- **Four locales called the same thing by two different names.** A Spanish reporter sent an
+  `informe` and found it listed as a `reporte`.
+
+  The widget and the report browser are one surface to the person using them: somebody submits a
+  thing and then looks for it in a list. `es`, `it`, `nl` and `pt` used one word in the widget and
+  another in the browser — `informe`/`reporte`, `segnalazione`/`report`, `rapport`/`report`,
+  `relatório`/`report`. Every one of those translations was correct on its own, which is why key
+  parity could not see it: the two files have different keys, and nothing compared their words.
+
+  Each browser file now uses the word its own widget file already used. `de` keeps `Report` in
+  both, which is a decision rather than drift — a real loanword, and the locale rules exempt those
+  by name.
+
+  **Upgrade:** nothing to do, unless you have published the translations into your own
+  application, in which case re-publish or apply the same wording.
+
+- **The guest rate limit now counts an IPv6 visitor by their /64, not by the address they picked
+  for that request.** On IPv6 the limit had no effect at all.
+
+  A residential IPv6 assignment is at least a /64 — 2^64 addresses the same person may use — and
+  changing the interface identifier between requests takes one `ip addr add`. No proxy, no botnet,
+  no cooperation from anyone. Every request therefore landed in its own bucket, and five per hour
+  became unlimited. Measured: `2001:db8:1:2::1`, `::2` and `::ffff:ffff:ffff:ffff` produced three
+  unrelated cache keys while sharing one network.
+
+  /64 is the boundary the internet hands out, which is why it is the one used. Folding further
+  would put unrelated customers of one provider in a shared bucket. **IPv4 is unchanged** — a /24
+  there is a neighborhood, not a household.
+
+  A malformed or absent address keeps its previous behavior and shares the `unknown` bucket: an
+  adapter that cannot say who is calling gets the strictest treatment available, not an exemption.
+
+  **Upgrade:** nothing to do. If you count on per-address buckets for IPv6 visitors — a lab, a
+  test harness that rotates addresses within one /64 — raise `guest_rate_limit`, because those
+  requests now share a bucket.
+
+### Security
+
+- **`referrer` no longer ships in the collected metadata, and a referrer that is collected keeps
+  only its origin.** It could carry a working password-reset link into a report.
+
+  Under `Referrer-Policy: strict-origin-when-cross-origin` — Laravel's default, and what a careful
+  application sets — a browser sends the **full URL including the path** on a **same-origin**
+  navigation. The "strict-origin" half governs cross-origin requests only.
+
+  A Laravel application routinely has routes whose path is itself the credential:
+  `reset-password/{token}`, `email/verify/{id}/{hash}`, a magic link, a team invitation. The page
+  somebody lands on after one of those carries the widget — for a password reset that is the
+  ordinary path — so a report filed there wrote a working link into its metadata, out by mail,
+  through a queue, and possibly into a shared inbox.
+
+  Checking whether those routes render the widget is the wrong check and it passes: the leak is
+  not the page reported **from**, it is the one before it.
+
+  Two changes, because the second is what holds when somebody undoes the first. The key is out of
+  the shipped `metadata.collect` list, and `MetadataSanitizer` now reduces a `referrer` to its
+  scheme, host and port whatever the list says. `url` is untouched — that one is the report's
+  subject, the reporter chose to file from there, and its path is the diagnosis.
+
+  **Upgrade:** nothing to do, and check nothing. If you had added `referrer` to `metadata.collect`
+  yourself it keeps working and now records the origin only. Reports already stored are not
+  rewritten; if your application has token-bearing routes, that stored metadata is worth a look.
+
+  Reported from a consuming application during a 0.5.5 rollout.
+
 ## [0.5.5] - 2026-09-05
 
 ### Changed
@@ -188,7 +325,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.6.0...HEAD
+
+[0.6.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.5...v0.6.0
 
 [0.5.5]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.4...v0.5.5
 

@@ -50,7 +50,11 @@ final readonly class AbuseGateManager implements AbuseGate
                     return $decision;
                 }
             } catch (Throwable $exception) {
-                $this->logger->warning('visual-feedback: additional abuse driver errored (failing open)', [
+                // `error`, not `warning`. A gate that throws is a DEFECT in that gate, and the
+                // consequence is that the challenge it enforces was skipped for this submission —
+                // not something to notice at the end of the week. This used to be `warning`, and
+                // a warning is where a fail-open goes to be unread.
+                $this->logger->error('visual-feedback: additional abuse driver errored (failing open)', [
                     'driver' => $gate::class,
                     'exception' => $exception::class,
                 ]);

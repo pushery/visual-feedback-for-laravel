@@ -7,8 +7,8 @@ declare(strict_types=1);
 // looking at their own feedback is not being addressed by a form letter.
 
 return [
-    'no_table_title' => 'Geen reports-tabel',
-    'no_table' => 'De optionele reports-migratie is niet gepubliceerd en uitgevoerd, dus er is niets opgeslagen om te bekijken.',
+    'no_table_title' => 'Geen rapporten-tabel',
+    'no_table' => 'De optionele rapporten-migratie is niet gepubliceerd en uitgevoerd, dus er is niets opgeslagen om te bekijken.',
     'filter_mode' => 'Modus',
     'filter_category' => 'Categorie',
     'filter_from' => 'Van',
@@ -16,8 +16,8 @@ return [
     'any' => 'Alle',
     'clear' => 'Filters wissen',
     'none_title' => 'Niets te tonen',
-    'none' => 'Geen report komt overeen met deze filters.',
-    'caption' => 'Feedback-reports, nieuwste eerst',
+    'none' => 'Geen rapport komt overeen met deze filters.',
+    'caption' => 'Feedback-rapporten, nieuwste eerst',
     'col_date' => 'Ontvangen',
     'col_mode' => 'Modus',
     'col_category' => 'Categorie',
@@ -27,10 +27,10 @@ return [
     'guest' => 'Gast',
     'open' => 'Openen',
     'delete' => 'Verwijderen',
-    'confirm_delete' => 'Dit report en de bijlagen verwijderen? Je kunt dit niet ongedaan maken.',
-    'detail' => 'Report-details',
-    'untitled' => 'Report zonder onderwerp',
+    'confirm_delete' => 'Dit rapport en de bijlagen verwijderen? Je kunt dit niet ongedaan maken.',
+    'detail' => 'Rapport-details',
+    'untitled' => 'Rapport zonder onderwerp',
     'close' => 'Sluiten',
-    'attachment_alt' => 'Screenshot bij dit report',
+    'attachment_alt' => 'Screenshot bij dit rapport',
 
 ];

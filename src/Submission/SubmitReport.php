@@ -93,7 +93,7 @@ final readonly class SubmitReport
         ));
 
         if ($decision->reason instanceof RejectionReason) {
-            $this->events->dispatch(new ReportRejected($decision->reason));
+            $this->events->dispatch(new ReportRejected($decision->reason, $decision->detail));
 
             // The GATE decides whether the reporter is told, not this line. It used to compare
             // the reason against one hardcoded case, which silently made every reason a consumer's

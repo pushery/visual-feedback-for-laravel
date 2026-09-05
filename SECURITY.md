@@ -24,9 +24,9 @@ You can expect an acknowledgment within **3 business days** and an assessment of
 
 ## Dependency updates
 
-Known advisories are flagged by GitHub's Dependabot **alerts**. Updates themselves are reviewed and merged by hand — nothing is auto-merged, because the heavy suite runs on a self-hosted gate rather than on a runner that could vouch for an unattended merge.
+Known advisories are flagged by GitHub's Dependabot **alerts** — in the development repository, not here. This repository is a read-only mirror of the released tree, so its own Security tab shows nothing and releases arrive as tags. Updates themselves are reviewed and merged by hand — nothing is auto-merged, because the heavy suite runs on a self-hosted gate rather than on a runner that could vouch for an unattended merge.
 
-That is the update path. The checks underneath it run on every gate rather than on a schedule, and they are hard failures rather than reports:
+That is the update path, and it is the weaker half of the two: with no `composer.lock` in the repository, the dependency graph those alerts read sees only the direct requirements, and anything resolved beneath them is invisible to it. The checks below are the ones that read the full resolution. They run on every gate rather than on a schedule, and they are hard failures rather than reports:
 
 - `composer audit` **fails the build** on a known advisory.
 - The package ships **no `composer.lock`** — a library resolves per consumer — so every gate run resolves fresh against the newest version each constraint allows. A breaking release surfaces here before it reaches you.

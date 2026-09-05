@@ -175,8 +175,32 @@ return [
     |
     */
     'metadata' => [
+        // `referrer` IS NOT IN THIS LIST, AND ITS ABSENCE IS THE POINT. It shipped enabled
+        // until 0.6.0 and it is the one key here that can carry somebody else's secret.
+        //
+        // Under `Referrer-Policy: strict-origin-when-cross-origin` — Laravel's default, and what
+        // a careful application sets — a browser sends the FULL URL including the path on a
+        // SAME-origin navigation. The "strict-origin" half governs cross-origin requests only.
+        //
+        // A Laravel application routinely has routes whose path IS the credential:
+        //
+        //     reset-password/{token}            Laravel
+        //     email/verify/{id}/{hash}          Laravel
+        //     magic-link/verify/{token}         pushery/email-magic-link-for-laravel
+        //     team-invitations/{token}          applications
+        //
+        // The page somebody lands on AFTER one of those carries the widget — for a password
+        // reset that is the ordinary path — so a report filed there wrote a working reset link
+        // into its metadata, out by mail, through a queue, possibly into a shared inbox.
+        //
+        // Checking whether those routes render the widget is the wrong check, and it passes: the
+        // leak is not the page reported FROM, it is the one before it.
+        //
+        // Add it back if you need it and know your policy. The sanitizer will keep only its
+        // scheme and host either way — see MetadataSanitizer — so the path cannot come with it.
+        // `url` already says where the reporter was, which is the question a bug report asks.
         'collect' => [
-            'url', 'title', 'referrer', 'user_agent',
+            'url', 'title', 'user_agent',
             'viewport_width', 'viewport_height',
             'screen_width', 'screen_height',
             'device_pixel_ratio', 'scroll_y',
@@ -214,7 +238,7 @@ return [
     'abuse' => [
         'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|none|any key you register
         'rate_limit' => 30,        // per authenticated user per hour
-        'guest_rate_limit' => 5,   // per guest IP per hour
+        'guest_rate_limit' => 5,   // per guest IP per hour (IPv6: per /64, see the abuse page)
         'min_fill_seconds' => 3,   // server-anchored time trap
         'on_error' => 'open',      // open|closed — builtin only
 
@@ -418,6 +442,17 @@ return [
         'trigger' => env('VISUAL_FEEDBACK_UI_TRIGGER', 'fab'), // fab|inline|none
         'position' => env('VISUAL_FEEDBACK_UI_POSITION', 'bottom-right'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
+
+        // Subresource Integrity on the two script tags. OFF by default, and the default is the
+        // careful answer rather than the lazy one: turning it on says the origin in `assets`
+        // mirrors this release's bundles BYTE FOR BYTE. A CDN that re-minifies, or that still
+        // carries the previous version, then fails the check — the browser drops the script, and
+        // a widget whose bundle never loaded renders perfectly and does nothing.
+        //
+        // It only does anything when `assets` points somewhere else. Served from your own
+        // `public/` the bytes are already same-origin, and the digest would be checking the file
+        // against itself.
+        'assets_integrity' => (bool) env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false),
     ],
 
     /*
