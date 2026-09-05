@@ -5,8 +5,10 @@
      the house rule for this tree and it is not ceremony: a prop that moved between minors is
      invisible until the page renders wrong.
 
-     No `x-` directive here either. Every interaction is a Livewire round trip, so this template
-     is outside the CSP question entirely. --}}
+     No `x-` directive here either — which is NOT the same as being outside the CSP question, and
+     this comment claimed it was. A `wire:` action expression is contextualized to
+     `$wire.<expression>` and evaluated by Alpine, so it meets the same grammar. See the plain
+     tree's header for the full correction. --}}
 <div>
     @if (! $this->tableExists())
         <x-wirekit::empty-state
@@ -88,10 +90,17 @@
                                 </x-wirekit::button>
                                 {{-- wire:confirm rather than an inline handler: Livewire's own
                                      mechanism, so this tree stays script-free under any policy. --}}
+                                {{-- `$wire['delete']` and NOT `delete(…)`, which is what this line said until 0.5.1.
+                                     Livewire rewrites a bare `delete('x')` to `$wire.delete('x')`, and under
+                                     Alpine's CSP build `delete` is a KEYWORD where the grammar wants an
+                                     IDENTIFIER — so the expression is never evaluated and the button is dead
+                                     with nothing logged. Index access parses under both builds. The whole
+                                     affected set, measured against Alpine's own parser:
+                                     delete false in instanceof new null true typeof undefined void. --}}
                                 <x-wirekit::button
                                     size="sm"
                                     variant="danger"
-                                    wire:click="delete('{{ $report->uuid }}')"
+                                    wire:click="$wire['delete']('{{ $report->uuid }}')"
                                     wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
                                 >
                                     {{ __('visual-feedback::browser.delete') }}

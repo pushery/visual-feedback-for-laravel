@@ -16,7 +16,7 @@
     // answer to the other question, decided where the rejection reason is still known.
 @endphp
 @php($vfInvalidField = $failedFieldInvalid ? $failedField : null)
-{{-- ⚠️ The marking below is written as BOUND attributes (`:aria-invalid="… ? … : null"`),
+{{-- NOTE. The marking below is written as BOUND attributes (`:aria-invalid="… ? … : null"`),
      not as the `@if` the plain tree uses. A Blade directive inside a COMPONENT tag's
      attribute list breaks the component parser, and it breaks it quietly: the tag still
      renders, and the props after the directive are dropped. Measured here — the message
@@ -50,7 +50,7 @@
          `x-on:submit.capture` — the reporter never reaches the package's own seven-locale
          line, and `failedField` never points focus at the control.
 
-         ⚠️ THIS COMMENT SAID "Nothing else in either tree carries `required`, so this is not
+         THIS COMMENT SAID "Nothing else in either tree carries `required`, so this is not
          about empty fields", AND IT WAS ALREADY WRONG WHEN IT WAS WRITTEN: the plain tree
          carried `required` on both controls. It stayed wrong in a more useful way afterwards,
          because this tree carried it on NEITHER — which is the defect it was hiding, not a

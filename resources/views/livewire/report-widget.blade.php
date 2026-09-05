@@ -104,7 +104,7 @@
                 {{-- Honeypot: off-screen, hidden from assistive tech, never tab-reachable.
                      Bots fill it; a non-empty value is silently rejected by the pipeline. --}}
                 <div class="visual-feedback-honeypot" aria-hidden="true"
-                    {{-- ⚠️ BOTH mechanisms, deliberately, and neither is redundant.
+                    {{-- BOTH mechanisms, deliberately, and neither is redundant.
                          The inline style is what hides this on an installation that never
                          included the stylesheet. The CLASS is what hides it when a content
                          security policy allows the stylesheet (nonce or hash) but forbids

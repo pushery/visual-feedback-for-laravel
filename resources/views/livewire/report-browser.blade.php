@@ -1,6 +1,12 @@
-{{-- The framework-free browser. No Tailwind, no build step, no Alpine — every interaction is a
-     Livewire round trip, which is why this template carries no `x-` directive at all and is
-     therefore outside the CSP question the widget had to solve.
+{{-- The framework-free browser. No Tailwind, no build step, every interaction a Livewire round
+     trip.
+
+     THAT DOES NOT PUT IT OUTSIDE THE CSP QUESTION, AND THIS COMMENT SAID IT DID. It read
+     "carries no `x-` directive at all and is therefore outside the CSP question the widget had
+     to solve", which is a true premise and a false conclusion: Livewire contextualizes a
+     `wire:` action expression into `$wire.<expression>` and hands it to Alpine, so these
+     attributes are evaluated by exactly the parser the widget had to be rewritten for. Shipped
+     in 0.5.0 and reported by two separate consuming applications within the hour.
 
      The styles live in `visual-feedback::style`, the same stylesheet the widget uses, so a host
      that already includes it gets this for free. --}}
@@ -78,9 +84,16 @@
                                 {{-- wire:confirm rather than a JS confirm(): it is Livewire's own
                                      mechanism and needs no inline handler, so this template stays
                                      free of script under any policy. --}}
+                                {{-- `$wire['delete']` and NOT `delete(…)`, which is what this line said until 0.5.1.
+                                     Livewire rewrites a bare `delete('x')` to `$wire.delete('x')`, and under
+                                     Alpine's CSP build `delete` is a KEYWORD where the grammar wants an
+                                     IDENTIFIER — so the expression is never evaluated and the button is dead
+                                     with nothing logged. Index access parses under both builds. The whole
+                                     affected set, measured against Alpine's own parser:
+                                     delete false in instanceof new null true typeof undefined void. --}}
                                 <button
                                     type="button"
-                                    wire:click="delete('{{ $report->uuid }}')"
+                                    wire:click="$wire['delete']('{{ $report->uuid }}')"
                                     wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
                                 >
                                     {{ __('visual-feedback::browser.delete') }}
