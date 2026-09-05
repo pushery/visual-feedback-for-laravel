@@ -29,6 +29,7 @@ use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Contracts\ResolvesReporter;
 use Pushery\VisualFeedback\Events\ReportSubmitted;
 use Pushery\VisualFeedback\Listeners\TrackReportSubmission;
+use Pushery\VisualFeedback\Livewire\ReportBrowser;
 use Pushery\VisualFeedback\Livewire\ReportWidget;
 use Pushery\VisualFeedback\Reporter\GuardReporterResolver;
 use Pushery\VisualFeedback\Support\CategoryLabels;
@@ -175,6 +176,12 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         $this->loadViewsFrom(self::viewPaths(app(Settings::class)), 'visual-feedback');
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);
+
+        // The browser is registered but NOT routed. Registration makes it usable from a host's
+        // own Blade; reaching it needs a route the host writes, and reaching its DATA needs a
+        // gate the host defines. Both are deliberate: this package ships an optional reader,
+        // not an admin panel it opens by itself.
+        Livewire::component('visual-feedback.report-browser', ReportBrowser::class);
 
         // The optional Matomo bridge — a no-op without the package (the listener's bridge guards it).
         Event::listen(ReportSubmitted::class, TrackReportSubmission::class);

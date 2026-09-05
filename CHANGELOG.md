@@ -4,6 +4,16 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.0] - 2026-09-05
+
+### Added
+
+- **An optional report browser, for reading your feedback without building an admin.** The package's position stays "bring your own admin" — the table is public API and a real console is still yours to build. This is for the other case: filter by mode, category and period, open one report with its screenshot, delete one with its attachment files cleaned up. It renders through whichever view tree your application serves, and neither template contains an Alpine expression, so it works unchanged under a Content-Security-Policy that withholds `unsafe-eval`.
+
+  **Installing the package does not expose it, and that takes two deliberate steps on your side.** The component is registered but has no route, so you reach it only through one you write. And it is gated by `viewVisualFeedbackReports`, which this package names and deliberately does not define — an undefined gate denies in Laravel, so a fresh install answers 403 rather than serving your users' feedback to anyone who guesses the component name. The check runs on every action rather than once at mount, so revoking access takes effect on the next click. [Report browser](https://docs.pushery.com/visual-feedback-for-laravel/report-browser) has the route and gate you need.
+
+  One thing worth knowing before you write that gate: a closure whose `$user` parameter is not nullable is never called for a guest, so it denies while looking like it allows. That is Laravel's behavior rather than this package's, and it is usually what you want — but it surprises everybody once.
+
 ## [0.4.2] - 2026-09-05
 
 ### Changed
@@ -102,7 +112,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.0...HEAD
+
+[0.5.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.2...v0.5.0
 
 [0.4.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.1...v0.4.2
 
