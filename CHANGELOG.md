@@ -4,6 +4,20 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.3] - 2026-09-05
+
+### Fixed
+
+- **A widget whose assets were never published failed completely silently.** If `public/vendor/visual-feedback/` is empty the bundles 404, no Alpine component is ever registered, and under Alpine's CSP build that is an **empty scope rather than an exception** — the panel renders server-side, and every control on it quietly does nothing. This package could already tell: its published-bundle detector has always been able to report `not published`, and the warning it fed only ever acted on `stale`, so the worst case was the one case it stayed silent for. It now says so, in the log, **including in production** — an out-of-date copy is cosmetic and stays behind `app.debug`, an inert widget is not. The message names the publish command and the path it looked for.
+
+  **What this looks like when it bites, so you can recognize it in a report:** every status branch of the screenshot block renders at once, so a "retake" button appears three times; the character counter sits at `0` because the markup's literal never gets replaced; and the preview shows while the capture is still loading. One cause, four symptoms — all of them fixed by publishing the assets, none of them by touching the panel.
+
+  **Upgrade:** run `php artisan vendor:publish --tag=visual-feedback-assets --force` after upgrading, as always. If you have ever wondered whether it worked, this release will tell you.
+
+### Changed
+
+- **`PublishedBundle::warnIfStale()` is now `warnIfUnusable()`.** The old name stopped describing what it does once it reports a missing copy as well as an out-of-date one. It is called from a shipped Blade view; if you call it yourself, rename the call.
+
 ## [0.5.2] - 2026-09-05
 
 ### Fixed
@@ -140,7 +154,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.3...HEAD
+
+[0.5.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.2...v0.5.3
 
 [0.5.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.1...v0.5.2
 

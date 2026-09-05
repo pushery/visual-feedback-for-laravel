@@ -61,15 +61,47 @@ final class PublishedBundle
     }
 
     /**
-     * Log a warning while the copy is stale — under `app.debug` only.
+     * Say something when the published copy cannot do its job.
      *
-     * The debug check comes FIRST, and the order is load-bearing rather than tidy: in production
-     * this method then costs one boolean read and touches the filesystem not at all. It is
-     * called from a Blade view that renders on every page carrying the widget, so a hash of two
-     * files per request would be a real cost for a message nobody would see.
+     * THIS USED TO BE `warnIfStale()` AND IT RETURNED SILENTLY ON THE WORST CASE. `measure()`
+     * has always been able to report `NotPublished`, and this method only ever acted on `Stale`
+     * — so a host whose `public/vendor/visual-feedback/` was empty got no signal at all, from a
+     * package that knew.
+     *
+     * That is not a cosmetic gap, because of what a missing bundle does under Alpine's CSP
+     * build: an unregistered component is an EMPTY SCOPE, not an exception. The markup renders
+     * server-side, the panel is drawn, and every directive on it does nothing — no error, no
+     * warning, nothing in the console but two 404s that look like an asset-pipeline detail.
+     * Measured at a consuming application: four hours to diagnose, and the widget was removed
+     * before it was understood.
+     *
+     * **`NotPublished` is therefore NOT gated on `app.debug`.** The old ordering put the debug
+     * check first so production paid one boolean and never touched the filesystem, and that
+     * reasoning was right for staleness — a cosmetic mismatch nobody would see. It does not
+     * transfer to a widget that is completely inert: production is exactly where this is worth
+     * knowing, and it is also where nobody is watching a local log.
+     *
+     * The cost objection does not survive measurement either. This is a memoized singleton, so
+     * it measures once per request however many tags a page carries, and `measure()` returns
+     * `NotPublished` on the FIRST missing file — before it hashes anything. Detecting it costs
+     * one `is_file()`.
      */
-    public function warnIfStale(): void
+    public function warnIfUnusable(): void
     {
+        if ($this->status() === PublishedBundleStatus::NotPublished) {
+            $this->logger->error(
+                'visual-feedback: the widget bundle is not published, so the widget is INERT — '
+                .'its Alpine components are never registered. Under Alpine\'s CSP build that '
+                .'fails silently: the panel renders and every control on it does nothing.',
+                [
+                    'hint' => 'php artisan vendor:publish --tag=visual-feedback-assets',
+                    'expected' => $this->publishedPath(self::BUNDLES[0]),
+                ],
+            );
+
+            return;
+        }
+
         if (! (bool) $this->config->get('app.debug')) {
             return;
         }
