@@ -4,11 +4,27 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.1] - 2026-09-05
+
+### Fixed
+
+- **The report browser's delete button did nothing under a strict Content-Security-Policy.** Both view trees shipped `wire:click="delete(…)"`. Livewire turns that into `$wire.delete(…)` before handing it to Alpine, and on a page whose policy withholds `unsafe-eval` Alpine parses directive expressions instead of compiling them — where `delete` is a JavaScript **keyword**, not the identifier the grammar expects. The expression was therefore never evaluated: the button rendered, looked entirely normal, and did nothing, with nothing thrown and nothing logged. Deleting a report is the one action whose failure you only notice by going back to check. Index access (`$wire['delete'](…)`) parses under both builds, so a single version serves every application.
+
+  **This matters beyond the one button if you are writing your own console against the component**, and it splits in two. An action named after an **operator** — `delete in instanceof new typeof void` — is rewritten to `$wire.<name>` and never parses. An action named after a **literal** — `true false null undefined` — is left alone by Livewire, parses fine, and then calls the literal at runtime. Both give you a control that silently does nothing; the first is cured by index access, the second needs a different method name.
+
+  **Upgrade:** take 0.5.1 if you serve the browser under a policy without `unsafe-eval`. Nothing else changed, no configuration moves, and there is nothing to republish.
+
+### Changed
+
+- **0.4.2 said the shipped source carries no emoji in its comments, and that held only for the PHP files.** Four markers remained in the Blade templates that install into your vendor directory, three of them from before that release. They are gone now, so the claim is true for the whole shipped tree rather than most of it.
+
+- **0.5.0's release note claimed the browser contained no Alpine expression. It did.** "No `x-` directive" is not the same as "no Alpine", because a `wire:` action expression is evaluated by the same parser — and that mistaken reading is what let the defect above ship. The sentence is corrected below and on the documentation page rather than quietly dropped, because it is the reasoning that failed, not just the wording.
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
 
-- **An optional report browser, for reading your feedback without building an admin.** The package's position stays "bring your own admin" — the table is public API and a real console is still yours to build. This is for the other case: filter by mode, category and period, open one report with its screenshot, delete one with its attachment files cleaned up. It renders through whichever view tree your application serves, and neither template contains an Alpine expression, so it works unchanged under a Content-Security-Policy that withholds `unsafe-eval`.
+- **An optional report browser, for reading your feedback without building an admin.** The package's position stays "bring your own admin" — the table is public API and a real console is still yours to build. This is for the other case: filter by mode, category and period, open one report with its screenshot, delete one with its attachment files cleaned up. It renders through whichever view tree your application serves, and neither template carries an `x-` directive. **The rest of this sentence was wrong, and 0.5.1 fixes what it hid:** it read "so it works unchanged under a Content-Security-Policy that withholds `unsafe-eval`", and it did not — a `wire:` expression meets that policy too.
 
   **Installing the package does not expose it, and that takes two deliberate steps on your side.** The component is registered but has no route, so you reach it only through one you write. And it is gated by `viewVisualFeedbackReports`, which this package names and deliberately does not define — an undefined gate denies in Laravel, so a fresh install answers 403 rather than serving your users' feedback to anyone who guesses the component name. The check runs on every action rather than once at mount, so revoking access takes effect on the next click. [Report browser](https://docs.pushery.com/visual-feedback-for-laravel/report-browser) has the route and gate you need.
 
@@ -112,7 +128,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.1...HEAD
+
+[0.5.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.0...v0.5.1
 
 [0.5.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.4.2...v0.5.0
 
