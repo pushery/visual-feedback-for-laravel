@@ -69,6 +69,8 @@ Full docs: **[docs.pushery.com/visual-feedback-for-laravel](https://docs.pushery
 - [Placing the trigger](https://docs.pushery.com/visual-feedback-for-laravel/placing-the-trigger) — the built-in button, your own, or the window event
 - [View trees](https://docs.pushery.com/visual-feedback-for-laravel/view-trees) — framework-free, or WireKit with your design tokens
 - [Delivery channels](https://docs.pushery.com/visual-feedback-for-laravel/delivery-channels) — mail, database, signed webhook, and adding your own
+- [Report browser](https://docs.pushery.com/visual-feedback-for-laravel/report-browser) — the optional view over
+  the reports table: route it, open the gate
 - [Abuse protection](https://docs.pushery.com/visual-feedback-for-laravel/abuse-protection) — what the floor covers on its own, and the seam for
   adding your own gate
 - [Privacy and retention](https://docs.pushery.com/visual-feedback-for-laravel/privacy-and-retention) — the notice, and how long anything is kept
