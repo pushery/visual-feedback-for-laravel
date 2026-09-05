@@ -15,6 +15,20 @@
 --}}
 @php
     $assetBase = rtrim((string) (config('visual-feedback.ui.assets') ?: asset('vendor/visual-feedback')), '/');
+
+    // Subresource Integrity, and ONLY where it can mean something: the bundles have to be coming
+    // from an origin this application does not own. Served from the host's own `public/` they are
+    // same-origin already and the digest would be checking a file against itself.
+    //
+    // Opt-in because it can refuse the page. A CDN that re-minifies, or that still carries the
+    // previous version, fails the check and the browser drops the script — leaving a widget that
+    // renders perfectly and does nothing, which is the failure this package spends most of its
+    // guards on.
+    $external = is_string(config('visual-feedback.ui.assets')) && config('visual-feedback.ui.assets') !== '';
+    $wantsIntegrity = $external && (bool) config('visual-feedback.ui.assets_integrity');
+    $integrity = fn (string $bundle): ?string => $wantsIntegrity
+        ? app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->integrity($bundle)
+        : null;
     $clientConfig = [
         'locale' => app()->getLocale(),
         'screenshot' => \Pushery\VisualFeedback\Support\ClientConfig::screenshot(),
@@ -67,8 +81,8 @@
      never initialized at all: an empty scope, and every directive on it silently dead.
      Unconditional for that reason and affordable because of its size: about 4 KB against the
      capture bundle's 268. --}}
-<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($bundleVersion) }}" data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
 @endif
 @endif

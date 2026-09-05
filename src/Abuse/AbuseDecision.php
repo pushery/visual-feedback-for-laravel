@@ -29,6 +29,7 @@ final readonly class AbuseDecision
         public bool $allowed,
         public ?RejectionReason $reason,
         public bool $visible,
+        public ?string $detail = null,
     ) {}
 
     public static function allow(): self
@@ -41,10 +42,16 @@ final readonly class AbuseDecision
      *                         safe answer when a gate does not say, because a silent rejection can
      *                         only ever cost a real person their message, while a visible one hands
      *                         an attacker a working detector.
+     * @param  ?string  $detail  a machine-readable note for the HOST's listener, never for the
+     *                           reporter. `RejectionReason` is a small enum on purpose and adding
+     *                           a case to it is an API change; this string is free, and it is what
+     *                           lets a host tell three different situations apart when the enum
+     *                           gives them one name. Optional: a gate that says nothing loses
+     *                           nothing.
      */
-    public static function reject(RejectionReason $reason, bool $visible = false): self
+    public static function reject(RejectionReason $reason, bool $visible = false, ?string $detail = null): self
     {
-        return new self(false, $reason, $visible);
+        return new self(false, $reason, $visible, $detail);
     }
 
     public function rejected(): bool

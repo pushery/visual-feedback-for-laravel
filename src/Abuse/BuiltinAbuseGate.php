@@ -59,8 +59,17 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         // The silent bot floor: a filled honeypot or a fill faster than a human could manage.
         // No cache, no disk, no network — there is nothing here for an outage to break, and
         // nothing above may discard either verdict on a broken limiter's behalf.
+        // THREE CAUSES SHARE ONE REASON, AND ONE OF THEM IS NOT A BOT. `RejectionReason::
+        // Honeypot` is what a host's listener sees for a filled honeypot, for a fill faster than
+        // a human manages, AND for a submission that carries no open time at all -- and the third
+        // is a broken INTEGRATION, not traffic: an adapter that never stamps the open time turns
+        // every submission into a decoy success, silently, and the only signal the host gets
+        // reads like bot volume.
+        //
+        // The enum stays as it is -- it is small on purpose and a new case is an API change --
+        // and `detail` carries the distinction instead. It costs a listener nothing to ignore.
         if ($attempt->honeypot !== '') {
-            return AbuseDecision::reject(RejectionReason::Honeypot);
+            return AbuseDecision::reject(RejectionReason::Honeypot, detail: 'honeypot');
         }
 
         $minimum = $this->settings->minFillSeconds();
@@ -76,11 +85,11 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         // documented way to switch the trap OFF. A host that turned it off must not start
         // getting rejections from it.
         if ($minimum > 0 && $elapsed === null) {
-            return AbuseDecision::reject(RejectionReason::Honeypot);
+            return AbuseDecision::reject(RejectionReason::Honeypot, detail: 'open_time_missing');
         }
 
         if ($elapsed !== null && $elapsed < $minimum) {
-            return AbuseDecision::reject(RejectionReason::Honeypot);
+            return AbuseDecision::reject(RejectionReason::Honeypot, detail: 'too_fast');
         }
 
         return AbuseDecision::allow();
@@ -121,9 +130,44 @@ final readonly class BuiltinAbuseGate implements AbuseGate
     {
         if ($attempt->reporter->isGuest) {
             // Per guest IP; hashed so an IPv6's colons stay cache-key-safe and no raw IP is stored.
-            return 'visual-feedback:abuse:guest:'.hash('sha256', $attempt->ipAddress ?? 'unknown');
+            return 'visual-feedback:abuse:guest:'.hash('sha256', $this->rateLimitSubject($attempt->ipAddress));
         }
 
         return 'visual-feedback:abuse:user:'.($attempt->reporter->id ?? 'unknown');
+    }
+
+    /**
+     * The address the guest bucket is keyed on: IPv4 whole, IPv6 truncated to its /64.
+     *
+     * THE FULL IPv6 ADDRESS MADE THE GUEST LIMIT MEANINGLESS, AND IT COST AN ATTACKER NOTHING.
+     * A residential IPv6 assignment is at least a /64 -- 2^64 addresses the same person may use --
+     * and changing the interface identifier per request needs no proxy, no botnet and no
+     * cooperation from anyone: one `ip addr add` and every request lands in its own 5/hour bucket.
+     * Measured before the change: `2001:db8:1:2::1`, `::2` and `::ffff:ffff:ffff:ffff` hashed to
+     * three unrelated keys while sharing one /64.
+     *
+     * /64 is the boundary because it is the boundary the internet hands out. Truncating further
+     * would fold unrelated customers of one ISP into a shared bucket; truncating less is what this
+     * did. IPv4 is left whole -- a /24 there is a neighborhood, not a household.
+     *
+     * A malformed or absent address keeps its old behavior and shares the `unknown` bucket, which
+     * is deliberate: an adapter that cannot say who is calling gets the strictest treatment
+     * available, not an exemption.
+     */
+    private function rateLimitSubject(?string $ipAddress): string
+    {
+        if ($ipAddress === null || ! str_contains($ipAddress, ':')) {
+            return $ipAddress ?? 'unknown';
+        }
+
+        $packed = @inet_pton($ipAddress);
+
+        if ($packed === false || strlen($packed) !== 16) {
+            return $ipAddress;
+        }
+
+        $network = inet_ntop(substr($packed, 0, 8).str_repeat("\0", 8));
+
+        return $network === false ? $ipAddress : $network.'/64';
     }
 }

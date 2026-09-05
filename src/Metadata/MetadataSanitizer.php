@@ -83,6 +83,33 @@ final readonly class MetadataSanitizer
                     continue;
                 }
 
+                // A REFERRER IS REDUCED TO ITS ORIGIN, AND THIS IS ENFORCEMENT RATHER THAN
+                // TIDINESS. Under `Referrer-Policy: strict-origin-when-cross-origin` — Laravel's
+                // default — a same-origin navigation sends the full URL, PATH INCLUDED. In a
+                // Laravel application the path is routinely the credential itself:
+                // `reset-password/{token}`, `email/verify/{id}/{hash}`, a magic link. The page
+                // somebody lands on after one of those is exactly where they file a report.
+                //
+                // The key is out of the shipped `collect` list for that reason. This line is what
+                // holds when a consumer puts it back — and they will, because it reads like
+                // `language` or `platform` in a list of context fields. The origin answers what
+                // the field is for ("they came from our marketing site"); the path only ever adds
+                // somebody else's secret.
+                //
+                // `url` is deliberately NOT treated this way: that one IS the report's subject,
+                // the reporter chose to file from there, and its path is the diagnosis.
+                if ($key === 'referrer') {
+                    $parts = parse_url($value);
+                    $host = is_array($parts) ? ($parts['host'] ?? null) : null;
+
+                    if (! is_string($host) || $host === '') {
+                        continue;
+                    }
+
+                    $value = strtolower((string) ($parts['scheme'] ?? 'https')).'://'.$host
+                        .(isset($parts['port']) ? ':'.$parts['port'] : '');
+                }
+
                 $value = mb_substr($value, 0, $key === 'user_agent' ? $userAgentMax : $maxLength);
             }
 

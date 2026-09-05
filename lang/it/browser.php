@@ -7,8 +7,8 @@ declare(strict_types=1);
 // looking at their own feedback is not being addressed by a form letter.
 
 return [
-    'no_table_title' => 'Nessuna tabella dei report',
-    'no_table' => 'La migrazione opzionale dei report non è stata pubblicata né eseguita, quindi non c\'è nulla di salvato da consultare.',
+    'no_table_title' => 'Nessuna tabella delle segnalazioni',
+    'no_table' => 'La migrazione opzionale delle segnalazioni non è stata pubblicata né eseguita, quindi non c\'è nulla di salvato da consultare.',
     'filter_mode' => 'Modalità',
     'filter_category' => 'Categoria',
     'filter_from' => 'Dal',
@@ -16,8 +16,8 @@ return [
     'any' => 'Tutti',
     'clear' => 'Azzera i filtri',
     'none_title' => 'Niente da mostrare',
-    'none' => 'Nessun report corrisponde a questi filtri.',
-    'caption' => 'Report di feedback, dal più recente',
+    'none' => 'Nessuna segnalazione corrisponde a questi filtri.',
+    'caption' => 'Segnalazioni di feedback, dalla più recente',
     'col_date' => 'Ricevuto',
     'col_mode' => 'Modalità',
     'col_category' => 'Categoria',
@@ -27,10 +27,10 @@ return [
     'guest' => 'Ospite',
     'open' => 'Apri',
     'delete' => 'Elimina',
-    'confirm_delete' => 'Eliminare questo report e i suoi allegati? Non puoi annullare l\'operazione.',
-    'detail' => 'Dettaglio del report',
-    'untitled' => 'Report senza oggetto',
+    'confirm_delete' => 'Eliminare questa segnalazione e i suoi allegati? Non puoi annullare l\'operazione.',
+    'detail' => 'Dettaglio della segnalazione',
+    'untitled' => 'Segnalazione senza oggetto',
     'close' => 'Chiudi',
-    'attachment_alt' => 'Screenshot allegato a questo report',
+    'attachment_alt' => 'Screenshot allegato a questa segnalazione',
 
 ];
