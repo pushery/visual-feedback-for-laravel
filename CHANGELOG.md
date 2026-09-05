@@ -4,13 +4,25 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.2] - 2026-09-05
+
+### Fixed
+
+- **0.5.1 told you the wrong fix for half of a problem it had just described.** It said an action named after a JavaScript literal — `true`, `false`, `null`, `undefined` — could not be reached through index access and needed renaming. Measured against Alpine's own parser: `$wire['true'](…)` parses, and it calls your component method rather than the literal, because the string key is masked before Livewire's rewrite ever sees it. **Index access is the cure for both halves.** The two differ in *where* they fail — an operator name at parse time, a literal name at runtime — never in what fixes them.
+
+  **Upgrade:** nothing to do if you took 0.5.1; its shipped code was correct. If you followed its documentation and renamed a method, that rename was unnecessary but harmless.
+
+### Changed
+
+- **The guard behind that advice did not implement it.** 0.5.1 described two classes of dead action and shipped one list of ten names, because the commit that split them was written, tested and then never pushed — the release merged its parent. The consequence was not cosmetic: the extractor filters Livewire's skip list before any check runs, so the four literal names in that list could never match, and an action called `true` or `null` was invisible to the guard whose job is finding dead controls. The split is in, and the check that pins it now covers both halves rather than the operators alone.
+
 ## [0.5.1] - 2026-09-05
 
 ### Fixed
 
 - **The report browser's delete button did nothing under a strict Content-Security-Policy.** Both view trees shipped `wire:click="delete(…)"`. Livewire turns that into `$wire.delete(…)` before handing it to Alpine, and on a page whose policy withholds `unsafe-eval` Alpine parses directive expressions instead of compiling them — where `delete` is a JavaScript **keyword**, not the identifier the grammar expects. The expression was therefore never evaluated: the button rendered, looked entirely normal, and did nothing, with nothing thrown and nothing logged. Deleting a report is the one action whose failure you only notice by going back to check. Index access (`$wire['delete'](…)`) parses under both builds, so a single version serves every application.
 
-  **This matters beyond the one button if you are writing your own console against the component**, and it splits in two. An action named after an **operator** — `delete in instanceof new typeof void` — is rewritten to `$wire.<name>` and never parses. An action named after a **literal** — `true false null undefined` — is left alone by Livewire, parses fine, and then calls the literal at runtime. Both give you a control that silently does nothing; the first is cured by index access, the second needs a different method name.
+  **This matters beyond the one button if you are writing your own console against the component**, and it splits in two. An action named after an **operator** — `delete in instanceof new typeof void` — is rewritten to `$wire.<name>` and never parses. An action named after a **literal** — `true false null undefined` — is left alone by Livewire, parses fine, and then calls the literal at runtime. Both give you a control that silently does nothing, and **index access cures both**: `$wire['delete'](…)`, `$wire['true'](…)`. (0.5.1 said the literal case needed a rename instead. It does not — see 0.5.2.)
 
   **Upgrade:** take 0.5.1 if you serve the browser under a policy without `unsafe-eval`. Nothing else changed, no configuration moves, and there is nothing to republish.
 
@@ -128,7 +140,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.2...HEAD
+
+[0.5.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.1...v0.5.2
 
 [0.5.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.0...v0.5.1
 

@@ -177,9 +177,10 @@ Two consequences worth knowing:
   action expression meets the same grammar, because Livewire rewrites it to `$wire.<expression>`
   first. An operator name (`delete in instanceof new typeof void`) then fails to parse — write
   `$wire['delete'](…)` instead. A literal name (`true false null undefined`) is never rewritten,
-  parses, and calls the literal at runtime — rename the method. This package shipped the first
-  case in 0.5.0 and fixed it in 0.5.1; both look identical from the outside, which is a control
-  that renders and does nothing.
+  parses, and calls the literal at runtime — `$wire['true'](…)` fixes that one. **Index access is
+  the cure for both**; they differ only in where they fail. This package shipped the operator case
+  in 0.5.0 and fixed it in 0.5.1; both look identical from the outside, which is a control that
+  renders and does nothing.
 
 A policy that forbids style **attributes** (`style-src-attr 'none'`, or any `style-src` without
 `'unsafe-inline'`, which it falls back to) also needs one rule of its own in the WireKit tree —
