@@ -24,7 +24,7 @@ You can expect an acknowledgment within **3 business days** and an assessment of
 
 ## Dependency updates
 
-Dependencies are kept current automatically: [Renovate](https://docs.renovatebot.com) opens the update pull requests, and GitHub's Dependabot **alerts** flag known advisories — which Renovate turns into prioritized security updates. Every update is reviewed before it is merged; nothing is auto-merged, because the heavy suite runs on a self-hosted gate rather than on a runner that could vouch for an unattended merge.
+Known advisories are flagged by GitHub's Dependabot **alerts**. Updates themselves are reviewed and merged by hand — nothing is auto-merged, because the heavy suite runs on a self-hosted gate rather than on a runner that could vouch for an unattended merge.
 
 That is the update path. The checks underneath it run on every gate rather than on a schedule, and they are hard failures rather than reports:
 

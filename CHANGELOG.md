@@ -4,6 +4,19 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.5.4] - 2026-09-05
+
+### Changed
+
+- **`SECURITY.md` no longer advertises an automated dependency-update channel.** The page said
+  dependencies are kept current automatically and named the tool that opens the update pull
+  requests. That has never been true for this package: no such pull request has ever been opened
+  against it. A security page is what you read before adopting a package, and a promise there is
+  exactly the kind you would reasonably stop checking yourself — so it now describes only what is
+  verifiable from the repository: advisories flagged by Dependabot alerts, updates reviewed and
+  merged by hand, and the four checks that already ran on every gate as hard failures rather than
+  reports. Nothing about the checks changed; only the claim above them did.
+
 ## [0.5.3] - 2026-09-05
 
 ### Fixed
@@ -154,7 +167,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.4...HEAD
+
+[0.5.4]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.3...v0.5.4
 
 [0.5.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.2...v0.5.3
 
