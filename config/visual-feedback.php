@@ -17,6 +17,27 @@ return [
     |
     */
 
+    // EVERY BOOLEAN KEY IN THIS FILE READS ITS ENV VALUE THROUGH `filter_var`, AND THAT IS NOT
+    // DECORATION. `env()` converts exactly four spellings -- `true`, `false`, `empty`, `null` --
+    // and hands back everything else as a STRING. A non-empty string is truthy, so
+    // `VISUAL_FEEDBACK_ENABLED=off` used to read as ON. Nothing throws and nothing logs; from the
+    // outside it looks like the package ignores the setting, and the direction is the unpleasant
+    // one for every `*_ENABLED` and `*_CHANNEL_*` key here.
+    //
+    // A `(bool)` CAST IS NOT THE CURE, IT IS THE MORE EXPENSIVE VERSION. `(bool) 'off'` is
+    // `true` -- the cast confirms the non-empty string `env()` already returned. One key here
+    // carried such a cast and was no safer than the ten without it, while reading like a
+    // safeguard and stopping nobody.
+    //
+    // The `?? <default>` is load-bearing too: without it an unreadable value becomes `null` and
+    // therefore falsy, so a typo would switch a feature OFF instead of falling back to what this
+    // file declares. The right answer to "cannot read that" is the default.
+    //
+    // Two edges, measured rather than assumed, and left as they are because they match what
+    // Laravel itself does with an env value: an EMPTY value (`KEY=`) and a literal `KEY=null`
+    // both read as `false`, not as the default -- `filter_var` calls them readable-and-false, so
+    // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for.
+
     // Master switch — a kill switch that needs no code change.
     //
     // False means, precisely: the widget renders one empty hidden element (a Livewire
@@ -28,7 +49,7 @@ return [
     // switch tells its reporter the form is off, rather than showing a success screen for a
     // report nobody received. A `ReportRejected` event carries `RejectionReason::Disabled`, so
     // an operator can tell "switched off" from "under attack" in the same listener.
-    'enabled' => env('VISUAL_FEEDBACK_ENABLED', true),
+    'enabled' => filter_var(env('VISUAL_FEEDBACK_ENABLED', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
 
     /*
     |--------------------------------------------------------------------------
@@ -62,14 +83,14 @@ return [
     */
     'fields' => [
         'subject' => [
-            'enabled' => env('VISUAL_FEEDBACK_FIELD_SUBJECT', true),
+            'enabled' => filter_var(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
             'max_length' => 150,
         ],
         'message' => [
             'max_length' => 50_000,
         ],
         'phone' => [
-            'enabled' => env('VISUAL_FEEDBACK_FIELD_PHONE', false),
+            'enabled' => filter_var(env('VISUAL_FEEDBACK_FIELD_PHONE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
             'max_length' => 32,
         ],
     ],
@@ -86,8 +107,8 @@ return [
     |
     */
     'guests' => [
-        'require_name' => env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false),
-        'require_email' => env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false),
+        'require_name' => filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+        'require_email' => filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
     ],
 
     /*
@@ -155,7 +176,7 @@ return [
         'flatten_custom_elements' => true,
         'iframe_placeholder' => true,
         'redact_attribute' => 'data-visual-feedback-redact',
-        'debug' => env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false),
+        'debug' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
     ],
 
     /*
@@ -297,21 +318,21 @@ return [
     */
     'channels' => [
         'mail' => [
-            'enabled' => env('VISUAL_FEEDBACK_CHANNEL_MAIL', true),
+            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_MAIL', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
             'connection' => env('VISUAL_FEEDBACK_MAIL_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_MAIL_QUEUE'),
             'tries' => 3,
             'backoff' => 30,
         ],
         'database' => [
-            'enabled' => env('VISUAL_FEEDBACK_CHANNEL_DATABASE', false),
+            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_DATABASE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
             'connection' => env('VISUAL_FEEDBACK_DATABASE_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_DATABASE_QUEUE'),
             'tries' => 3,
             'backoff' => 30,
         ],
         'webhook' => [
-            'enabled' => env('VISUAL_FEEDBACK_CHANNEL_WEBHOOK', false),
+            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_WEBHOOK', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
             'connection' => env('VISUAL_FEEDBACK_WEBHOOK_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_WEBHOOK_QUEUE'),
             'tries' => 3,
@@ -370,7 +391,7 @@ return [
         // The receiver may be a third party, so the payload never carries attachment
         // paths/binaries. Set this false to also drop reporter PII (name/email/id),
         // leaving only `is_guest` in the reporter block.
-        'include_reporter' => env('VISUAL_FEEDBACK_WEBHOOK_INCLUDE_REPORTER', true),
+        'include_reporter' => filter_var(env('VISUAL_FEEDBACK_WEBHOOK_INCLUDE_REPORTER', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
     ],
 
     /*
@@ -452,7 +473,7 @@ return [
         // It only does anything when `assets` points somewhere else. Served from your own
         // `public/` the bytes are already same-origin, and the digest would be checking the file
         // against itself.
-        'assets_integrity' => (bool) env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false),
+        'assets_integrity' => filter_var(env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
     ],
 
     /*

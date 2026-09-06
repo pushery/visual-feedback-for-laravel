@@ -32,12 +32,19 @@ The service provider is registered automatically through package discovery.
 
 ### 2. Configure
 
-Publish everything at once, or only the configuration file:
+Publish the ordinary set, or only the configuration file:
 
 ```bash
 php artisan vendor:publish --tag="visual-feedback"
 php artisan vendor:publish --tag="visual-feedback-config"
 ```
+
+⚠️ The first is **not** everything, and reading it that way is the mistake this line exists to
+prevent. It covers the config, the translations, the views and the bundles. Two tags stand
+outside it on purpose, because each is a decision rather than a default:
+`visual-feedback-migrations` (the reports table — see the `database` channel below) and
+`visual-feedback-wirekit` (the WireKit view tree, which is selected by configuration and does
+not need publishing at all).
 
 Every option in `config/visual-feedback.php` is documented inline.
 
@@ -105,6 +112,11 @@ Three defaults are worth knowing before changing anything:
   when it is unavailable or declined. Set it to `dom` when the permission prompt is
   unwanted, `off` to drop screenshots entirely.
 - Only the mail channel is on. `database` and `webhook` are opt-in under `channels`.
+  **Switching `database` on needs a table, and it does not arrive with the package.** The
+  migration is not auto-loaded and is not part of the umbrella publish tag:
+  `php artisan vendor:publish --tag="visual-feedback-migrations"`, then `migrate`. Without it
+  the channel accepts a report and the queued job fails on the missing table — far from the
+  switch that caused it.
 - `attachments.disk` must be a **private** disk. Screenshots contain whatever the
   reporter had on screen.
 
@@ -178,8 +190,12 @@ which parses under both builds. So `livewire.csp_safe => true` needs nothing con
 
 Two consequences worth knowing:
 
-- If your `script-src` lists paths rather than a directory, list **both** bundles. Missing the
-  widget bundle is the silent failure above.
+- If your `script-src` lists paths rather than a directory, list **all three** files:
+  `visual-feedback-widget.iife.js`, `visual-feedback.iife.js` and
+  `visual-feedback-renderer.iife.js`. Missing the widget bundle is the silent failure above.
+  Missing the renderer is a louder one that arrives later: the capture button works right up to
+  the moment somebody uses it, then reports a failure, because the renderer is fetched at capture
+  time rather than on page load.
 - If you publish the view tree and edit it, keep the rule: **put logic in a component and call
   a method from the template.** An arrow function, a template literal, an optional chain or a
   bare `document` in a directive is what the CSP build refuses — and it refuses by not

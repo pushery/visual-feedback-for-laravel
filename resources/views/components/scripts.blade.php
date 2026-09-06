@@ -83,6 +83,6 @@
      capture bundle's 268. --}}
 <script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-navigate-once defer></script>
 @endif
 @endif

@@ -39,6 +39,16 @@ final class PublishedBundle
      */
     private const array BUNDLES = ['visual-feedback-widget.iife.js', 'visual-feedback.iife.js'];
 
+    /**
+     * Hashable, but deliberately NOT a BUNDLE.
+     *
+     * No `<script>` tag renders it -- the capture bundle appends it at capture time -- so it takes
+     * part in no staleness comparison and has no published path of its own to report. It does need
+     * a digest, because it is fetched from the same foreign origin as the two that have one, and
+     * it is by far the largest of the three.
+     */
+    private const string RENDERER = 'visual-feedback-renderer.iife.js';
+
     private ?PublishedBundleStatus $status = null;
 
     public function __construct(
@@ -170,7 +180,7 @@ final class PublishedBundle
      */
     public function integrity(string $bundle): ?string
     {
-        if (! in_array($bundle, self::BUNDLES, true)) {
+        if (! in_array($bundle, self::BUNDLES, true) && $bundle !== self::RENDERER) {
             return null;
         }
 

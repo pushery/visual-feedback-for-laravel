@@ -4,6 +4,28 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.7.0] - 2026-09-06
+
+### Fixed
+
+- **Every boolean setting now understands `off`, `no`, `on` and `yes`.** `env()` converts exactly four spellings — `true`, `false`, `empty`, `null` — and hands back everything else as a string, and a non-empty string is truthy. So `VISUAL_FEEDBACK_ENABLED=off` read as **on**, and the same held for the channel switches, the field toggles and the guest requirements: eleven keys in all. Nothing threw and nothing logged; from the outside it looked like the package ignored the setting.
+- One of those eleven carried a `(bool)` cast, which was no safer than the ten without it — `(bool) 'off'` is `true`. A cast confirms the non-empty string rather than converting it, and it reads like a safeguard, which is the part that costs.
+- An unreadable value now falls back to what the shipped config declares rather than to `false`, so a typo no longer switches a feature off. An empty value (`KEY=`) and a literal `KEY=null` still read as `false`, which is what Laravel does with any env value.
+- **Upgrade:** check your `.env` for any of the eleven `VISUAL_FEEDBACK_*` booleans set to something other than `true` or `false`. A key you meant to switch off with `off` or `no` was on until now and will be off after this release — the correction may look like a behavior change on the day you upgrade.
+- **The screenshot preview no longer sits in the document before there is a screenshot.** It was hidden with `x-show`, which sets `display:none` and leaves the element in the DOM, so every page carrying the widget held an `<img>` with an empty `src`. An empty `src` resolves against the page URL, so the browser fetched the HTML document as an image and discarded it — a request per page view, an entry in every accessibility tree, and a broken image for anything that checks. One consuming application's browser suite went red on 54 pages from this single element. The preview is rendered by `x-if` now, and exists exactly when it has a source.
+- **Upgrade:** nothing to do. If you published the widget view and carried that markup into your own copy, the same two lines are worth taking across.
+- **Subresource Integrity now covers the renderer bundle too, which is the largest of the three.** `VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY=true` put a digest on the two `<script>` tags a page renders. The third file, `visual-feedback-renderer.iife.js`, is not loaded by a tag at all — the capture bundle appends it at capture time, from the same base URL — so it arrived from your CDN unverified while the two small ones were checked.
+- Not a regression, and the distinction is worth having: integrity was introduced in 0.6.0, the same release that made the renderer its own file, so it shipped covering two files of three rather than losing coverage it once had. Two correct changes in one release whose interaction nobody saw.
+- **The bundled Boost skill and the configuration page counted two shipped JavaScript files where there are three.** The skill's CSP advice mattered most: a `script-src` that lists paths rather than a directory needs all three names, and a consumer who listed two got a capture button that works right up to the moment somebody uses it. Both places now name the files. The sentence about the two `<script>` **tags** is unchanged and was never wrong — files are three, tags are two.
+- **The privacy page now lists every field the widget collects.** All seventeen, with what each one is and where it comes from, because you need that list to write your own privacy notice and reading the config file to reconstruct it was work this documentation should have saved you. It also says plainly that the fields are jointly identifying, and which knob narrows them.
+- **Upgrade:** nothing to do. If you serve the bundles from a foreign origin with integrity switched on, that origin now has to allow CORS for the renderer as well — it is fetched with `crossorigin="anonymous"`, which a digest requires. Serving from your own `public/` is unaffected either way.
+
+### Security
+
+- **The referrer is cut to its origin in the browser, before it is sent.** 0.6.0 took `referrer` out of the shipped `metadata.collect` allowlist, so the server drops it and it never reaches a report, a mail or the queue. It was still transmitted, though, and "discarded server-side" describes the database rather than the way there — Telescope records request payloads by default, and so do many APM agents. Under Laravel's default `Referrer-Policy` a same-origin navigation hands over the full path, which is why this one field can carry a working password-reset or magic-link token.
+- Deleting it in the browser would have been the smaller change and the worse one: the design here is that the client sends and the server allowlist decides, so a host who adds `referrer` to their own `collect` list is meant to receive it. Truncating keeps the question a bug report actually asks — which *site* the person came from — and drops the part that can carry someone else's secret.
+- **Upgrade:** nothing to do unless you opted `referrer` into `metadata.collect` yourself, in which case you now receive scheme and host instead of the full URL.
+
 ## [0.6.0] - 2026-09-05
 
 ### Added
@@ -325,7 +347,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.7.0...HEAD
+
+[0.7.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.6.0...v0.7.0
 
 [0.6.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.5.5...v0.6.0
 
