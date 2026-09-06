@@ -198,8 +198,30 @@
 
                 {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
                 <div x-show="status === 'captured'">
-                    <img class="visual-feedback-preview" :src="previewUrl"
-                        alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" loading="lazy" decoding="async">
+                    {{-- `x-if`, NOT the `x-show` on the container, and the difference is a request per page
+                         view. `x-show` sets `display:none` and leaves the element in the DOM, so before the
+                         first capture every page carrying the widget held an image element whose `src` was empty.
+                         An empty `src` resolves against the PAGE URL: the browser fetches the HTML document
+                         as an image and throws it away, `naturalWidth` stays 0, and every browser checker
+                         reads it as broken. A consumer's suite went red on 54 pages from this one element.
+
+                         The condition is `previewUrl` rather than the status, because that is the thing
+                         being asserted: the image exists exactly when it has a source.
+
+                         AND ONLY THE IMAGE MOVES. The reported fix wrapped the whole block, which would
+                         have taken `x-ref="captured"` with it -- and the capture component focuses
+                         `$refs[status]` on every status change, so the successor control is reachable after
+                         the reporter presses the one being swapped out. `vfFocusIfLost` returns silently on
+                         a missing element, so that regression would be invisible: no error, no failing arm,
+                         just focus dropping to <body> for anyone on a keyboard.
+
+                         `loading="lazy"` is gone with it. It never worked here -- a lazy image inside a
+                         `display:none` parent is never requested at all -- and an element that only exists
+                         once it is needed has nothing left to defer. --}}
+                    <template x-if="previewUrl">
+                        <img class="visual-feedback-preview" :src="previewUrl"
+                            alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" loading="lazy" decoding="async">
+                    </template>
                     <div class="visual-feedback-preview-actions">
                         <x-wirekit::button type="button" intent="primary" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
                         <x-wirekit::button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
