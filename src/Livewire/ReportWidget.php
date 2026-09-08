@@ -15,6 +15,7 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Psr\Log\LoggerInterface;
+use Pushery\VisualFeedback\Abuse\FormOpenedAt;
 use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Attachments\FilenameSanitizer;
@@ -152,6 +153,22 @@ class ReportWidget extends Component
      */
     public ?string $screenshotStage = null;
 
+    /**
+     * Whether a capture is sitting in the preview with Attach / Discard / Retake under it.
+     *
+     * A screenshot exists only in the reporter's browser until `attach()` uploads it, so pressing
+     * Send from the preview used to submit the report WITHOUT it — no hint, no error, and a
+     * success message afterwards. Somebody takes a screenshot because words were not enough, and
+     * that was the part that disappeared.
+     *
+     * Client-set through the capture module's `onPending` seam and therefore UNTRUSTED, which
+     * costs nothing here: the only thing a forged value can do is refuse the forger's own submit.
+     * Auto-attaching instead would have been the smaller change and the wrong one — Discard
+     * exists because a screenshot is sometimes deliberately not sent, and attaching for them
+     * overrides exactly that intent.
+     */
+    public bool $screenshotPending = false;
+
     public bool $privacyAcknowledged = false;
 
     public bool $submitted = false;
@@ -195,14 +212,6 @@ class ReportWidget extends Component
      * stays in the shared alert region, unattributed, which is the honest place for it.
      */
     public bool $failedFieldInvalid = false;
-
-    /**
-     * The SERVER-anchored time the form was opened (Unix seconds), stamped on mount. #[Locked]
-     * so the client cannot rewrite it — the abuse time trap needs a start it can trust, and a
-     * plain public property is client-modifiable (a bot could fake a slow fill). 0 until mounted.
-     */
-    #[Locked]
-    public int $openedAt = 0;
 
     /**
      * Client-supplied challenge data, bound by whatever markup `abuse.challenge_view` renders.
@@ -273,7 +282,18 @@ class ReportWidget extends Component
         // This moves WITH the abuse floor, not before it: BuiltinAbuseGate refuses a submission
         // that carries no open time while the trap is armed, so the unstamped modal is refused
         // rather than exempted.
-        $this->openedAt = $this->mode === 'inline' ? Carbon::now()->getTimestamp() : 0;
+        //
+        // It is a SERVER-held stamp rather than a property on this component, which is the second
+        // half of the same story: as a `#[Locked]` property it threw during hydration whenever
+        // Livewire's own `wire:navigate` machinery sent the unchanged value back, so a widget
+        // living in the layout answered ordinary navigation with an uncatchable 419. Held here it
+        // is neither readable nor writable from the browser -- a stronger guarantee than the lock,
+        // which only ever stopped the write while the value traveled to the client anyway.
+        $this->mode === 'inline'
+            ? app(FormOpenedAt::class)->stamp($this->anchorKey(), Carbon::now()->getTimestamp())
+            // A modal is not open at mount, and a stamp another widget left in this session would
+            // let it pass a trap it never faced.
+            : app(FormOpenedAt::class)->forget($this->anchorKey());
     }
 
     /**
@@ -285,13 +305,48 @@ class ReportWidget extends Component
      * page for a few seconds before opening the form clears `min_fill_seconds` without ever
      * having seen it, which is exactly the bot behavior it exists to catch.
      *
-     * `openedAt` stays #[Locked], so this action is the only thing that can move it and it
+     * The stamp is held server-side, so this action is the only thing that can move it and it
      * only ever moves it to the server's own time — a client can call it, but calling it is
      * indistinguishable from opening the form, and every call makes the trap STRICTER.
      */
+    /**
+     * The key this widget's open-time anchor is stored under.
+     *
+     * Livewire declares `getId()` untyped, so this is where the value becomes a string — CHECKED
+     * rather than cast, because a cast turns "it is a string" from something the code establishes
+     * into something the code assumes, and the assumption is the part that rots.
+     *
+     * The fallback is the class name. A component whose id is not a string is one Livewire never
+     * registered — a hand-constructed instance, or a future version that mints something else —
+     * and two such instances sharing one anchor is a better failure than a TypeError on a public
+     * page. It errs STRICT either way: a shared anchor only ever moves the trap's start forward.
+     */
+    private function anchorKey(): string
+    {
+        $id = $this->getId();
+
+        return is_string($id) ? $id : static::class;
+    }
+
+    /**
+     * The server-held open time as an instant, or null when this widget was never opened.
+     *
+     * A METHOD RATHER THAN A TERNARY IN THE ARGUMENT LIST, and the reason is the 100% coverage
+     * floor rather than taste. A three-line ternary puts `: null` on a line of its own, that line
+     * holds the constant null as its whole value, and a constant compiles to no opcode — pcov
+     * never records it, PHPUnit counts it as executable, and no test can ever cover it. The line
+     * is then permanently red under this package's floor, and it reads as a missing test.
+     */
+    private function formOpenedAt(): ?DateTimeImmutable
+    {
+        $openedAt = app(FormOpenedAt::class)->for($this->anchorKey());
+
+        return $openedAt === null ? null : new DateTimeImmutable('@'.$openedAt);
+    }
+
     public function markOpened(): void
     {
-        $this->openedAt = Carbon::now()->getTimestamp();
+        app(FormOpenedAt::class)->stamp($this->anchorKey(), Carbon::now()->getTimestamp());
     }
 
     /**
@@ -394,6 +449,25 @@ class ReportWidget extends Component
             return;
         }
 
+        // A capture waiting in the preview stops the submit and says which of the two ways out
+        // there is. Without this the report went without it, silently, and the reporter read a
+        // success message — the most expensive shape of that failure, because a screenshot is
+        // taken precisely when words were not enough.
+        //
+        // Behind `$enabled` like everything above it, and behind the SAME condition that
+        // renders the capture UI. `screenshotPending` is client-set and survives a config change:
+        // a host who switches `screenshot.strategy` to `off` while a widget is open would
+        // otherwise leave that reporter unable to submit at all, refused over a control the page
+        // no longer shows and offering an Attach button that is not there.
+        //
+        // No control is marked invalid: the reporter typed nothing wrong, and there is nothing to
+        // correct — there is a decision to make.
+        if ($enabled && $this->screenshotPending && $this->screenshotEnabled()) {
+            $this->fail('screenshot', (string) trans('visual-feedback::messages.validation.screenshot_not_attached'));
+
+            return;
+        }
+
         // Sanitize the untrusted CLIENT metadata first, then fold in the trusted capture
         // stage — added AFTER sanitization and off the client-controlled allowlist, so it can
         // never be spoofed from the browser and only rides when a screenshot was attached.
@@ -458,7 +532,7 @@ class ReportWidget extends Component
             screenshotPath: $screenshotPath,
             honeypot: $this->feedbackReference,
             ipAddress: request()->ip(),
-            formOpenedAt: $this->openedAt > 0 ? new DateTimeImmutable('@'.$this->openedAt) : null,
+            formOpenedAt: $this->formOpenedAt(),
             recipient: $this->recipient,
             challenge: $this->challenge,
             // Exactly the keys the picker rendered, so the validator cannot disagree with it.
@@ -578,7 +652,7 @@ class ReportWidget extends Component
     /** Full reset so a second report (including a fresh screenshot) is possible in the same session. */
     public function resetWidget(): void
     {
-        $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'attachments', 'screenshot', 'screenshotStage', 'metadata', 'privacyAcknowledged', 'feedbackReference', 'challenge', 'submitted', 'failed', 'failedField', 'failedMessage', 'failedFieldInvalid']);
+        $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'attachments', 'screenshot', 'screenshotStage', 'screenshotPending', 'metadata', 'privacyAcknowledged', 'feedbackReference', 'challenge', 'submitted', 'failed', 'failedField', 'failedMessage', 'failedFieldInvalid']);
         // reset() restores the PROPERTY default — the empty string — which would put the
         // widget back into the mismatch mount() resolves. The second report must start where
         // the first one did.

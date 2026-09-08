@@ -40,6 +40,11 @@
         --vf-accent: #2563eb;
         --vf-accent-fg: #ffffff;
         --vf-error: #b91c1c;
+        /* The one tone that says a thing WORKED. Measured on the surface it sits on rather than
+           picked: 5.02:1 on #ffffff and 8.42:1 on the dark #1f2937, so both clear the 4.5:1 AA
+           floor for body text. Per-scheme like --vf-error and unlike --vf-border, because a
+           single green cannot carry both. */
+        --vf-success: #15803d;
         --vf-backdrop: rgba(17, 24, 39, .5);
         --vf-radius: 10px;
         --vf-fab-size: 3.5rem;
@@ -59,6 +64,7 @@
             --vf-accent: #2f6fe4;
             --vf-accent-fg: #ffffff;
             --vf-error: #f87171;
+            --vf-success: #4ade80;
             --vf-backdrop: rgba(0, 0, 0, .6);
         }
     }
@@ -268,7 +274,29 @@
     /* The attachment caps. Same muted treatment as the counter — both are secondary text
        next to a field, and --vf-muted is the one tone the contrast sweep already holds at
        AA in both schemes. A new color here would be a new thing to prove. */
-    .visual-feedback-hint { display: block; margin-top: 0.25rem; font-size: 0.8125rem; color: var(--vf-muted); }
+    .visual-feedback-hint,
+    /* The capture progress line. Muted DELIBERATELY, and the choice matters as much as the
+       success rule below it: `capturing` and `uploading` report progress, `attached` reports a
+       result, and tinting all three would make the color mean "something is happening" and stop
+       it meaning success anywhere. */
+    .visual-feedback-capture-status { display: block; margin-top: 0.25rem; font-size: 0.8125rem; color: var(--vf-muted); }
+
+    /* The two sentences that say something WORKED: "Screenshot attached" and the thank-you after
+       a submit. Both rendered as ordinary body text -- the second one in a bare <p>, the first
+       under a class with no rule in either tree -- so the message indistinguishable from the hint
+       above it was the one confirming the reporter's screenshot had arrived. */
+    .visual-feedback-success {
+        color: var(--vf-success);
+        font-weight: 600;
+    }
+
+    /* The glyph is what keeps the color from being the only carrier (WCAG 1.4.1). Green alone
+       says "success" to everyone except the readers who need the confirmation most. It is
+       aria-hidden because the sentence already says it to a screen reader, and both of these sit
+       in a live region -- announcing a check mark before the sentence would be noise. */
+    .visual-feedback-success-glyph {
+        margin-inline-end: 0.375rem;
+    }
 
     /* The honeypot's concealment, as a RULE rather than only as an attribute.
        The markup carries both. A content security policy that allows this stylesheet through a
@@ -502,6 +530,96 @@
         color: var(--vf-muted);
         font-size: 0.8125rem;
         word-break: break-all;
+    }
+</style>
+@else
+{{-- The WireKit tree gets LAYOUT only, and that is the whole difference from the block above.
+
+     What the guard is for is COLOR and design: a second set of --vf-* colors, borders and radii
+     would fight the application's own tokens, and that is why this stylesheet silences itself
+     for that tree. It does not follow that the tree needs no CSS at all, and for four releases
+     it read as though it did. The WireKit tree emits the SAME class names -- six of them carry a
+     rule here -- so `.visual-feedback-preview-actions` lost `display: flex` and its gap, and the
+     Attach / Discard / Retake row rendered with no space between the buttons at all. A consumer
+     photographed four such places and filed it.
+
+     Every value below is a WireKit token with the plain tree's own number as its fallback, so a
+     host who tunes their spacing scale takes this along and one who never loaded WireKit's CSS
+     still gets the spacing rather than none.
+
+     AND THE HONEYPOT RULE IS HERE NOW. Both trees hide that field two ways -- an inline
+     `style` attribute and this class -- because a policy that forbids style ATTRIBUTES
+     (`style-src-attr 'none'`, which any `style-src` without an attribute clause implies) drops
+     the first one. On the plain tree the class caught it; on the WireKit tree there was nothing
+     to catch it, and the documentation said so and told the host to write the rule themselves.
+     A visible honeypot is filled in by real people, and a honeypot hit is answered with the
+     success screen on purpose -- so their report is thanked for and discarded. That is the one
+     failure here worth more than a margin. --}}
+<style>
+    /* Concealment, not decoration. See the note above. */
+    .visual-feedback-honeypot {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        left: -9999px;
+    }
+
+    .visual-feedback-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        border: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        clip-path: inset(50%);
+    }
+
+    /* The row under the preview. Without `display: flex` the three buttons are inline boxes
+       with a word space between them, which is why this one reads as broken rather than tight. */
+    .visual-feedback-preview-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--gap-wk-sm, 0.5rem);
+        margin-block-start: var(--space-wk-sm, 0.5rem);
+    }
+
+    .visual-feedback-preview {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin-block-start: var(--space-wk-sm, 0.5rem);
+    }
+
+    /* Secondary text under a field: the character counter, the attachment caps, and the capture
+       progress line. Muted deliberately -- see the plain block for why the success tone must not
+       reach `capturing` and `uploading`. */
+    .visual-feedback-counter,
+    .visual-feedback-hint,
+    .visual-feedback-capture-status {
+        display: block;
+        margin-block-start: var(--space-wk-xs, 0.25rem);
+        color: var(--color-wk-text-muted, #6b7280);
+    }
+
+    /* The two sentences that say something worked, on WireKit's own success tone. */
+    .visual-feedback-success {
+        color: var(--color-wk-success-text, #15803d);
+        font-weight: var(--font-wk-heading-weight, 600);
+    }
+
+    .visual-feedback-success-glyph {
+        margin-inline-end: var(--gap-wk-xs, 0.375rem);
+    }
+
+    /* The three buttons that are bare siblings of a paragraph or a link, and therefore had no
+       selector at all -- not even one a host could have hung their own rule on. */
+    .visual-feedback-capture,
+    .visual-feedback-submit,
+    .visual-feedback-report-another {
+        margin-block-start: var(--space-wk-sm, 0.5rem);
     }
 </style>
 @endif

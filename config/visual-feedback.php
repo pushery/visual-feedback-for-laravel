@@ -355,11 +355,29 @@ return [
         'to' => env('VISUAL_FEEDBACK_MAIL_TO'),
         'from' => [
             'address' => env('VISUAL_FEEDBACK_MAIL_FROM_ADDRESS'),
-            'name' => env('VISUAL_FEEDBACK_MAIL_FROM_NAME'),
+            // Falls back to the application name, the way Laravel's own `config/mail.php` does.
+            // Without a default this key was WORSE than the framework value it overrides: the
+            // From header arrived as a bare address, and a report from a product nobody can name
+            // reads like an unattended relay rather than like feedback somebody just gave.
+            'name' => env('VISUAL_FEEDBACK_MAIL_FROM_NAME', env('APP_NAME')),
         ],
         'reply_to_reporter' => true,
         'locale' => env('VISUAL_FEEDBACK_MAIL_LOCALE'), // null|<locale>|reporter
         'attach_files' => true,
+
+        // Refuse to "deliver" through a transport that accepts a message and drops it — `log`,
+        // `array`, `null`, or a `failover`/`roundrobin` chain that can fall through to one.
+        //
+        // On such a transport `Mailer::send()` succeeds, so the report gets a DELIVERED receipt,
+        // fires ReportDelivered, releases its attachments and shows the reporter a success state
+        // while nothing left the building. With this on, the channel is skipped and says so in
+        // the log instead. Laravel's own default is `env('MAIL_MAILER', 'log')`, so a host lands
+        // there by configuring nothing at all.
+        //
+        // Turn it off to send through the log transport on purpose — reading a rendered report in
+        // `laravel.log` during development is a legitimate thing to want. It is never consulted
+        // while the application runs its tests, where `array` is the correct answer.
+        'require_deliverable_transport' => filter_var(env('VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
     ],
 
     /*

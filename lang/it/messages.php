@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Conferma di aver letto l\'informativa sulla privacy.',
+        'screenshot_not_attached' => 'Hai acquisito uno screenshot ma non lo hai ancora allegato. Scegli Allega per inviarlo oppure Elimina per inviare senza.',
         'required' => 'Manca :attribute.',
         'in' => ':attribute deve essere uno dei valori proposti.',
         'email' => ':attribute non è un indirizzo e-mail valido.',

@@ -174,12 +174,14 @@ final readonly class SubmitReport
         }
 
         // 5. Dispatch to the enabled + available delivery channels (each queues its own job).
-        $this->channels->dispatch($report);
+        $handedTo = $this->channels->dispatch($report);
 
-        // 6. Accepted.
+        // 6. Accepted — and the widget is told whether anything actually took it. The event fires
+        // either way: a host that delivers from a listener still gets its report, and the count
+        // is about what the PACKAGE arranged, not about what the host does afterwards.
         $this->events->dispatch(new ReportSubmitted($report));
 
-        return SubmissionResult::accepted($report);
+        return SubmissionResult::accepted($report, handedToAChannel: $handedTo > 0);
     }
 
     /** The first validation error message, or null when the submission is valid. */

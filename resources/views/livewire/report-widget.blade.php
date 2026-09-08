@@ -77,10 +77,10 @@
                  to the "report another" button instead of letting it fall to <body>. --}}
             x-effect="vfFocusReportAnother()">
             @if ($submitted)
-                <p>{{ __('visual-feedback::messages.widget.success') }}</p>
+                <p class="visual-feedback-success"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.success') }}</p>
                 {{-- Resetting removes this very button, so the round-trip hands focus on to
                      the message field of the fresh form instead of leaving it on <body>. --}}
-                <button type="button" x-ref="reportAnother"
+                <button type="button" class="visual-feedback-report-another" x-ref="reportAnother"
                     x-on:click="vfResetAndFocus()">
                     {{ __('visual-feedback::messages.widget.report_another') }}
                 </button>
@@ -262,7 +262,7 @@
                             file is too large. The retake button below is deliberately NOT wrapped:
                             it is the recovery path, and its label is an offer rather than a claim. --}}
                             @unless ($errors->has('screenshot'))
-                                <span x-show="status === 'attached'">{{ __('visual-feedback::messages.widget.screenshot_attached') }}</span>
+                                <span class="visual-feedback-success" x-show="status === 'attached'"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.screenshot_attached') }}</span>
                             @endunless
                         </p>
 
@@ -285,15 +285,24 @@
                                  a missing element, so that regression would be invisible: no error, no failing arm,
                                  just focus dropping to <body> for anyone on a keyboard.
 
-                                 `loading="lazy"` is gone with it. It never worked here -- a lazy image inside a
-                                 `display:none` parent is never requested at all -- and an element that only exists
-                                 once it is needed has nothing left to defer. --}}
+                                 `loading="lazy"` is gone with it, and for two releases this sentence was
+                                 true while the attribute was still three lines below it. It never worked here --
+                                 a lazy image inside a `display:none` parent is never requested at all -- and an
+                                 element that only exists once it is needed has nothing left to defer.
+
+                                 The parent really does go `display:none` while this element is still rendered,
+                                 which is what kept it biting: `x-if` switches on `previewUrl`, the container
+                                 switches on `status`, and `attach()` sets `status = 'attached'` without ever
+                                 nulling `previewUrl` -- only `discard()` reaches `reset()`. So after attaching,
+                                 the image sat inside a hidden container, was never requested, and read as broken
+                                 to anything that checks `naturalWidth`. Same measurement as before the `x-if`,
+                                 one page later. --}}
                             <template x-if="previewUrl">
                                 <img class="visual-feedback-preview" :src="previewUrl"
-                                    alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" loading="lazy" decoding="async">
+                                    alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" decoding="async">
                             </template>
                             <div class="visual-feedback-preview-actions">
-                                <button type="button" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</button>
+                                <button type="button" id="visual-feedback-screenshot" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</button>
                                 <button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</button>
                                 <button type="button" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
                             </div>
@@ -427,7 +436,7 @@
                     </label>
                 @endif
 
-                <button type="submit">{{ __('visual-feedback::messages.widget.submit') }}</button>
+                <button type="submit" class="visual-feedback-submit">{{ __('visual-feedback::messages.widget.submit') }}</button>
             </form>
         @endunless
     </dialog>

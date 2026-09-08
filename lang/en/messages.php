@@ -102,6 +102,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Please confirm that you have read the privacy notice.',
+        'screenshot_not_attached' => 'You captured a screenshot but have not attached it yet. Choose Attach to send it along, or Discard to send without it.',
         'required' => ':attribute is still missing.',
         'in' => ':attribute has to be one of the offered values.',
         'email' => ':attribute is not a valid email address.',

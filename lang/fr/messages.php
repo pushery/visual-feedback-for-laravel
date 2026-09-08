@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Merci de confirmer que tu as lu la politique de confidentialité.',
+        'screenshot_not_attached' => 'Tu as pris une capture mais tu ne l\'as pas encore jointe. Choisis Joindre pour l\'envoyer, ou Supprimer pour envoyer sans elle.',
         'required' => 'Il manque :attribute.',
         'in' => ':attribute doit être une des valeurs proposées.',
         'email' => ':attribute n\'est pas une adresse e-mail valide.',

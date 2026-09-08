@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Support;
 
+use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Psr\Log\LoggerInterface;
@@ -131,6 +132,78 @@ final class PublishedBundle
                 'published' => $this->publishedPath(self::BUNDLES[0]),
             ],
         );
+    }
+
+    /**
+     * The cache-busting token for one bundle's URL.
+     *
+     * IT IS THE CONTENT HASH OF THE PUBLISHED FILE, NOT THE PACKAGE VERSION, and that is the
+     * correction rather than an optimization. The version was read from
+     * `Composer\InstalledVersions`, which answers about `vendor/` — and a consuming application
+     * reported `?id=v0.4.1` on a page where v0.5.0 was installed. However that host got there, the
+     * shape of the mistake is the point: the token described the package while the bytes being
+     * served came from `public/`, and those two are exactly what a republish is supposed to
+     * reconcile. A hash of the file cannot disagree with the file.
+     *
+     * It also closes a case the version never covered: a re-publish that changes `dist/` without a
+     * version bump left the URL standing, so a browser kept the old copy.
+     *
+     * Costs nothing extra. `measure()` already hashes both published bundles on every request —
+     * `warnIfUnusable()` calls `status()` unconditionally so that a missing publish is reported in
+     * production — and this is a memoized singleton, so a page with two script tags measures once.
+     *
+     * Falls back to the package version where there is no local file to hash: a configured assets
+     * base URL (the bytes are somebody else's) and an unpublished install (already reported as an
+     * error). Neither can be answered by hashing, and inventing a token there would move the URL
+     * for no reason.
+     */
+    public function cacheToken(string $bundle): string
+    {
+        if (! in_array($bundle, self::BUNDLES, true)) {
+            return $this->packageVersion();
+        }
+
+        if ($this->status() !== PublishedBundleStatus::Current && $this->status() !== PublishedBundleStatus::Stale) {
+            return $this->packageVersion();
+        }
+
+        $hash = @hash_file('xxh128', $this->publishedPath($bundle));
+
+        return $hash === false ? $this->packageVersion() : $hash;
+    }
+
+    /**
+     * The installed version, as Composer reports it.
+     *
+     * Moved out of `scripts.blade.php` so the whole token decision sits in one testable place —
+     * a template is where a rule goes to stop being checkable.
+     *
+     * PUBLIC, AND IT TAKES THE PACKAGE NAME, for the same reason
+     * `VisualFeedbackServiceProvider::packageSatisfiesWireKitFloor()` does: the not-installed
+     * branch is unreachable for a package that is installed by definition, and under a 100%
+     * coverage floor an unreachable line is permanently red while reading as a missing test. A
+     * caller passing a name that is genuinely absent exercises it honestly. The default is the
+     * only name this package ever asks about.
+     *
+     * The `class_exists` check that used to sit beside it in the template is gone rather than
+     * hidden: this package is installed by Composer, so Composer's own runtime class is present by
+     * construction. It was a guard against a state that cannot occur — free in a Blade file, which
+     * no coverage report reads, and dead weight the moment the rule moved somewhere checkable.
+     */
+    public function packageVersion(string $package = 'pushery/visual-feedback-for-laravel'): string
+    {
+        if (! InstalledVersions::isInstalled($package)) {
+            return 'dev';
+        }
+
+        $version = (string) (InstalledVersions::getPrettyVersion($package) ?: 'dev');
+        $reference = InstalledVersions::getReference($package);
+
+        // A branch install keeps its version string across every update, so there the resolved
+        // commit is what actually moves.
+        return is_string($reference) && str_starts_with($version, 'dev-')
+            ? $version.'.'.substr($reference, 0, 8)
+            : $version;
     }
 
     private function measure(): PublishedBundleStatus
