@@ -143,21 +143,25 @@
                 {{-- Guest identity fields — only for unauthenticated reporters; an authed
                      user's reporter is resolved from the guard, so these are ignored. --}}
                 @if ($showGuestFields)
-                    <label for="visual-feedback-name">
-                        {{ __('visual-feedback::messages.widget.name_label') }}
-                    </label>
-                    <input id="visual-feedback-name" @if ($vfInvalidField === 'name') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="guestName" autocomplete="name">
+                    @if ($showName)
+                        <label for="visual-feedback-name">
+                            {{ __('visual-feedback::messages.widget.name_label') }}
+                        </label>
+                        <input id="visual-feedback-name" @if ($vfInvalidField === 'name') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="guestName" autocomplete="name" @required(in_array('name', $requiredFields, true))>
+                    @endif
 
-                    <label for="visual-feedback-email">
-                        {{ __('visual-feedback::messages.widget.email_label') }}
-                    </label>
-                    <input id="visual-feedback-email" @if ($vfInvalidField === 'email') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="email" wire:model="guestEmail" autocomplete="email">
+                    @if ($showEmail)
+                        <label for="visual-feedback-email">
+                            {{ __('visual-feedback::messages.widget.email_label') }}
+                        </label>
+                        <input id="visual-feedback-email" @if ($vfInvalidField === 'email') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="email" wire:model="guestEmail" autocomplete="email" @required(in_array('email', $requiredFields, true))>
+                    @endif
 
                     @if ($showPhone)
                         <label for="visual-feedback-phone">
                             {{ __('visual-feedback::messages.widget.phone_label') }}
                         </label>
-                        <input id="visual-feedback-phone" @if ($vfInvalidField === 'phone') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="tel" wire:model="guestPhone" autocomplete="tel">
+                        <input id="visual-feedback-phone" @if ($vfInvalidField === 'phone') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="tel" wire:model="guestPhone" autocomplete="tel" @required(in_array('phone', $requiredFields, true))>
                     @endif
                 @endif
 

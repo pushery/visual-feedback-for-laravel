@@ -32,7 +32,7 @@ use Pushery\VisualFeedback\Support\CategoryLabels;
 final class ReportMail extends Mailable
 {
     /**
-     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files?: bool, disk?: ?string}  $mail
+     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files?: bool, disk?: ?string, subject_excerpt_length?: int}  $mail
      */
     public function __construct(
         public readonly Report $report,
@@ -94,9 +94,84 @@ final class ReportMail extends Mailable
     /** The subject line — CRLF-stripped so a report subject can never inject a mail header. */
     private function subjectLine(): string
     {
-        $subject = $this->report->subject ?? $this->categoryLabel();
-        $clean = (string) preg_replace('/[\r\n]+/', ' ', $subject);
+        $given = $this->oneLine($this->report->subject ?? '');
 
-        return trim($clean) !== '' ? $clean : $this->categoryLabel();
+        return $given !== '' ? $given : $this->composedSubject();
+    }
+
+    /**
+     * What a report with no subject of its own gets: `Category - the first words of the message`.
+     *
+     * The subject field is optional by design, so this is the ordinary case rather than an edge
+     * one. It used to be the bare category label, which made an inbox of twenty reports read as
+     * "Bug / Bug / Feature / Bug" -- every line identical, none of them saying which to open.
+     *
+     * The excerpt comes from the MESSAGE and from nothing else. Context and metadata are
+     * host-supplied and can carry anything the host decided to attach, up to and including PII;
+     * a subject line is the one part of a mail that shows up in notifications and lock screens.
+     */
+    private function composedSubject(): string
+    {
+        $excerpt = $this->messageExcerpt();
+
+        return $excerpt === '' ? $this->categoryLabel() : $this->categoryLabel().' - '.$excerpt;
+    }
+
+    /**
+     * The first words of the message, within the configured budget.
+     *
+     * Multibyte-safe by construction: `mb_substr` cuts on characters, and a byte-wise cut would
+     * split a UTF-8 sequence and put a replacement glyph in the subject line. Where a word
+     * boundary sits in the last 40% of the budget the cut moves back to it -- a break mid-word
+     * reads like a defect rather than like an excerpt.
+     *
+     * The ellipsis is appended only when something was actually dropped. On a message that fits,
+     * it would claim there is more to read.
+     */
+    private function messageExcerpt(): string
+    {
+        $budget = (int) ($this->mail['subject_excerpt_length'] ?? 60);
+
+        if ($budget < 1) {
+            return '';
+        }
+
+        $message = $this->oneLine($this->report->message);
+
+        if ($message === '' || mb_strlen($message) <= $budget) {
+            return $message;
+        }
+
+        $cut = mb_substr($message, 0, $budget);
+        $space = mb_strrpos($cut, ' ');
+
+        if ($space !== false && $space >= (int) ($budget * 0.6)) {
+            $cut = mb_substr($cut, 0, $space);
+        }
+
+        return rtrim($cut).'…';
+    }
+
+    /**
+     * One line, one space between words -- and this is a SECURITY control, not tidiness.
+     *
+     * A mail header ends at a line break, so a value carrying `\r\n` can append headers of its
+     * own. Both halves of the subject line come from the same untrusted place: free text typed by
+     * an anonymous reporter, so the excerpt must not re-open the hole the subject already closed.
+     *
+     * The `[\r\n]` pass is REDUNDANT and stays on purpose. `\s+` already covers both characters,
+     * so removing it changes nothing today -- and that is exactly why it is written out: the
+     * whitespace collapse is cosmetic in intent and the sort of line somebody narrows to `[ \t]+`
+     * while tidying up, at which point the security property leaves with it and no test that
+     * measures spacing goes red. A named barrier survives a tidy-up; an implied one does not.
+     *
+     * Collapsing the rest is the ordinary half: a message that opens with three blank lines must
+     * not produce an excerpt that is all spaces.
+     */
+    private function oneLine(string $value): string
+    {
+        $withoutBreaks = (string) preg_replace('/[\r\n]+/', ' ', $value);
+
+        return trim((string) preg_replace('/\s+/u', ' ', $withoutBreaks));
     }
 }
