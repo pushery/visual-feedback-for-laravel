@@ -19,7 +19,7 @@
 
          MODAL ONLY, and the listener is not merely inert inline — it is harmful there. An
          inline widget renders a card and no modal at all, so there is nothing to open; but
-         `markOpened()` would still re-anchor the server-side `openedAt`, and the abuse gate
+         `markOpened()` would still re-anchor the server-held open time, and the abuse gate
          rejects anything submitted within `abuse.min_fill_seconds` of that stamp as a
          honeypot hit — SILENTLY, with the decoy success shown. The listener carries
          `.window`, and a mixed page (one inline widget plus one modal, which the docs
@@ -30,11 +30,12 @@
          renders with a literal `open`, so `!$refs.dialog.open` is permanently false there.
          Same outcome, so this is parity — not a new rule.
 
-         Nothing is lost by dropping the listener inline: `mount()` stamps `openedAt` for an
-         INLINE widget — it is open from the moment it renders, and nothing else would ever
-         stamp it, because this listener is the modal path — and the metadata is re-measured on
-         the form's own `submit.capture`. (A modal is deliberately NOT stamped at mount; that is
-         what keeps an unopened widget's markup identical from one second to the next.) --}}
+         Nothing is lost by dropping the listener inline: `mount()` anchors an INLINE widget
+         itself — it is open from the moment it renders, and nothing else would ever anchor it,
+         because this listener is the modal path — and the metadata is re-measured on the form's
+         own `submit.capture`. (A modal is deliberately NOT anchored at mount, so it is refused
+         rather than exempted while the trap is armed. The anchor is held on the server and never
+         reaches the markup, so no mode puts a moving value into a rendered page.) --}}
     @if ($mode === 'modal')
         x-on:visual-feedback:open.window="vfOpenWireKit()"
     @endif

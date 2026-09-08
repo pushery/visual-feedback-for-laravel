@@ -96,8 +96,14 @@ final class ChannelRegistry
      * (via the tracker), and never blocks the others. The lifecycle is armed once, up front, so
      * the attachment refcount / retain policy / zero-channels cleanup are decided from the full
      * channel set.
+     *
+     * Returns how many channels took the report, and that number is the point rather than a
+     * convenience: the caller could not previously tell "handed to somebody" from "accepted and
+     * dropped", so both ended at the same success state in the widget while only one of them was
+     * true. A dispatch-time throw still counts — the report reached that channel and its receipt
+     * settles FAILED, which is a trail rather than a silence.
      */
-    public function dispatch(Report $report): void
+    public function dispatch(Report $report): int
     {
         $channels = $this->channels();
 
@@ -129,6 +135,8 @@ final class ChannelRegistry
                 $this->tracker->settleFailed($report, $channel->key(), $exception);
             }
         }
+
+        return count($channels);
     }
 
     private function isEnabled(string $key): bool

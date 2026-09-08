@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Bevestig dat je de privacyverklaring hebt gelezen.',
+        'screenshot_not_attached' => 'Je hebt een schermafbeelding gemaakt maar nog niet toegevoegd. Kies Toevoegen om die mee te sturen, of Verwijderen om zonder te versturen.',
         'required' => ':attribute ontbreekt nog.',
         'in' => ':attribute moet een van de aangeboden waarden zijn.',
         'email' => ':attribute is geen geldig e-mailadres.',

@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Confirma que leste o aviso de privacidade.',
+        'screenshot_not_attached' => 'Fizeste uma captura de ecrã mas ainda não a anexaste. Escolhe Anexar para a enviares ou Descartar para enviares sem ela.',
         'required' => 'Falta :attribute.',
         'in' => ':attribute tem de ser um dos valores oferecidos.',
         'email' => ':attribute não é um endereço de e-mail válido.',

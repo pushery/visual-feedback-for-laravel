@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Bitte bestätige, dass du die Datenschutzhinweise gelesen hast.',
+        'screenshot_not_attached' => 'Du hast einen Screenshot aufgenommen, aber noch nicht angehängt. Wähle Anhängen, um ihn mitzuschicken, oder Verwerfen, um ohne ihn zu senden.',
         'required' => ':attribute fehlt noch.',
         'in' => ':attribute muss einer der angebotenen Werte sein.',
         'email' => ':attribute ist keine gültige E-Mail-Adresse.',

@@ -98,6 +98,7 @@ return [
 
     'validation' => [
         'privacy_required' => 'Confirma que has leído el aviso de privacidad.',
+        'screenshot_not_attached' => 'Has hecho una captura pero todavía no la has adjuntado. Elige Adjuntar para enviarla o Descartar para enviar sin ella.',
         'required' => 'Falta :attribute.',
         'in' => ':attribute tiene que ser uno de los valores ofrecidos.',
         'email' => ':attribute no es una dirección de correo válida.',

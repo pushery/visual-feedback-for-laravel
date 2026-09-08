@@ -97,13 +97,25 @@ yet deliver anything.
 
 **Give the mail channel a recipient.** It is on by default and ships without an address,
 because none could be guessed. Until one is set the channel reports itself unavailable and is
-skipped — and the reporter still sees a success screen, so the only trace is two lines in the
-log (`an enabled channel reported itself unavailable and was skipped`, then `a report was
-accepted but no channel was enabled and available to deliver it`).
+skipped, and the reporter is told the submission did not go through rather than thanked for it.
+The reason goes to the log, never to them: `an enabled channel reported itself unavailable and
+was skipped`, then `a report was accepted but no channel was enabled and available to deliver
+it`.
 
 ```dotenv
 VISUAL_FEEDBACK_MAIL_TO=support@example.com
 ```
+
+**And check `MAIL_MAILER` while you are there.** `log`, `array` and `null` let `Mailer::send()`
+succeed with the message going nowhere, and Laravel's own default is `env('MAIL_MAILER', 'log')`
+— so an application that never set it is in that state. The mail channel refuses those (and a
+`failover` chain that can fall through to one) instead of reporting a delivery that did not
+happen. `VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT=false` allows it on purpose; the
+check is never applied while the application runs its tests.
+
+⚠️ The `log` transport writes the whole message — free text, the reporter's address, the
+screenshot as base64 — into the log in plaintext, and from there into every error tracker the
+log stack feeds.
 
 Three defaults are worth knowing before changing anything:
 
@@ -210,9 +222,11 @@ Two consequences worth knowing:
   renders and does nothing.
 
 A policy that forbids style **attributes** (`style-src-attr 'none'`, or any `style-src` without
-`'unsafe-inline'`, which it falls back to) also needs one rule of its own in the WireKit tree —
-that tree ships no stylesheet, and the honeypot's concealment then has nothing to fall back on. The
-selector and the reasoning are in the
+`'unsafe-inline'`, which it falls back to) drops the honeypot's inline concealment, and a visible
+honeypot is filled in by real people whose report is then discarded. Both trees carry the class as
+a second mechanism, and `@include('visual-feedback::style')` is what supplies its rule — including
+on the WireKit tree, where that include renders a layout-only block rather than nothing. The
+reasoning is in the
 [integration contract](https://docs.pushery.com/visual-feedback-for-laravel/integration-contract).
 
 ### 4. Choose where the trigger lives
@@ -538,11 +552,9 @@ are isolated from each other: one failing never stops the rest.
   publishing to choose leaves the application maintaining a copy of the package's templates that
   every update silently leaves behind. Publish it when you want to edit it, not otherwise.
 - Do not remove `@include('visual-feedback::style')` from the layout on the assumption that the
-  WireKit tree makes it dead. It carries the same switch and renders nothing while that tree is
-  serving, so leaving it in costs nothing and keeps the plain tree styled if `ui.variant` ever
-  moves back. One thing does depend on it: the stylesheet carries the honeypot's concealment
-  rule, so a policy forbidding style attributes needs that rule written by hand — see the CSP
-  allowances above.
+  WireKit tree makes it dead. It is not dead there: it withholds the palette and renders a
+  layout-only block — spacing, the flex row under the screenshot preview, and the honeypot's
+  concealment rule. Strip it and a strict `style-src` leaves that field visible.
 - Do not write a channel that stores reports without `RetainsReport`. Nothing fails when you
   forget it; the attachments are simply gone by the time anyone opens the report.
 - Do not assume a green submit means a delivered report. A missing recipient, an idle queue

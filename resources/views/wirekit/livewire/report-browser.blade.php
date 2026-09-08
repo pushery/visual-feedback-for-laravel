@@ -44,7 +44,7 @@
                     :label="__('visual-feedback::browser.filter_to')"
                 />
 
-                <x-wirekit::button variant="ghost" wire:click="clearFilters">
+                <x-wirekit::button surface="ghost" wire:click="clearFilters">
                     {{ __('visual-feedback::browser.clear') }}
                 </x-wirekit::button>
             </x-wirekit::card.body>
@@ -85,7 +85,7 @@
                                 {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                             </x-wirekit::table.td>
                             <x-wirekit::table.td align="right">
-                                <x-wirekit::button size="sm" variant="ghost" wire:click="open('{{ $report->uuid }}')">
+                                <x-wirekit::button size="sm" surface="ghost" wire:click="open('{{ $report->uuid }}')">
                                     {{ __('visual-feedback::browser.open') }}
                                 </x-wirekit::button>
                                 {{-- wire:confirm rather than an inline handler: Livewire's own
@@ -99,7 +99,7 @@
                                      delete false in instanceof new null true typeof undefined void. --}}
                                 <x-wirekit::button
                                     size="sm"
-                                    variant="danger"
+                                    intent="danger"
                                     wire:click="$wire['delete']('{{ $report->uuid }}')"
                                     wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
                                 >
@@ -157,7 +157,7 @@
                 </x-wirekit::card.body>
 
                 <x-wirekit::card.footer>
-                    <x-wirekit::button variant="ghost" wire:click="close">
+                    <x-wirekit::button surface="ghost" wire:click="close">
                         {{ __('visual-feedback::browser.close') }}
                     </x-wirekit::button>
                 </x-wirekit::card.footer>

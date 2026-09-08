@@ -6,7 +6,10 @@ namespace Pushery\VisualFeedback\Channels;
 
 use Illuminate\Contracts\Bus\Dispatcher as Bus;
 use Illuminate\Contracts\Config\Repository as Config;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Translation\Translator;
+use Psr\Log\LoggerInterface;
+use Pushery\VisualFeedback\Channels\Mail\TransportDeliverability;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportMail;
@@ -14,10 +17,10 @@ use Pushery\VisualFeedback\Jobs\SendReportMail;
 /**
  * The mail delivery channel: it records a pending receipt and enqueues the channel's own
  * SendReportMail job, tuned per `channels.mail` (queue / tries / backoff) and rendered in the
- * configured mail locale — never the random worker locale. It is only available when a
- * recipient is configured (no `mail.to` → nothing to deliver to). The terminal delivered/failed
- * receipt, the lifecycle events and the attachment refcount flow through the ReportDeliveryTracker
- * from inside the job; here the receipt is marked pending.
+ * configured mail locale — never the random worker locale. It is available when a recipient is
+ * configured AND the configured mailer can actually put a message on the wire. The terminal
+ * delivered/failed receipt, the lifecycle events and the attachment refcount flow through the
+ * ReportDeliveryTracker from inside the job; here the receipt is marked pending.
  */
 final readonly class MailChannel implements ReportChannel
 {
@@ -26,6 +29,9 @@ final readonly class MailChannel implements ReportChannel
         private Bus $bus,
         private ReceiptStore $receipts,
         private Translator $translator,
+        private Application $app,
+        private LoggerInterface $logger,
+        private TransportDeliverability $transports,
     ) {}
 
     public function key(): string
@@ -33,12 +39,73 @@ final readonly class MailChannel implements ReportChannel
         return 'mail';
     }
 
-    /** Available only with a configured recipient — a channel with nowhere to send is skipped. */
+    /**
+     * Available with a configured recipient AND a transport that delivers.
+     *
+     * The second half is the one that was missing, and it cost a report in production: `mail.to`
+     * was set, `MAIL_MAILER` was not, so the message went into `laravel.log` and every seam
+     * downstream reported success, DELIVERED receipt included. A mailer that accepts and drops
+     * has exactly as much "where to" as an empty `mail.to`.
+     */
     public function isAvailable(): bool
     {
         $to = $this->config->get('visual-feedback.mail.to');
 
-        return is_string($to) && trim($to) !== '';
+        if (! is_string($to) || trim($to) === '') {
+            return false;
+        }
+
+        return $this->transportDelivers();
+    }
+
+    /**
+     * NEVER ASKED WHILE THE APPLICATION IS RUNNING ITS TESTS, and that carve-out is what makes
+     * the check shippable rather than a nicety.
+     *
+     * Under a test harness the answer is `array` by construction — Testbench sets it, and so does
+     * nearly every consumer's `phpunit.xml`. A guard that refused there would switch this channel
+     * off inside every consuming application's suite, so `Mail::assertQueued()` and
+     * `Queue::assertPushed(SendReportMail::class)` would stop passing in code that has nothing
+     * wrong with it. Breaking every consumer's tests to report a production defect is a worse
+     * trade than the defect.
+     *
+     * The environment is read off the APPLICATION, not off `config('app.env')`. Measured on this
+     * tree: under the harness those two disagree — the container says `testing` and the config
+     * says `local`, because Testbench sets `$app['env']` directly. The config would have answered
+     * the wrong question with a straight face.
+     *
+     * `mail.require_deliverable_transport` turns it off for the deliberate case: a developer on
+     * `MAIL_MAILER=log` who wants to read the rendered report in the log file rather than have the
+     * channel refuse. Off by choice is a different thing from off by accident, which is the whole
+     * distinction this guard exists to restore.
+     */
+    private function transportDelivers(): bool
+    {
+        if ($this->app->environment('testing')) {
+            return true;
+        }
+
+        $required = $this->config->get('visual-feedback.mail.require_deliverable_transport', true);
+
+        if (filter_var($required, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false) {
+            return true;
+        }
+
+        $dropping = $this->transports->nonDeliveringTransports();
+
+        if ($dropping === []) {
+            return true;
+        }
+
+        // Loud, because the alternative is a configuration that looks honored and is not — the
+        // same reason LegalConsentNotice and AbuseGateRegistry are loud about their own refusals.
+        $this->logger->warning('visual-feedback: the configured mailer cannot deliver — its transport accepts a message and drops it, so the mail channel is skipped instead of reporting a delivery that never happened', [
+            'mailer' => $this->config->get('mail.default'),
+            'transports' => $dropping,
+            'hint' => 'set MAIL_MAILER to a real transport, or set visual-feedback.mail.require_deliverable_transport to false if this is deliberate',
+        ]);
+
+        return false;
     }
 
     public function dispatch(Report $report): void

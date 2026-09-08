@@ -34,22 +34,15 @@
         'screenshot' => \Pushery\VisualFeedback\Support\ClientConfig::screenshot(),
     ];
 
-    // A cache-busting token, the way livewire/livewire versions its own published asset: the URL
-    // moves when the package moves, so a `vendor:publish --force` after an upgrade is not served
-    // out of a browser or CDN cache. A branch install ("dev-main") keeps its version string
-    // across every update, so there the resolved commit is what actually moves. CSP is
-    // untouched — a `script-src` source expression matches on the path, never on the query.
-    $package = 'pushery/visual-feedback-for-laravel';
-    $bundleVersion = 'dev';
-
-    if (class_exists(\Composer\InstalledVersions::class) && \Composer\InstalledVersions::isInstalled($package)) {
-        $bundleVersion = (string) (\Composer\InstalledVersions::getPrettyVersion($package) ?: 'dev');
-        $reference = \Composer\InstalledVersions::getReference($package);
-
-        if (is_string($reference) && str_starts_with($bundleVersion, 'dev-')) {
-            $bundleVersion .= '.'.substr($reference, 0, 8);
-        }
-    }
+    // A cache-busting token, so a `vendor:publish --force` after an upgrade is not served out of a
+    // browser or CDN cache. CSP is untouched — a `script-src` source expression matches on the
+    // path, never on the query.
+    //
+    // It is the CONTENT HASH of the published file where there is one to read, and the package
+    // version only where there is not. The decision lives in PublishedBundle, which explains why:
+    // a version describes `vendor/` while the bytes being served come from `public/`, and a
+    // consuming application reported those two disagreeing on a live page.
+    $cacheToken = fn (string $bundle): string => app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->cacheToken($bundle);
 
     // The token above solves "republished but still cached". This line answers the other failure
     // shape: NOT republished at all, so `public/` still holds the previous release's bundle. It
@@ -81,8 +74,8 @@
      never initialized at all: an empty scope, and every directive on it silently dead.
      Unconditional for that reason and affordable because of its size: about 4 KB against the
      capture bundle's 268. --}}
-<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($cacheToken('visual-feedback-widget.iife.js')) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($bundleVersion) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-navigate-once defer></script>
 @endif
 @endif
