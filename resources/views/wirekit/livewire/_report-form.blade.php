@@ -94,20 +94,27 @@
              (`$name = $attributes->get('name', $id)`), which is why these controls announce
              themselves as `visual-feedback-*` rather than as a counter. --}}
         @if ($showGuestFields)
-            <x-wirekit::input
-                id="visual-feedback-name" :aria-invalid="$vfInvalidField === 'name' ? 'true' : null" :aria-describedby="$vfInvalidField === 'name' ? 'visual-feedback-error' : null"
-                :label="__('visual-feedback::messages.widget.name_label')"
-                wire:model="guestName" autocomplete="name" />
-            <x-wirekit::input
-                id="visual-feedback-email" :aria-invalid="$vfInvalidField === 'email' ? 'true' : null" :aria-describedby="$vfInvalidField === 'email' ? 'visual-feedback-error' : null"
-                type="email"
-                :label="__('visual-feedback::messages.widget.email_label')"
-                wire:model="guestEmail" autocomplete="email" />
+            @if ($showName)
+                <x-wirekit::input
+                    id="visual-feedback-name" :aria-invalid="$vfInvalidField === 'name' ? 'true' : null" :aria-describedby="$vfInvalidField === 'name' ? 'visual-feedback-error' : null"
+                    :label="__('visual-feedback::messages.widget.name_label')"
+                    :required="in_array('name', $requiredFields, true)"
+                    wire:model="guestName" autocomplete="name" />
+            @endif
+            @if ($showEmail)
+                <x-wirekit::input
+                    id="visual-feedback-email" :aria-invalid="$vfInvalidField === 'email' ? 'true' : null" :aria-describedby="$vfInvalidField === 'email' ? 'visual-feedback-error' : null"
+                    type="email"
+                    :label="__('visual-feedback::messages.widget.email_label')"
+                    :required="in_array('email', $requiredFields, true)"
+                    wire:model="guestEmail" autocomplete="email" />
+            @endif
             @if ($showPhone)
                 <x-wirekit::input
                     id="visual-feedback-phone" :aria-invalid="$vfInvalidField === 'phone' ? 'true' : null" :aria-describedby="$vfInvalidField === 'phone' ? 'visual-feedback-error' : null"
                     type="tel"
                     :label="__('visual-feedback::messages.widget.phone_label')"
+                    :required="in_array('phone', $requiredFields, true)"
                     wire:model="guestPhone" autocomplete="tel" />
             @endif
         @endif

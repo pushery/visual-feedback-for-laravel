@@ -4,6 +4,28 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.9.0] - 2026-09-08
+
+### Added
+
+- **Every form field now answers one question with one word.** `fields.<field>.mode` is `off`, `optional` or `required` — one vocabulary, one place. Until now the same question was split in two and half of it was missing: `fields.*.enabled` decided whether the subject and phone fields appeared, `guests.require_*` decided whether name and email were mandatory, and nothing at all decided whether those two appeared. The views rendered them for every guest unconditionally, so a host who wanted the email box gone had no key to set.
+- Each field has its own environment variable — `VISUAL_FEEDBACK_FIELD_SUBJECT_MODE`, `_NAME_MODE`, `_EMAIL_MODE`, `_PHONE_MODE` — and one page can differ from the rest without touching the environment: `<livewire:visual-feedback.report-widget :fields="['email' => 'required', 'subject' => 'off']" />`.
+- **A field set to `off` is dropped, not merely hidden.** Livewire properties are writable from the browser, so a crafted request could otherwise set an address on a form that never rendered the box. The off state belongs to the submission, not to the markup. A field set to `required` is marked as such in the markup, in both view trees, so the form says what it wants before it refuses.
+- `message` deliberately has no mode. A feedback form without a message is not a feedback form, and a switch nobody may turn is a lie in the configuration file.
+- **Upgrade:** nothing to do. The four older variables — `VISUAL_FEEDBACK_FIELD_SUBJECT`, `VISUAL_FEEDBACK_FIELD_PHONE`, `VISUAL_FEEDBACK_GUEST_REQUIRE_NAME`, `VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL` — still work, and so does a `config/visual-feedback.php` you published before this release. Prefer `mode` in anything new; the configuration page maps each old name to its replacement.
+
+### Changed
+
+- **A report with no subject now says what it is about.** The subject field is optional by design, so a report arriving without one is the ordinary case — and the mail then fell back to the bare category label, which makes an inbox of twenty reports read as "Bug / Bug / Feature / Bug". Every line identical, none of them telling you which to open. The subject line is now the category plus the first words of the message, cut on characters rather than bytes and moved back to a word boundary where one is close.
+- `VISUAL_FEEDBACK_MAIL_SUBJECT_EXCERPT` sets how much of the message goes in. It defaults to 60 characters, which is measured rather than picked: the longest category label this package ships is 16, the separator costs 3, so the whole line stays at or under 79 — inside what a mail client shows in a list view. Set it to `0` for the old behavior, the category alone.
+- **`ext-intl` is no longer required.** It was in the manifest from the first commit and the shipped code never called a single intl function — not directly, not through a dependency, and not through Laravel's `Number` helper, which this package explicitly declines to use. Composer refuses to install on a PHP without an extension it is asked for, and `intl` is absent from plenty of ordinary images, so the requirement excluded hosts and bought nothing.
+- **Upgrade:** nothing to do, and one thing you may now undo — if you installed `intl` only for this package, it is no longer needed on its account.
+
+### Fixed
+
+- The documentation page for configuration now carries a block you can paste into `.env` whole, with every variable commented at its own default and grouped by the job rather than alphabetically, plus recipes for the things people actually ask: send reports elsewhere, name the sender, insist on an email address, ask for nothing but the report, read rendered mail in the log while developing.
+- The bundled Boost skill went from naming three of the environment variables to twenty. Boost reads that file inside your application, so it is where an assistant answers configuration questions about this package — and it covered a fraction of the surface.
+
 ## [0.8.0] - 2026-09-08
 
 ### Added
@@ -400,7 +422,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.0...HEAD
+
+[0.9.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.8.0...v0.9.0
 
 [0.8.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.7.0...v0.8.0
 

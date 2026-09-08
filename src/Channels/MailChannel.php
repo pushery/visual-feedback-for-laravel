@@ -153,7 +153,7 @@ final readonly class MailChannel implements ReportChannel
     }
 
     /**
-     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string}
+     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, subject_excerpt_length: int}
      */
     private function mailConfig(Report $report): array
     {
@@ -161,6 +161,7 @@ final readonly class MailChannel implements ReportChannel
         $mail = is_array($mail) ? $mail : [];
         $from = isset($mail['from']) && is_array($mail['from']) ? $mail['from'] : [];
         $disk = $this->config->get('visual-feedback.attachments.disk');
+        $excerpt = $mail['subject_excerpt_length'] ?? null;
 
         return [
             // A per-report recipient overrides `mail.to` — the widget can be mounted with
@@ -175,6 +176,11 @@ final readonly class MailChannel implements ReportChannel
             'reply_to_reporter' => (bool) ($mail['reply_to_reporter'] ?? false),
             'attach_files' => (bool) ($mail['attach_files'] ?? true),
             'disk' => is_string($disk) && $disk !== '' ? $disk : null,
+            // Read here rather than in the mailable, because this class is the one place the
+            // mail configuration is turned into a value the queue can carry. A mailable that
+            // reached for config() itself would resolve it in the WORKER, whose configuration is
+            // not necessarily the one the report was accepted under.
+            'subject_excerpt_length' => is_numeric($excerpt) ? max(0, (int) $excerpt) : 60,
         ];
     }
 

@@ -22,6 +22,35 @@ use Pushery\VisualFeedback\VisualFeedbackServiceProvider;
  */
 final readonly class Settings
 {
+    public const string FIELD_OFF = 'off';
+
+    public const string FIELD_OPTIONAL = 'optional';
+
+    public const string FIELD_REQUIRED = 'required';
+
+    /** @var list<string> */
+    public const array FIELD_MODES = [self::FIELD_OFF, self::FIELD_OPTIONAL, self::FIELD_REQUIRED];
+
+    /**
+     * The default for each configurable field, and the reason `phone` differs.
+     *
+     * A phone number is the one piece of contact data a feedback form has no use for by default:
+     * it is the most sensitive of the three, it invites a channel nobody staffed, and a host who
+     * wants it can say so. The other three start visible and optional — the lowest bar a reporter
+     * has to clear before their report is filed.
+     *
+     * `message` is deliberately absent. A feedback form without a message is not a feedback form,
+     * and a switch nobody may turn is a lie in the configuration tree.
+     *
+     * @var array<string, string>
+     */
+    public const array FIELD_DEFAULTS = [
+        'subject' => self::FIELD_OPTIONAL,
+        'name' => self::FIELD_OPTIONAL,
+        'email' => self::FIELD_OPTIONAL,
+        'phone' => self::FIELD_OFF,
+    ];
+
     public function __construct(private Repository $config) {}
 
     public function enabled(): bool
@@ -144,6 +173,73 @@ final readonly class Settings
     // in AttachmentPolicyDefaultsTest and AttachmentValidatorDefaultsTest.
     //
     // maxFiles() stays: it has four callers.
+
+    /**
+     * How one of the configurable form fields is meant to behave: `off`, `optional` or `required`.
+     *
+     * ONE vocabulary and ONE place, and that is the whole point of this method. Until 0.9.0 the
+     * same question was answered twice in two different shapes: `fields.<f>.enabled` decided
+     * whether `subject` and `phone` appeared at all, while `guests.require_name` / `require_email`
+     * decided whether name and email were mandatory — and NOTHING decided whether those two
+     * appeared, because the view rendered them for every guest unconditionally. A host who wanted
+     * the email box gone had no key to set.
+     *
+     * Both old shapes still answer, because they are published and sit in other people's files:
+     *
+     *   1. `fields.<f>.mode`             — the current key, and what the shipped config writes
+     *   2. `fields.<f>.enabled === false` — the old off-switch, from a published older config
+     *   3. `guests.require_<f> === true`  — the old required-switch, same origin
+     *   4. the field's own default
+     *
+     * Step 1 normally wins outright, because the shipped config always sets `mode` — including
+     * for a host who only ever set the OLD environment variable, since that file folds it in.
+     * Steps 2 and 3 exist for the other case the class docblock above describes: a consumer who
+     * published the config before this release and whose file therefore has no `mode` key at all.
+     *
+     * Degrades toward the visible, not the hidden: an unreadable or unknown value yields the
+     * field's documented default rather than silently removing an input from the form.
+     */
+    public function fieldMode(string $field): string
+    {
+        $mode = $this->config->get("visual-feedback.fields.{$field}.mode");
+
+        if (is_string($mode) && in_array($mode = strtolower(trim($mode)), self::FIELD_MODES, true)) {
+            return $mode;
+        }
+
+        $enabled = $this->config->get("visual-feedback.fields.{$field}.enabled");
+
+        if ($enabled === false) {
+            return self::FIELD_OFF;
+        }
+
+        if ($this->config->get("visual-feedback.guests.require_{$field}") === true) {
+            return self::FIELD_REQUIRED;
+        }
+
+        // `enabled === true` is checked LAST of the three and it is not redundant: without it a
+        // host who published an older config and switched the phone field ON would fall through
+        // to the shipped default, which for that field is `off` — their setting silently undone
+        // by the very code meant to honor it. Caught by the control arm beside the `false` one,
+        // which is there precisely because reading a boolean at all satisfies the `false` case.
+        if ($enabled === true) {
+            return self::FIELD_OPTIONAL;
+        }
+
+        return self::FIELD_DEFAULTS[$field] ?? self::FIELD_OPTIONAL;
+    }
+
+    /** Does the form render this field at all? */
+    public function fieldIsShown(string $field): bool
+    {
+        return $this->fieldMode($field) !== self::FIELD_OFF;
+    }
+
+    /** Must the reporter fill it in? A field that is off is never required — see fieldMode(). */
+    public function fieldIsRequired(string $field): bool
+    {
+        return $this->fieldMode($field) === self::FIELD_REQUIRED;
+    }
 
     private function positiveInt(string $key, int $default): int
     {

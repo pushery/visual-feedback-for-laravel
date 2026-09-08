@@ -117,6 +117,55 @@ check is never applied while the application runs its tests.
 screenshot as base64 — into the log in plaintext, and from there into every error tracker the
 log stack feeds.
 
+**Deciding what the form asks for.** Every field answers one question with one word —
+`off`, `optional` or `required` — and each has an environment variable:
+
+```dotenv
+VISUAL_FEEDBACK_FIELD_SUBJECT_MODE=optional   # off | optional | required
+VISUAL_FEEDBACK_FIELD_NAME_MODE=optional
+VISUAL_FEEDBACK_FIELD_EMAIL_MODE=optional
+VISUAL_FEEDBACK_FIELD_PHONE_MODE=off
+```
+
+`message` has no mode: a feedback form without a message is not a feedback form. Name, email and
+phone are asked of GUESTS only — an authenticated reporter's identity comes from the auth guard,
+so those three are neither shown to them nor revalidated.
+
+A field set to `off` is dropped, not merely hidden: a value for it does not reach the report even
+if one was posted. A field set to `required` is marked required in the markup and a submission
+without it is refused, in this package's own wording and in all seven shipped locales.
+
+One page can differ from the rest without touching the environment:
+
+```blade
+<livewire:visual-feedback.report-widget :fields="['email' => 'required', 'subject' => 'off']" />
+```
+
+**When the reporter leaves the subject empty** — the normal case, since it is optional — the mail
+subject becomes `Category - the first words of the message`. `VISUAL_FEEDBACK_MAIL_SUBJECT_EXCERPT`
+sets how much of the message goes in (default 60 characters); `0` gives the bare category.
+
+**Naming the sender.** `VISUAL_FEEDBACK_MAIL_FROM_NAME` defaults to `APP_NAME`, so reports arrive
+from the product rather than from a bare address. `VISUAL_FEEDBACK_MAIL_FROM_ADDRESS` overrides
+the envelope sender.
+
+**The rest of the surface.** Every variable is listed with its default at
+`https://docs.pushery.com/visual-feedback-for-laravel/configuration`, together with a block you
+can paste into `.env` whole. The ones a consuming application reaches for most:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `VISUAL_FEEDBACK_ENABLED` | `true` | master switch; off refuses every submission before it touches a disk |
+| `VISUAL_FEEDBACK_UI_VARIANT` | `auto` | `auto`, `plain` or `wirekit` |
+| `VISUAL_FEEDBACK_UI_TRIGGER` | `fab` | `fab`, `inline` or `none` when you place the trigger yourself |
+| `VISUAL_FEEDBACK_UI_POSITION` | `bottom-right` | which corner the floating button sits in |
+| `VISUAL_FEEDBACK_SCREENSHOT_STRATEGY` | `auto` | `auto`, `native`, `dom` or `off` |
+| `VISUAL_FEEDBACK_ATTACHMENTS_DISK` | `local` | keep it private: screenshots carry whatever was on screen |
+| `VISUAL_FEEDBACK_CHANNEL_DATABASE` | `false` | also store reports in the optional table |
+| `VISUAL_FEEDBACK_CHANNEL_WEBHOOK` | `false` | also POST them to `VISUAL_FEEDBACK_WEBHOOK_URL` |
+| `VISUAL_FEEDBACK_RETENTION_DAYS` | none | how long reports are kept, once you schedule the prune command |
+| `VISUAL_FEEDBACK_PRIVACY_URL` | none | the privacy notice a guest acknowledges |
+
 Three defaults are worth knowing before changing anything:
 
 - `screenshot.strategy` is `auto`. The browser's own screen capture runs first

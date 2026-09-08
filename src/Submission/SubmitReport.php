@@ -273,23 +273,44 @@ final readonly class SubmitReport
 
         $rules = [
             'category' => ['required', 'string', Rule::in($categories)],
-            'subject' => ['nullable', 'string', "max:{$subjectMax}"],
+            'subject' => [$this->requiredness('subject'), 'string', "max:{$subjectMax}"],
             'message' => ['required', 'string', "max:{$messageMax}"],
         ];
 
-        // Guest identity fields. Name and email are optional unless the host requires
-        // them; a given email is always validated as a real address; phone is capped.
-        // An authenticated reporter's identity comes from the guard, so it is not revalidated.
+        // Guest identity fields, each governed by its own `fields.<f>.mode`. An authenticated
+        // reporter's identity comes from the guard, so none of this applies to them.
+        //
+        // A field whose mode is `off` is not validated AND its value is not carried: the widget
+        // already drops it, and doing it here too means a caller that reaches this pipeline
+        // directly cannot smuggle in a value for a field the host switched off. Validating it
+        // instead would be the wrong shape — `nullable` accepts the smuggled value, `required`
+        // rejects a form that never showed the input.
         if ($input->reporter->isGuest) {
-            $phoneMax = $this->configInt('visual-feedback.fields.phone.max_length', 32);
+            $lengths = [
+                'name' => $this->configInt('visual-feedback.fields.name.max_length', 150),
+                'email' => $this->configInt('visual-feedback.fields.email.max_length', 254),
+                'phone' => $this->configInt('visual-feedback.fields.phone.max_length', 32),
+            ];
 
-            $data['guest_name'] = $input->reporter->name;
-            $data['guest_email'] = $input->reporter->email;
-            $data['guest_phone'] = $input->reporter->phone;
+            $given = [
+                'name' => $input->reporter->name,
+                'email' => $input->reporter->email,
+                'phone' => $input->reporter->phone,
+            ];
 
-            $rules['guest_name'] = [$this->required('require_name'), 'string', 'max:150'];
-            $rules['guest_email'] = [$this->required('require_email'), 'string', 'email', 'max:254'];
-            $rules['guest_phone'] = ['nullable', 'string', "max:{$phoneMax}"];
+            foreach ($lengths as $field => $max) {
+                if (! $this->settings->fieldIsShown($field)) {
+                    continue;
+                }
+
+                $data["guest_{$field}"] = $given[$field];
+                $rules["guest_{$field}"] = array_values(array_filter([
+                    $this->requiredness($field),
+                    'string',
+                    $field === 'email' ? 'email' : null,
+                    "max:{$max}",
+                ]));
+            }
         }
 
         // Messages and attribute names come from THIS package, in all seven locales. Leaving them
@@ -308,10 +329,10 @@ final readonly class SubmitReport
         return new ValidationFailure($field, (string) ($errors[$field][0] ?? ''));
     }
 
-    /** `required` or `nullable` for a guest identity field, per its `guests.require_*` switch. */
-    private function required(string $switch): string
+    /** `required` or `nullable` for one field, from the single `fields.<f>.mode` vocabulary. */
+    private function requiredness(string $field): string
     {
-        return $this->config->get("visual-feedback.guests.{$switch}") === true ? 'required' : 'nullable';
+        return $this->settings->fieldIsRequired($field) ? 'required' : 'nullable';
     }
 
     private function configInt(string $key, int $default): int

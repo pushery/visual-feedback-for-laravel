@@ -78,19 +78,47 @@ return [
     | rather than MySQL's 64 KB `text` — size your own column the same way if you
     | write reports somewhere else. The shipped limits do stay inside the shipped
     | columns, and the package's own suite holds them there.
-    | `message` is always present; `subject` and `phone` are optional.
+    |
+    | Every field has ONE key that says how you want it: `mode`, which is `off`,
+    | `optional` or `required`. `off` keeps it out of the form entirely, `required`
+    | refuses a submission without it, `optional` offers it and takes it if given.
+    |
+    | `message` has no `mode` on purpose. A feedback form without a message is not a
+    | feedback form, and a switch nobody may turn is a lie in this file.
+    |
+    | Name, email and phone are asked of GUESTS only. An authenticated reporter's
+    | identity comes from the auth guard, so those three are not shown to them and
+    | `mode` does not apply.
+    |
+    | Replaced two older shapes that answered the same question in two vocabularies:
+    | `fields.*.enabled` (a boolean, and only for subject and phone) and
+    | `guests.require_*` (name and email only). Both still work — the environment
+    | variables fold into `mode` right here, and a config file published before this
+    | release is honored by Settings::fieldMode(). Prefer `mode` in new code.
     |
     */
     'fields' => [
         'subject' => [
-            'enabled' => filter_var(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+            'mode' => env('VISUAL_FEEDBACK_FIELD_SUBJECT_MODE')
+                ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false ? 'off' : 'optional'),
             'max_length' => 150,
         ],
         'message' => [
             'max_length' => 50_000,
         ],
+        'name' => [
+            'mode' => env('VISUAL_FEEDBACK_FIELD_NAME_MODE')
+                ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
+            'max_length' => 150,
+        ],
+        'email' => [
+            'mode' => env('VISUAL_FEEDBACK_FIELD_EMAIL_MODE')
+                ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
+            'max_length' => 254,
+        ],
         'phone' => [
-            'enabled' => filter_var(env('VISUAL_FEEDBACK_FIELD_PHONE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+            'mode' => env('VISUAL_FEEDBACK_FIELD_PHONE_MODE')
+                ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_PHONE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'optional' : 'off'),
             'max_length' => 32,
         ],
     ],
@@ -100,16 +128,16 @@ return [
     | Guest reporters
     |--------------------------------------------------------------------------
     |
-    | The unauthenticated path. Name and email are always OFFERED to a guest;
-    | these switches make them REQUIRED. A guest email, when given, is always
-    | validated as a real address. Authenticated users never see these fields —
-    | their identity comes from the auth guard.
+    | The unauthenticated path. Name, email and phone are asked of guests only —
+    | an authenticated reporter's identity comes from the auth guard, and those
+    | fields are neither shown to them nor revalidated.
+    |
+    | How much of it a guest has to give is set per field under `fields` above.
+    | The `require_name` / `require_email` switches that used to live here moved
+    | there as `mode`, so one question is answered in one vocabulary. Their
+    | environment variables still work.
     |
     */
-    'guests' => [
-        'require_name' => filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
-        'require_email' => filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
-    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -363,6 +391,20 @@ return [
         ],
         'reply_to_reporter' => true,
         'locale' => env('VISUAL_FEEDBACK_MAIL_LOCALE'), // null|<locale>|reporter
+
+        // How much of the message goes into the subject line when the reporter left the subject
+        // field empty — which is the normal case, because that field is optional by design.
+        //
+        // Without this the fallback was the bare category, so an inbox of twenty reports read as
+        // "Bug / Bug / Feature / Bug": every line identical, none of them telling you which one
+        // to open first. The composed line is `Category - the first words of the message ...`.
+        //
+        // 60 is measured rather than picked. The longest category label this package ships is
+        // 16 characters ("Weergaveprobleem", nl), the separator costs 3, so the whole line stays
+        // at or under 79 - inside the ~60-80 characters a mail client shows in its list view.
+        //
+        // Set it to 0 to keep the old behavior: the category alone, no excerpt.
+        'subject_excerpt_length' => (int) env('VISUAL_FEEDBACK_MAIL_SUBJECT_EXCERPT', 60),
         'attach_files' => true,
 
         // Refuse to "deliver" through a transport that accepts a message and drops it — `log`,

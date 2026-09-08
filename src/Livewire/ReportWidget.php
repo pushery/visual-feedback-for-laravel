@@ -432,7 +432,15 @@ class ReportWidget extends Component
         // turned off, and `/livewire/update` carries no throttle in front of it.
         $enabled = $this->settings()->enabled();
 
-        $reporterDto = $reporter->resolve($this->guestName, $this->guestEmail, $this->guestPhone);
+        // A field the host switched off contributes NOTHING, even if a value reached the
+        // component. Livewire properties are writable from the browser, so a crafted request can
+        // set `guestEmail` on a form that never rendered an email box; dropping it here means the
+        // off state is a property of the submission rather than of the markup.
+        $reporterDto = $reporter->resolve(
+            $this->fieldEnabled('name') ? $this->guestName : null,
+            $this->fieldEnabled('email') ? $this->guestEmail : null,
+            $this->fieldEnabled('phone') ? $this->guestPhone : null,
+        );
 
         // A guest must acknowledge the privacy notice, when one is configured, before submitting.
         //
@@ -867,11 +875,21 @@ class ReportWidget extends Component
             'challengeView' => $this->resolvedChallengeView(),
             // Guest identity fields show only when there is no authenticated reporter —
             // decided by the same resolver the submission uses, so the two never disagree.
-            'showGuestFields' => $isGuest,
-            // The subject field is optional per config, overridable per instance.
+            // The block itself renders while ANY of the three is on; each one then decides
+            // for itself, so a host who wants only an email box gets only an email box.
+            'showGuestFields' => $isGuest && ($this->fieldEnabled('name') || $this->fieldEnabled('email') || $this->fieldEnabled('phone')),
+            // Every field answers the same question in the same vocabulary — see Settings.
             'showSubject' => $this->fieldEnabled('subject'),
-            // The phone field is off by default; shown only to a guest when enabled.
+            'showName' => $this->fieldEnabled('name') && $isGuest,
+            'showEmail' => $this->fieldEnabled('email') && $isGuest,
             'showPhone' => $this->fieldEnabled('phone') && $isGuest,
+            // Passed to the templates so a required field can be marked as one in the markup.
+            // A form that demands a value without saying so is the accessibility failure this
+            // package would otherwise have shipped along with the new `required` mode.
+            'requiredFields' => array_values(array_filter(
+                ['subject', 'name', 'email', 'phone'],
+                fn (string $field): bool => $this->fieldMode($field) === Settings::FIELD_REQUIRED,
+            )),
             // The privacy notice URL a guest must acknowledge, or null when none is set. This one
             // value decides both whether the block renders and whether submit() demands the tick —
             // see PrivacyNotice::required().
@@ -969,12 +987,31 @@ class ReportWidget extends Component
     /**
      * Whether a field is enabled: a per-instance override wins over the config default.
      */
-    private function fieldEnabled(string $field): bool
+    /**
+     * How this widget wants one field: `off`, `optional` or `required`.
+     *
+     * The per-instance `fields` prop wins over configuration, because a docs page and a billing
+     * page in the same application legitimately want different forms. It accepts the mode by
+     * name, and it still accepts the BOOLEAN the prop was documented with — `['subject' => false]`
+     * has been in consumers' templates since 0.1.0 and keeps meaning what it always meant.
+     */
+    private function fieldMode(string $field): string
     {
-        if (array_key_exists($field, $this->fields)) {
-            return $this->fields[$field] !== false;
+        $override = $this->fields[$field] ?? null;
+
+        if (is_string($override) && in_array($mode = strtolower(trim($override)), Settings::FIELD_MODES, true)) {
+            return $mode;
         }
 
-        return config("visual-feedback.fields.{$field}.enabled", true) !== false;
+        if (is_bool($override)) {
+            return $override ? Settings::FIELD_OPTIONAL : Settings::FIELD_OFF;
+        }
+
+        return $this->settings()->fieldMode($field);
+    }
+
+    private function fieldEnabled(string $field): bool
+    {
+        return $this->fieldMode($field) !== Settings::FIELD_OFF;
     }
 }
