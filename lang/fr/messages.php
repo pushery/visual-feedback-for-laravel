@@ -27,7 +27,7 @@ return [
         'name_label' => 'Ton nom',
         'email_label' => 'Ton e-mail',
         'phone_label' => 'Ton téléphone (facultatif)',
-        'subject_label' => 'Objet',
+        'subject_label' => 'Objet (facultatif)',
         'privacy_acknowledge' => 'J’ai lu la politique de confidentialité.',
         'privacy_notice_link' => 'Lire la politique de confidentialité',
         'close' => 'Fermer',

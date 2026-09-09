@@ -224,14 +224,36 @@ final readonly class SubmitReport
      */
     private function attributeNames(): array
     {
-        return [
+        return array_map($this->withoutOptionalMarker(...), [
             'category' => (string) trans('visual-feedback::messages.widget.category_label'),
             'subject' => (string) trans('visual-feedback::messages.widget.subject_label'),
             'message' => (string) trans('visual-feedback::messages.widget.message_label'),
             'guest_name' => (string) trans('visual-feedback::messages.widget.name_label'),
             'guest_email' => (string) trans('visual-feedback::messages.widget.email_label'),
             'guest_phone' => (string) trans('visual-feedback::messages.widget.phone_label'),
-        ];
+        ]);
+    }
+
+    /**
+     * A label without the trailing "(optional)" note, for use as a validation attribute name.
+     *
+     * A LABEL and an ATTRIBUTE NAME are two different sentences, and reusing one as the other is
+     * fine right up to the moment a label carries a parenthetical. "Your phone (optional)" reads
+     * correctly beside its input and wrongly inside "… may not be longer than 20 characters" --
+     * the message is already about one field, so restating that it is optional there says nothing
+     * and reads like a mistake.
+     *
+     * This was latent before the subject label gained its note: `phone_label` has carried one for
+     * longer, and nothing showed it because no rule on that field produces a message in the
+     * tested paths. Stripping it here fixes both rather than the one that surfaced.
+     *
+     * Matched on a trailing parenthetical only, so a label whose NAME contains brackets keeps
+     * them, and every locale is covered without listing seven translations of the word -- the
+     * marker is a shape, not a vocabulary.
+     */
+    private function withoutOptionalMarker(string $label): string
+    {
+        return trim((string) preg_replace('/\s*\([^()]*\)\s*$/u', '', $label));
     }
 
     private function validate(SubmissionInput $input): ?ValidationFailure

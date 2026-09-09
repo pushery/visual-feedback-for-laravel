@@ -4,6 +4,15 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.9.3] - 2026-09-10
+
+### Fixed
+
+- **A success message now takes the same shape as the failure beside it, in both view trees.** The error alert carried a margin, padding, a border, a reading-edge stripe and a radius; the success line carried color and weight and nothing else. A success and a failure are the same class of statement -- the state changed, look here -- so on the screen that made "screenshot attached" read as a marginal note while the failure read as an alarm. Reported from a consuming application that renders the WireKit tree, and both trees were affected. Each success box takes its values from the alert beside it, out of that tree's own scale, rather than approximating them: two shapes meant to match have to be edited together. Neither gets a background tint, for the reason the alert already states -- the success tone is a *text* tone proven at AA against the surface, and a filled box needs a second, paler tone per scheme.
+- **The subject field says it is optional, in all seven locales.** It carries no `required` marker while four other fields do, so a reporter who has just filled four mandatory fields reads the fifth as the fifth mandatory field. The wording per locale is taken from `phone_label` in the same file -- already optional, already translated -- rather than translated afresh.
+- **An optional marker no longer appears inside the validation messages about that field.** Attribute names are built from the widget's labels, so a label reading "Subject (optional)" produced "Subject (optional) may not be longer than 20 characters." Beside the input the note is exactly right; inside a message that is already about one field it says nothing. This was latent before this release -- `phone_label` has carried the marker for longer, and no rule on that field produces a message in the tested paths. The marker is stripped at the attribute boundary by matching a trailing parenthetical, so it holds in all seven locales without naming *facultatif*, *opzionale* and *optioneel* one by one, and a label whose name genuinely contains brackets survives untouched.
+- **Upgrade:** nothing to do. If you override the widget's success styling in your own stylesheet, check it once against the new rules -- the class names are unchanged, and the box is painted from the same shown-state class the alert already used.
+
 ## [0.9.2] - 2026-09-09
 
 ### Fixed
@@ -444,6 +453,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
 [Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...HEAD
+
+[0.9.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...v0.9.3
 
 [0.9.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.1...v0.9.2
 
