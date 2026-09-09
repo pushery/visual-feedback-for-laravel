@@ -4,6 +4,15 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.9.2] - 2026-09-09
+
+### Fixed
+
+- `WebhooksPlatform::isInstalled()` checked only that the package's class exists, which says nothing about whether the facade resolves -- that additionally needs the provider to have registered `WebhookManager`. It gates the platform path inside a queue job, so the throw marked the receipt FAILED while the built-in signed sender sat right underneath as a fallback an honest `false` would have used. It now checks the bindings too.
+- The CSP section of the integration contract listed two of the three shipped bundles. The missing one is the renderer, which the DOM stage loads at the moment of capture, so everything looked correct until a reporter had already pressed the button -- and on iOS there is no second path.
+- The `challenge_view` example omitted its `abuse` level. A missing key falls back to the shipped default without an error, so the decoy success screen the page promises would not have appeared.
+- Two pages said there is deliberately no admin UI while the report browser documents one. Both re-scoped rather than deleted: nothing is installed and no console ships, and the browser is the opt-in exception that stays unreachable until routed and gated.
+
 ## [0.9.1] - 2026-09-09
 
 ### Fixed
@@ -434,7 +443,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...HEAD
+
+[0.9.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.1...v0.9.2
 
 [0.9.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.0...v0.9.1
 
