@@ -65,10 +65,15 @@
 
         {{-- Honeypot: off-screen, hidden from AT, never tab-reachable. --}}
         <div class="visual-feedback-honeypot" aria-hidden="true"
-            {{-- The class carries NO rule in this tree: it publishes no stylesheet of its
-                 own. It is here as the hook the documentation names, so a host whose
-                 policy forbids style attributes has one selector to write a rule against
-                 rather than a nameless div to find. See the CSP section of the
+            {{-- CORRECTION. This said the class carries NO rule in this tree because it publishes no
+                 stylesheet of its own. Both halves are wrong: `visual-feedback::style` has a
+                 WireKit block and `.visual-feedback-honeypot` is the FIRST rule in it.
+
+                 The attribute is still not redundant, and here that is load-bearing rather than
+                 belt-and-braces: a visible honeypot is filled in by real reporters, and a
+                 honeypot hit is answered with the success screen on purpose — so their report is
+                 thanked for and discarded. Two independent concealments, because either one can
+                 be dropped by a policy the other survives. See the CSP section of the
                  integration contract. --}}
             style="position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px;">
             <label>
@@ -154,11 +159,18 @@
                 x-on:input="measure($event.target.value)"
                 :placeholder="__('visual-feedback::messages.widget.message_placeholder')" />
             <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
-            {{-- Off-screen live region. The inline style is what actually hides it: this tree
-                 publishes no stylesheet of its own, so `visual-feedback-sr-only` would carry no
-                 rule here and the region would render as a second VISIBLE counter. Same
-                 reasoning as the honeypot above — the class stays as the selector a host with a
-                 style-attribute policy can write a rule against. --}}
+            {{-- Off-screen live region, concealed TWICE and deliberately.
+
+                 CORRECTION. This said "this tree publishes no stylesheet of its own", and that has not
+                 been true for some time: `visual-feedback::style` carries a WireKit block, and
+                 `.visual-feedback-sr-only` has a rule in it. The sentence mattered, because it
+                 is the reason nobody added the missing rules to that block for so long — a
+                 reader who believes there is no stylesheet does not look for one.
+
+                 The inline style stays regardless, and the real reason is the inverse of the old
+                 one: the rule is the primary concealment, and the attribute is what survives a
+                 host that has not included the stylesheet at all. Without both, this region
+                 renders as a second VISIBLE counter. --}}
             <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"
                 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);"></span>
         </div>
@@ -250,14 +262,22 @@
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
 
-                {{-- A capture failure is VISIBLE with retry, not a silent console.warn. --}}
-                <div x-show="status === 'failed'" role="alert" aria-live="assertive">
+                {{-- A capture failure is VISIBLE with retry, not a silent console.warn.
+
+                     Both alert classes are UNCONDITIONAL here, unlike the server-rendered
+                     regions below: this one's text is always in the markup and `x-show` is what
+                     decides whether it is seen. `x-show` writes `display:none` as an inline
+                     style, which outranks the stylesheet, so the box cannot leak out while the
+                     capture is idle. --}}
+                <div class="visual-feedback-alert visual-feedback-alert--shown"
+                    x-show="status === 'failed'" role="alert" aria-live="assertive">
                     {{ __('visual-feedback::messages.widget.screenshot_failed') }}
                     <x-wirekit::button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                 </div>
 
                 {{-- Perimeter error surfaced from the screenshot upload validation. --}}
-                <div role="alert" aria-live="assertive">
+                <div @class(['visual-feedback-alert', 'visual-feedback-alert--shown' => $errors->has('screenshot')])
+                    role="alert" aria-live="assertive">
                     @error('screenshot') {{ $message }} @enderror
                 </div>
             </div>
@@ -287,8 +307,15 @@
             :removeLabel="__('visual-feedback::messages.widget.remove_file', ['name' => ':name'])"
             :label="__('visual-feedback::messages.widget.attachments_label')" />
 
-        {{-- Real-time perimeter errors surfaced from the upload validation. --}}
-        <div role="alert" aria-live="assertive">
+        {{-- Real-time perimeter errors surfaced from the upload validation.
+
+             Both keys are tested, because both are rendered: a per-file failure lands under
+             `attachments.0`, never under `attachments`, and a box keyed on the bare name alone
+             would stay unpainted for exactly the rejection a reporter is most likely to hit. --}}
+        <div @class([
+            'visual-feedback-alert',
+            'visual-feedback-alert--shown' => $errors->has('attachments') || $errors->has('attachments.*'),
+        ]) role="alert" aria-live="assertive">
             @error('attachments') {{ $message }} @enderror
             @error('attachments.*') {{ $message }} @enderror
         </div>
@@ -301,7 +328,11 @@
              pipeline gave. Both used to be blunt: any failure showed one generic line and pointed
              at the message box, so a typo in the email sent the reporter to the text they had
              written correctly. --}}
-        <div class="visual-feedback-error" id="visual-feedback-error" role="alert" aria-live="assertive"
+        <div @class([
+            'visual-feedback-error',
+            'visual-feedback-alert',
+            'visual-feedback-alert--shown' => $failed,
+        ]) id="visual-feedback-error" role="alert" aria-live="assertive"
             x-effect="$wire.failureCount && vfFocusFailedField()">
             @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
         </div>

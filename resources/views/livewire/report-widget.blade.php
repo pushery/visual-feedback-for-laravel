@@ -317,14 +317,22 @@
                             {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                         </button>
 
-                        {{-- B7 fix: a capture failure is VISIBLE with retry, not a silent console.warn. --}}
-                        <div x-show="status === 'failed'" role="alert" aria-live="assertive">
+                        {{-- A capture failure is VISIBLE with retry, not a silent console.warn.
+
+                             Both alert classes are UNCONDITIONAL here, unlike the server-rendered
+                             regions below: this one's text is always in the markup and `x-show`
+                             decides whether it is seen. `x-show` writes `display:none` inline,
+                             which outranks the stylesheet, so the box cannot leak out while the
+                             capture is idle. --}}
+                        <div class="visual-feedback-alert visual-feedback-alert--shown"
+                            x-show="status === 'failed'" role="alert" aria-live="assertive">
                             {{ __('visual-feedback::messages.widget.screenshot_failed') }}
                             <button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
                         </div>
 
                         {{-- Perimeter error surfaced from the screenshot upload validation. --}}
-                        <div role="alert" aria-live="assertive">
+                        <div @class(['visual-feedback-alert', 'visual-feedback-alert--shown' => $errors->has('screenshot')])
+                            role="alert" aria-live="assertive">
                             @error('screenshot') {{ $message }} @enderror
                         </div>
                     </div>
@@ -354,8 +362,16 @@
                          screen reader reads the limit as part of the field. --}}
                     <p id="visual-feedback-files-limit" class="visual-feedback-hint">{{ $attachmentLimit }}</p>
 
-                    {{-- Real-time perimeter errors (invalid type / too large / too many). --}}
-                    <div role="alert" aria-live="assertive">
+                    {{-- Real-time perimeter errors (invalid type / too large / too many).
+
+                         Both keys are tested, because both are rendered: a per-file failure
+                         lands under `attachments.0`, never under `attachments`, and a box keyed
+                         on the bare name alone would stay unpainted for exactly the rejection a
+                         reporter is most likely to hit. --}}
+                    <div @class([
+                        'visual-feedback-alert',
+                        'visual-feedback-alert--shown' => $errors->has('attachments') || $errors->has('attachments.*'),
+                    ]) role="alert" aria-live="assertive">
                         @error('attachments') {{ $message }} @enderror
                         @error('attachments.*') {{ $message }} @enderror
                     </div>
@@ -410,7 +426,11 @@
                      else — so a reporter with a typo in their email was pointed at the message
                      they had written correctly. An unknown field still falls back
                      to the message box rather than dropping focus on <body>. --}}
-                <div class="visual-feedback-error" id="visual-feedback-error" role="alert" aria-live="assertive"
+                <div @class([
+                    'visual-feedback-error',
+                    'visual-feedback-alert',
+                    'visual-feedback-alert--shown' => $failed,
+                ]) id="visual-feedback-error" role="alert" aria-live="assertive"
                     x-effect="$wire.failureCount && vfFocusFailedField()">
                     @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
                 </div>

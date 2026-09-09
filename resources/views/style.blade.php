@@ -316,6 +316,62 @@
 
     .visual-feedback-dialog [role="alert"] { color: var(--vf-error); }
 
+    /* Every rejection the reporter can see, in a box that reads as one.
+       Owner directive: an error message is always in the red box.
+
+       The tone alone was not enough, and the failure it produced is worth stating because it is
+       not obvious from a screenshot: the rule above tints the text, so the refusal
+       "you captured a screenshot but have not attached it" rendered at the same weight and
+       nearly the same size as the hint "up to 5 files, 5 MB each" two lines above it. A reporter
+       scanning the form read the second as advice and the first as more advice.
+
+       Painted from a CLASS the server sets, never from `:not(:empty)`. Every one of these
+       regions is a live region that must exist before it has anything to say, so all four are in
+       the markup on every render, holding the newline and indentation Blade leaves behind --
+       and `:empty` does not match an element containing whitespace. A box drawn on that
+       selector would be a permanently empty red rectangle under every field.
+
+       `border-inline-start` rather than `border-left`: the widget ships seven locales today and
+       the stripe has to sit at the reading edge, not at the west edge.
+
+       No background tint. --vf-error is a text tone chosen against --vf-bg and proven at AA
+       there; a filled box would need a second, paler tone per scheme, and that is a second pair
+       of colors to prove rather than reuse. The stripe and the weight carry the emphasis, so
+       nothing here depends on color alone (WCAG 1.4.1) -- the same argument the success glyph
+       above makes. */
+    .visual-feedback-alert--shown {
+        margin-top: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--vf-error);
+        border-inline-start: 4px solid var(--vf-error);
+        border-radius: 6px;
+        color: var(--vf-error);
+        font-weight: 600;
+    }
+
+    /* The sentence that warns the browser is about to ask to share the screen. It sits between
+       the capture button and the fields, and it had no rule at all -- so it rendered at body
+       weight and body color, reading as a statement about the page rather than as a note about
+       the button above it. Muted like the counter and the caps, which is what it is. */
+    .visual-feedback-native-hint {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.8125rem;
+        color: var(--vf-muted);
+    }
+
+    /* The capture block's own separation from the field above it.
+
+       The rhythm in this tree comes from `label { margin-top }`, which works for every group
+       that STARTS with a label -- and the screenshot block does not: it opens with a button. So
+       it sat flush against the message field, measured at 0px in a browser, which is exactly the
+       "no space around the screenshot area" half of the report. Fixing it through the label rule
+       was not open: there is no label to hang it on. */
+    .visual-feedback-dialog .visual-feedback-screenshot {
+        display: block;
+        margin-top: 0.75rem;
+    }
+
     /* The control the server marked invalid, for the reporter who can see it.
        Until this rule existed the error state was audible and invisible: `aria-invalid` told a
        screen reader which field was wrong while a sighted reporter had only the shared alert
@@ -620,6 +676,94 @@
     .visual-feedback-submit,
     .visual-feedback-report-another {
         margin-block-start: var(--space-wk-sm, 0.5rem);
+    }
+
+    /* ── Vertical rhythm ─────────────────────────────────────────────────────────────
+       The gap between one field group and the next. The plain tree has carried this since it
+       existed, as `label { margin-top: 0.75rem }`; this tree renders WireKit components instead
+       of labels of its own, and so had NO rule for it -- every group sat flush against the one
+       above, and a label read as the caption of the field before it rather than of the field
+       after it. That is why the reported symptom is about grouping and not about tightness:
+       with no space anywhere, the eye pairs each label with the wrong control.
+
+       The owl selector rather than `gap`, and the reason is that this element is a <form> whose
+       layout nobody chose: switching it to flex to reach `gap` would re-parent every child into
+       a flex context -- which changes how the honeypot, the challenge slot a host injects, and
+       WireKit's own file-upload behave. `* + *` adds spacing and changes no layout model.
+
+       It resolves the three buttons above rather than fighting them: same property, higher
+       specificity, so a direct child of the form takes this value and the ones nested deeper
+       (the capture button, which is inside `.visual-feedback-screenshot`) keep theirs. */
+    .visual-feedback-panel form > * + * {
+        margin-block-start: var(--space-wk-md, 1rem);
+    }
+
+    /* …and the one child the rule above cannot reach on its own. The privacy anchor is a direct
+       child of the form and an INLINE box, and a vertical margin on an inline box does nothing —
+       so the submit button, which WireKit renders `inline-flex`, sat on the same line as the
+       link and overlapped it by 30px, measured in a browser at a phone width.
+
+       `display: block` is the whole fix: it makes the anchor a block box, which both takes the
+       margin above and puts the button back on its own line. Width is left alone, so the link's
+       clickable area still ends with its text rather than spanning the panel — an anchor that
+       reaches the full width invites a click on empty space beside the words. */
+    .visual-feedback-panel form > a {
+        display: block;
+    }
+
+    /* Every rejection the reporter can see, in a box that reads as one.
+       Owner directive: an error message is always in the red box.
+
+       This tree had no error styling AT ALL -- not even the tint the plain tree gives every
+       `[role="alert"]` -- so "something went wrong, please try again" rendered in body color at
+       body weight, indistinguishable from the attachment caps a few lines above it.
+
+       Painted from a CLASS the server sets, never from `:not(:empty)`: all four alert regions
+       are live regions that must be in the markup before they have anything to say, and they
+       therefore always contain Blade's leftover whitespace, which `:empty` does not match.
+
+       WireKit's own danger tokens, not a palette of ours -- `--color-wk-danger-text` is the
+       tone that design system already proves against its surfaces, and inventing a second red
+       here is how a widget stops looking like the app it is embedded in. The fallbacks are the
+       plain tree's own error tone, so a host that loads this tree without WireKit's stylesheet
+       still gets a red box rather than an unpainted one. */
+    .visual-feedback-alert--shown {
+        margin-block-start: var(--space-wk-sm, 0.5rem);
+        padding: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
+        border: 1px solid var(--color-wk-border-error, #b91c1c);
+        border-inline-start: 4px solid var(--color-wk-border-error, #b91c1c);
+        border-radius: var(--radius-wk-md, 0.5rem);
+        color: var(--color-wk-danger-text, #b91c1c);
+        font-weight: var(--font-wk-heading-weight, 600);
+    }
+
+    /* The "your browser will ask to share your screen" note, muted like the counter and the
+       caps beside it -- it describes the button above it rather than the page. */
+    .visual-feedback-native-hint {
+        display: block;
+        margin-block-start: var(--space-wk-xs, 0.25rem);
+        font-size: var(--text-wk-sm, 0.8125rem);
+        color: var(--color-wk-text-muted, #6b7280);
+    }
+
+    /* ── The trigger's two offsets, made equal ───────────────────────────────────────
+       WireKit places its FAB with a DIFFERENT token per axis: `.wk-fab` sets
+       `inset-block-end` from `--padding-wk-y-lg` while the position class sets the inline edge
+       from `--padding-wk-x-lg`. Measured in the installed stylesheet, not inferred: y is
+       .75rem and x is 1rem, so the button sits 16px from the side and 12px from the bottom.
+       Reported from a consumer as the button looking pushed against the side rather than
+       resting in the corner, and that is what an unequal inset looks like once you see it.
+
+       So this restates the block axis from the INLINE token -- the two axes then move together
+       and follow whatever a host has themed `--padding-wk-x-lg` to, which is the property that
+       matters more than the specific number. The safe-area term is kept exactly as WireKit
+       composes it; dropping it would put the button under the home indicator on a phone.
+
+       This is a WORKAROUND for an upstream defect and is reported there. Delete this rule the
+       day the component positions both axes from one token; the guard that pins it says how to
+       check. */
+    .visual-feedback-fab.wk-fab {
+        inset-block-end: calc(var(--padding-wk-x-lg, 1rem) + env(safe-area-inset-bottom, 0px));
     }
 </style>
 @endif

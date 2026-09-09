@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.9.1] - 2026-09-09
+
+### Fixed
+
+- **Error messages are in a red box now, in both view trees.** They rendered as ordinary body text: the plain tree tinted them and drew no box, the WireKit tree did neither — so "something went wrong, please try again" sat in the same color and weight as "up to 5 files, 5 MB each" a couple of lines above it. A reporter scanning the form read the refusal as more advice. Every one of the four alert regions per tree is painted, not just the one at the bottom.
+- **The form has vertical rhythm between its field groups in the WireKit tree.** It had none at all, so each label sat flush against the field above it and read as that field's caption rather than the next one's. This is why the reported symptom was about grouping rather than tightness.
+- **The capture block no longer sits flush against the message field in the plain tree**, and the privacy link no longer has the submit button overlapping it in the WireKit tree. The first had no rule because that tree's rhythm hangs on labels and the block opens with a button; the second because the link is an inline box, which takes no vertical margin, so an `inline-flex` button beside it stayed on the same line.
+- **The "you captured a screenshot but have not attached it" refusal disappears when you discard the capture.** Discarding cleared the pending flag; the refusal that flag had caused was cleared by nothing, so pressing Send, reading the message and then pressing Discard left an instruction to resolve something already resolved. Only that refusal is cleared — an unrelated one on screen stays.
+- **The floating trigger rests in the corner instead of against one edge.** Its two offsets came from different spacing tokens in the design system, 16px to the side and 12px to the bottom.
+- **An analytics outage can no longer refuse a report.** The optional Matomo bridge asked whether the facade class exists, which is true from the moment Composer autoloads it, and not whether it can resolve — which additionally needs the package's service provider to have registered its interface. An application that installs the package and skips that provider therefore had a bridge that reported itself available and then threw, inside the submit path, taking the report with it. A lost event costs nothing; a lost report is the one thing this package exists to prevent.
+- **Upgrade:** nothing to do. If you override `.visual-feedback-error` or any of the widget's spacing in your own stylesheet, check it against the new rules once — the class names are unchanged and the new box is painted from `.visual-feedback-alert--shown`.
+
 ## [0.9.0] - 2026-09-08
 
 ### Added
@@ -422,7 +434,9 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.1...HEAD
+
+[0.9.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.0...v0.9.1
 
 [0.9.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.8.0...v0.9.0
 
