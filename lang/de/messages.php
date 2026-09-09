@@ -27,7 +27,7 @@ return [
         'name_label' => 'Dein Name',
         'email_label' => 'Deine E-Mail',
         'phone_label' => 'Deine Telefonnummer (optional)',
-        'subject_label' => 'Betreff',
+        'subject_label' => 'Betreff (optional)',
         'privacy_acknowledge' => 'Ich habe die Datenschutzhinweise gelesen.',
         'privacy_notice_link' => 'Datenschutzhinweise lesen',
         'close' => 'Schließen',

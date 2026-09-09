@@ -27,7 +27,7 @@ return [
         'name_label' => 'Je naam',
         'email_label' => 'Je e-mailadres',
         'phone_label' => 'Je telefoonnummer (optioneel)',
-        'subject_label' => 'Onderwerp',
+        'subject_label' => 'Onderwerp (optioneel)',
         'privacy_acknowledge' => 'Ik heb de privacyverklaring gelezen.',
         'privacy_notice_link' => 'Privacyverklaring lezen',
         'close' => 'Sluiten',

@@ -27,7 +27,7 @@ return [
         'name_label' => 'O teu nome',
         'email_label' => 'O teu email',
         'phone_label' => 'O teu telefone (opcional)',
-        'subject_label' => 'Assunto',
+        'subject_label' => 'Assunto (opcional)',
         'privacy_acknowledge' => 'Li o aviso de privacidade.',
         'privacy_notice_link' => 'Ler o aviso de privacidade',
         'close' => 'Fechar',

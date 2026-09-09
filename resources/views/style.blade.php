@@ -286,6 +286,24 @@
        under a class with no rule in either tree -- so the message indistinguishable from the hint
        above it was the one confirming the reporter's screenshot had arrived. */
     .visual-feedback-success {
+        /* ONE BOX SHAPE FOR BOTH DIRECTIONS, and the asymmetry it replaces was the finding.
+           This rule used to be color plus weight and nothing else, while the error alert below
+           carried a margin, padding, a border, a radius and a reading-edge stripe. On the screen
+           that made "screenshot attached" read as a marginal note and the failure as an alarm,
+           although both are the same class of statement: the state changed, look here.
+
+           The spacing, padding, radius and stripe are copied from the alert deliberately rather
+           than approximated -- two shapes that are meant to match must be edited together, and a
+           second set of values is how they drift apart again.
+
+           No background tint here either, for the reason the alert states: --vf-success is a text
+           tone proven at AA against --vf-bg, and a filled box would need a second, paler tone per
+           scheme -- a second pair of colors to prove rather than reuse. */
+        margin-top: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--vf-success);
+        border-inline-start: 4px solid var(--vf-success);
+        border-radius: 6px;
         color: var(--vf-success);
         font-weight: 600;
     }
@@ -660,8 +678,16 @@
         color: var(--color-wk-text-muted, #6b7280);
     }
 
-    /* The two sentences that say something worked, on WireKit's own success tone. */
+    /* The two sentences that say something worked, on WireKit's own success tone -- and in the
+       same box shape as the alert further down, from the same token scale. Color and weight
+       alone made a success read as a marginal note beside a failure that had a full box; both
+       are the same class of statement and now look like it. */
     .visual-feedback-success {
+        margin-block-start: var(--space-wk-sm, 0.5rem);
+        padding: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
+        border: 1px solid var(--color-wk-border-success, #15803d);
+        border-inline-start: 4px solid var(--color-wk-border-success, #15803d);
+        border-radius: var(--radius-wk-md, 0.5rem);
         color: var(--color-wk-success-text, #15803d);
         font-weight: var(--font-wk-heading-weight, 600);
     }
