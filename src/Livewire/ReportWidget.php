@@ -657,6 +657,42 @@ class ReportWidget extends Component
         $this->failureCount++;
     }
 
+    /**
+     * Clear the "you captured a screenshot but have not attached it" refusal the moment the
+     * capture it refers to is gone.
+     *
+     * The capture module clears `screenshotPending` on every way OUT of the preview — discard,
+     * retake and attach all reach it. The REFUSAL it caused did not follow: `failed` and
+     * `failedMessage` are set by submit and cleared by nothing short of a successful one. So a
+     * reporter who pressed Send, read "attach it or discard it", and then pressed Discard was
+     * left looking at an instruction to resolve something they had just resolved — the widget
+     * asking for a decision that no longer exists.
+     *
+     * Scoped to THIS failure rather than clearing on any state change, and the scope is what
+     * makes it safe: `failedField` is the server's own record of which refusal is on screen, so
+     * an unrelated one (a rate limit, a listener veto, a bad email) is untouched. Clearing
+     * broadly would erase a message the reporter still needs while they fix something else.
+     *
+     * `failureCount` is deliberately NOT decremented. It is the monotonic counter the views key
+     * their focus effect on, and rolling it back would make the NEXT failure look unchanged to
+     * Alpine — the focus move would not fire, which is the defect that counter exists for.
+     */
+    public function updatedScreenshotPending(): void
+    {
+        // Read off the property rather than off a hook argument: Livewire has already cast and
+        // assigned it by the time this runs, and the two sibling hooks above take no argument
+        // either. A typed parameter would additionally hand a client-set value straight into a
+        // TypeError.
+        if ($this->screenshotPending || $this->failedField !== 'screenshot') {
+            return;
+        }
+
+        $this->failed = false;
+        $this->failedField = null;
+        $this->failedMessage = null;
+        $this->failedFieldInvalid = false;
+    }
+
     /** Full reset so a second report (including a fresh screenshot) is possible in the same session. */
     public function resetWidget(): void
     {
