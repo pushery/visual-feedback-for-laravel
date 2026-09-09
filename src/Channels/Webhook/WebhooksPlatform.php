@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Channels\Webhook;
 
+use Illuminate\Container\Container;
+use Pushery\Webhooks\Core\Ssrf\SsrfGuard;
 use Pushery\Webhooks\Facades\Webhooks;
+use Pushery\Webhooks\WebhookManager;
 
 /**
  * The thin bridge to the OPTIONAL pushery/webhooks-for-laravel platform.
@@ -28,7 +31,21 @@ class WebhooksPlatform
 
     public function isInstalled(): bool
     {
-        return class_exists(Webhooks::class);
+        // BOTH, and the second half is what a queue job depends on. `class_exists()` answers
+        // "is the package there"; it says nothing about whether the facade RESOLVES, which
+        // needs the provider to have registered `WebhookManager`. Measured in an application
+        // with the package installed and the provider not loaded: `class_exists` true,
+        // `bound(WebhookManager)` false, and `make()` throwing -- one level deeper than it
+        // looks, on `SsrfGuard`, an interface only the provider binds. "Concrete, therefore
+        // auto-wirable, therefore safe" does not survive that.
+        //
+        // It matters here more than in the sibling bridges: this gates the platform path in
+        // `SendReportWebhook`, a QUEUE JOB, so a throw marks the receipt FAILED -- while the
+        // built-in signed sender sits right underneath as a fallback that an honest `false`
+        // would have used. The weak guard turns a working fallback into a failed delivery.
+        return class_exists(Webhooks::class)
+            && Container::getInstance()->bound(WebhookManager::class)
+            && Container::getInstance()->bound(SsrfGuard::class);
     }
 
     /**
