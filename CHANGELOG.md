@@ -4,6 +4,43 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.10.0] - 2026-09-10
+
+### Changed
+
+- The `suggest` note for `pushery/matomo-analytics-for-laravel` said 0.17 is "the oldest minor a
+  test run here has actually covered". No run had covered it when that was written. One has now
+  (2026-09-10, at the floor and under a full lowest resolution), and the note says so — a
+  plausible claim nobody has checked is worse than an absent one.
+
+- The comment at the head of the stylesheet said the WireKit tree gets "nothing at all". That was
+  true when it was written and stopped being true when the tree's own branch was added; it is
+  ~185 lines. Corrected, with the line count named so the next reader can check rather than
+  believe.
+
+### Fixed
+
+- **A layout that forgot the stylesheet shipped the widget unstyled, and nothing anywhere said so.**
+  Measured on 2026-09-10 across the applications embedding this widget: 6 of 11 carried the widget
+  and `<x-visual-feedback::scripts />` but not `@include('visual-feedback::style')`. No positioning
+  for the floating panel, no dialog styling, and no concealment rule for the honeypot, which lives
+  in that sheet. The widget rendered, opened and sent — it just looked like nothing else on the
+  page. Nothing was red in any of the six.
+
+  `<x-visual-feedback::scripts />` now emits the stylesheet when the layout has not already, and
+  logs a warning naming the line to add. Both halves matter: the self-heal alone would make the
+  missing line permanent by making it harmless, which trades a visible defect for an invisible one.
+
+  **The self-heal is not a second way to install the widget.** Keep writing the include in your
+  `<head>`. The tag renders before `</body>`, so a layout relying on the fallback gets a brief
+  unstyled frame — worse than the include, and enormously better than never. A layout that
+  includes the sheet *below* the tag gets it twice; the rules are identical, so the duplicate is
+  inert.
+
+  It is emitted from a package template deliberately. The file the missing line belongs in is your
+  own layout, which no upgrade touches — without this, every affected application would have had
+  to be edited by hand, one at a time, after somebody counted them.
+
 ## [0.9.3] - 2026-09-10
 
 ### Fixed
@@ -454,6 +491,7 @@ Everything above is covered in full at <https://docs.pushery.com/visual-feedback
 
 [Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...HEAD
 
+[0.10.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.3...v0.10.0
 [0.9.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...v0.9.3
 
 [0.9.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.1...v0.9.2

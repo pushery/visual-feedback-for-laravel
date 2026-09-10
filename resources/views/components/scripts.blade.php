@@ -56,6 +56,40 @@
      by rendering nothing itself — this component has to ask too, exactly as the fab and the
      trigger do, or an operator who switched the package off still ships the whole renderer. --}}
 @if (app(\Pushery\VisualFeedback\Support\Settings::class)->enabled())
+{{-- THE STYLESHEET, IF THE LAYOUT DID NOT ALREADY ASK FOR IT — and this is a self-heal, not a
+     second documented way to install the widget. Keep writing @include('visual-feedback::style')
+     in your <head>; that is where it belongs and it is where it will not flash.
+
+     Across the applications embedding this widget, 6 of 11 carried the
+     widget and this very tag, and not the include. They shipped it unstyled — no positioning for
+     the floating panel, no dialog styling, and no concealment rule for the honeypot, which lives
+     in that sheet. Nothing was red anywhere. The widget renders, opens and sends; it just looks
+     like nothing else on the page.
+
+     AND THE FIX COULD NOT HAVE REACHED THEM ANY OTHER WAY. The file the missing line belongs
+     in is the host's own layout, which no upgrade touches — every affected application would
+     have had to be edited by hand, one at a time, after somebody counted them. Emitting it from
+     a package-owned template is what makes an upgrade enough.
+
+     Two costs, both accepted deliberately. This renders before </body> rather than in the head,
+     so a host relying on the self-heal gets a brief unstyled frame — visibly worse than the
+     include, and enormously better than never. And a host that includes the sheet BELOW this tag
+     gets it twice; the rules are identical and idempotent, so the duplicate is inert.
+
+     The log line is not decoration: without it the self-heal would quietly make the missing line
+     permanent, which trades a visible defect for an invisible one. It says what to add and where,
+     once per request, and only where somebody reads logs. --}}
+@unless (app(\Pushery\VisualFeedback\Support\StylesheetPresence::class)->wasRendered())
+@php
+    \Illuminate\Support\Facades\Log::warning(
+        'visual-feedback: the widget stylesheet was not included by your layout, so it is being '
+        .'emitted from <x-visual-feedback::scripts /> instead. The widget is styled either way, '
+        .'but this happens late in the body and can flash unstyled.',
+        ['hint' => "add @include('visual-feedback::style') to your layout <head>"],
+    );
+@endphp
+@include('visual-feedback::style')
+@endunless
 <script type="application/json" data-visual-feedback-config>{!! json_encode($clientConfig, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_THROW_ON_ERROR) !!}</script>
 {{-- `strategy = off` is documented as "disables the screenshot entirely", and the widget keeps
      that promise: at `off` it renders no `x-data="visualFeedbackCapture(…)"` island at all, so
