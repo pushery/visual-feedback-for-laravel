@@ -10,9 +10,18 @@
 
         php artisan vendor:publish --tag=visual-feedback-views
 --}}
-{{-- Nothing at all when the WireKit tree is the one rendering. That tree is styled by the
-     application's own design tokens, so this stylesheet would be dead weight at best and would
-     fight it at worst.
+@php
+    // Recorded OUTSIDE the branch below: the host wrote the include either way, and which tree
+    // serves decides what this file CONTAINS, never whether it was asked for. Marking inside the
+    // branch would report a WireKit host as having forgotten a line it did write.
+    app(\Pushery\VisualFeedback\Support\StylesheetPresence::class)->markRendered();
+@endphp
+{{-- A SMALLER sheet when the WireKit tree is the one rendering, not an absent one — the @else
+     branch at the foot of this file is ~185 lines. This comment used to say "nothing at all",
+     which was true when it was written and stopped being true when that branch was added; the
+     line count is the check, not the sentence. Most of what the plain tree needs IS dead weight
+     against the application's own design tokens, and would fight them — but tokens position no
+     floating panel, style no dialog and conceal no honeypot.
 
      The guard is here rather than in the host's layout because `ui.variant` defaults to `auto`:
      installing WireKit now switches the tree WITHOUT the host touching their layout, so an

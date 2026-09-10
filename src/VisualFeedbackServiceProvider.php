@@ -35,6 +35,7 @@ use Pushery\VisualFeedback\Reporter\GuardReporterResolver;
 use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\PublishedBundle;
 use Pushery\VisualFeedback\Support\Settings;
+use Pushery\VisualFeedback\Support\StylesheetPresence;
 
 final class VisualFeedbackServiceProvider extends ServiceProvider
 {
@@ -128,6 +129,10 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // <x-visual-feedback::scripts /> tags on one page would otherwise hash the same
         // two files twice.
         $this->app->singleton(PublishedBundle::class);
+        // Singleton for the same reason, and one more: it is a per-REQUEST observation about the
+        // document being rendered. The stylesheet partial writes it, the scripts tag reads it,
+        // and they are two templates that never see each other.
+        $this->app->singleton(StylesheetPresence::class);
         $this->app->singleton(CategoryLabels::class);
         $this->app->singleton(ContextRegistry::class);
         $this->app->bind(ResolvesReporter::class, GuardReporterResolver::class);
