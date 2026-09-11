@@ -10,6 +10,9 @@
      `$wire.<expression>` and evaluated by Alpine, so it meets the same grammar. See the plain
      tree's header for the full correction. --}}
 <div>
+    {{-- The page's one h1, as in the plain tree: the host layout brings none of its own. --}}
+    <x-wirekit::heading level="1">{{ __('visual-feedback::browser.title') }}</x-wirekit::heading>
+
     @if (! $this->tableExists())
         <x-wirekit::empty-state
             :title="__('visual-feedback::browser.no_table_title')"

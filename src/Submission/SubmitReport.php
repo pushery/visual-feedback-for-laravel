@@ -100,8 +100,29 @@ final readonly class SubmitReport
             // own gate could return — `ChallengeFailed` above all — render the decoy success
             // screen. A person who fails an interactive challenge would have been shown "thanks,
             // sent" for a report that was never sent.
-            return $decision->visible
-                ? SubmissionResult::rejected($decision->reason)
+            if ($decision->visible) {
+                return SubmissionResult::rejected($decision->reason);
+            }
+
+            // A SILENT rejection answers with the success screen, which is the right answer to a
+            // bot and the wrong one to the single human case that reaches it: open the widget,
+            // press send with nothing typed, and read a confirmation for a report that never
+            // left. Whether the trap or the required field would have refused first is a matter
+            // of seconds the reporter cannot see, and the confirmation is what stops them from
+            // trying again.
+            //
+            // Naming the empty field gives a bot nothing it does not already have: `required`
+            // stands in the markup it just read, and the category allowlist is rendered as the
+            // picker's own options. A submission that is COMPLETE and too fast still gets the
+            // decoy, so the trap keeps every case it was built for.
+            //
+            // The event above named the floor's decision, because that is what happened to the
+            // submission. The RESULT names validation, because that is what the reporter can act
+            // on — and because the widget marks a control invalid on that reason alone.
+            $failure = $this->validate($input);
+
+            return $failure instanceof ValidationFailure
+                ? SubmissionResult::rejected(RejectionReason::Validation, $failure)
                 : SubmissionResult::silentlyRejected($decision->reason);
         }
 

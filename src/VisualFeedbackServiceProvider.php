@@ -60,6 +60,22 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             return false;
         }
 
+        // A BRANCH install is the newest state of the kit, not an old one. `dev-develop` carries no
+        // number a floor could compare, and version_compare read it as older than every release,
+        // so a host on WireKit's development branch was served the plain tree without a word. The
+        // floor exists to keep templates that name missing components away from an OLD WireKit,
+        // and a branch head is the install where those components are most certainly present.
+        if (str_starts_with($version, 'dev-')) {
+            return true;
+        }
+
+        // A branch alias (`2.x-dev`, `2.40.x-dev`) names a development LINE. Its open component is
+        // read as the top of that line, so the alias satisfies the floor exactly when a release on
+        // that line could.
+        if (str_ends_with($version, '-dev')) {
+            $version = str_replace('x', '99999', substr($version, 0, -4));
+        }
+
         // The leading `v` has to go, and it is not cosmetic. Composer's getPrettyVersion returns
         // the tag as written — `v2.42.0` for this package's own vendor — and version_compare
         // reads a leading letter as a pre-release marker, so `v2.42.0` compares BELOW `2.21.0`.

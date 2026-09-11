@@ -7,6 +7,7 @@ declare(strict_types=1);
 // looking at their own feedback is not being addressed by a form letter.
 
 return [
+    'title' => 'Feedback reports',
     'no_table_title' => 'No reports table',
     'no_table' => 'The optional reports migration has not been published and run, so there is nothing stored to browse.',
     'filter_mode' => 'Mode',

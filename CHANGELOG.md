@@ -4,6 +4,28 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.10.1] - 2026-09-11
+
+### Fixed
+
+- **A report sent with an empty message inside the abuse floor's window read "thanks" and went nowhere.** The floor answers a too-fast fill, a filled honeypot and a missing open time with the success screen on purpose, so that nothing is learned from a decoy. The one human case that reaches it is a reporter who opens the widget and presses send with nothing typed: they read a confirmation for a report that never left, and the required-field refusal they would have seen a few seconds later never gets its turn. A silent rejection whose payload would fail validation now names the field instead. A COMPLETE submission inside the window still gets the decoy, so the trap keeps every case it was built for — and naming an empty required field tells a sender nothing it does not have: `required` stands in the markup it just read. The rejection event is unchanged and still names the floor's own reason, so an operator's record of what happened does not move.
+
+- **`ui.variant = auto` serves the WireKit tree to a host that installs WireKit from a branch.** The version check compared Composer's pretty version with the 2.21.0 floor, and a branch install reports `dev-develop`, which carries no number and read as older than every release. A host on WireKit's development branch was therefore served the plain tree and its larger stylesheet, and nothing said why. A `dev-*` install now counts as new enough, since a branch head is the newest state of the kit, and an alias such as `2.x-dev` counts when a release on that line could. When `auto` does fall back because the installed WireKit really is older than 2.21.0, it now writes a warning to the application log that names the version it found.
+
+  **Upgrade:** nothing to do. A host that forced `ui.variant = wirekit` to get around this can go back to `auto`.
+
+- **The stylesheet partial no longer prints its reasoning into every page.** The explanations in `style.blade.php` were CSS comments, and a partial that goes out in the `<head>` of every page shipped all of them: a consumer measured 69 % of the rendered sheet as prose on 0.9.1, and one of its sentences reddened that consumer's leak test. They are Blade comments now, which the compiler drops. The reasoning stays in the source, and what reaches the browser is CSS only, in both view trees.
+
+  **Upgrade:** nothing to do. A host that published the views keeps its own copy of `style.blade.php`, comments included, until it publishes again.
+
+- **The stylesheet partial's own header no longer calls it plain-tree only.** It opened with "Plain-tree stylesheet", while the branch at its foot gives the WireKit tree its layout rules, so a host who believed the header left the include out of a WireKit layout and lost the box around a refusal, the row under the screenshot preview and the honeypot's concealment, without anything turning red. The header and the installation guide now say the include belongs in the layout with either tree.
+
+  **Upgrade:** if your WireKit layout has no `@include('visual-feedback::style')`, add it.
+
+- **The report browser has a first heading.** The browser renders into the host's own layout, which brings no `h1` because every page carries its own, so a screen reader navigating by heading found no topic for the page. Both view trees now open with one `h1`, translated in all seven languages as `visual-feedback::browser.title`.
+
+  **Upgrade:** nothing to do, unless you published the browser views: then publish them again or add the heading to your copy.
+
 ## [0.10.0] - 2026-09-10
 
 ### Changed
@@ -489,7 +511,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.0...v0.10.1
 
 [0.10.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.3...v0.10.0
 [0.9.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.2...v0.9.3
