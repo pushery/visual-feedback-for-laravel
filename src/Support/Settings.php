@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Support;
 
+use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Facades\Log;
 use Pushery\VisualFeedback\VisualFeedbackServiceProvider;
 
 /**
@@ -91,7 +93,35 @@ final readonly class Settings
             return $variant === 'wirekit';
         }
 
-        return VisualFeedbackServiceProvider::wireKitIsUsable();
+        return VisualFeedbackServiceProvider::wireKitIsUsable() || $this->warnPlainTree('pushery/wirekit');
+    }
+
+    /**
+     * Say why `auto` serves the plain tree although the package IS installed, and answer no.
+     *
+     * The refusal used to be silent, and a silent degradation is the worse kind: a host whose
+     * WireKit was too old for this tree got the plain one, with the larger stylesheet, and nothing
+     * in the log said why. It surfaced only where a test happened to look for a WireKit marker.
+     *
+     * It is asked once per boot, from the view paths, so it cannot flood a log. The package name
+     * is a parameter for the same reason `packageSatisfiesWireKitFloor()` takes one: the suite's
+     * own vendor tree always carries a WireKit new enough, and an installed package below the
+     * floor is what reaches the warning honestly.
+     */
+    public function warnPlainTree(string $package): bool
+    {
+        if (! InstalledVersions::isInstalled($package) || VisualFeedbackServiceProvider::packageSatisfiesWireKitFloor($package)) {
+            return false;
+        }
+
+        Log::warning(sprintf(
+            '[visual-feedback] ui.variant is auto and %s %s is installed, but the WireKit tree needs %s or later, so the plain tree is served. Update the package, or set ui.variant to wirekit or plain to choose a tree yourself.',
+            $package,
+            InstalledVersions::getPrettyVersion($package) ?? 'unknown',
+            VisualFeedbackServiceProvider::WIREKIT_MINIMUM,
+        ));
+
+        return false;
     }
 
     /**

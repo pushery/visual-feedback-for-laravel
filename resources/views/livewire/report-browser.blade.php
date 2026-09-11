@@ -11,6 +11,10 @@
      The styles live in `visual-feedback::style`, the same stylesheet the widget uses, so a host
      that already includes it gets this for free. --}}
 <div class="visual-feedback-browser">
+    {{-- The page's one h1. The browser renders into the host's own layout, and a host layout
+         carries no h1 because every page brings its own, so without this line the page had no
+         first heading at all and a screen reader navigating by heading found no topic. --}}
+    <h1 class="visual-feedback-browser-title">{{ __('visual-feedback::browser.title') }}</h1>
     @if (! $this->tableExists())
         <p class="visual-feedback-browser-empty">
             {{ __('visual-feedback::browser.no_table') }}
