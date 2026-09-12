@@ -4,6 +4,30 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.11.0] - 2026-09-12
+
+### Added
+
+- **A legend for the required-field star**, above the submit button, in all seven languages. The form marked its required controls and explained the mark nowhere; a red star with no key only works for people who already know the convention.
+
+- **A way to end the reporting flow.** After a successful submit the form offered "send another" and nothing else — closing existed only as the modal header's close control, which is a window gesture rather than a step of the flow, and the inline surface has no header at all. A second button sits beside the first in both trees. Focus stays on "send another", so it remains first and the way out is the next stop for the keyboard.
+
+- **The block holding an unattached capture carries a warning border** while the capture is neither attached nor discarded. The sentence saying so is at the end of the form, and a sentence naming a state without showing which part of the screen it means leaves the reader to search for it. Color is not the only carrier: the sentence is unchanged and the border is added to it.
+
+### Changed
+
+- **Every message in the WireKit tree is drawn by `<x-wirekit::alert>`.** The tree rendered kit components for each input and painted its six messages itself — its own box, border, radius and success glyph, built by hand "from the same token scale" as the kit's alert. A hand copy drifts, and this one had: the success box and the danger box beside it were no longer the same shape. All six now use the component with the intent the message carries, so tint, border, radius, icon and dark mode come from the tokens every other alert in a WireKit application uses. The package's own declarations remain as a zero-specificity `:where()` fallback, because the kit's box is Tailwind utilities that the consuming application compiles — without that fallback a host with no Tailwind build got a refusal with no border at all.
+
+- **A rejected field explains itself where it is marked.** The message lived in one shared region at the end of the form, behind the screenshot block, the dropzone and the attachment hint, so a red border at the top was explained half a dialog lower. Each of the eight controls now hands its text to the kit's `error` prop, which renders it under the field and points the control at its own error node. The hand-written `aria-invalid` and `aria-describedby` are gone with it: the kit emits both, HTML keeps the first of a duplicated attribute, and the hand-written one would have won. The shared region stays for what belongs to no field — a rate limit, the master switch, a listener veto — and focus still falls back to it.
+
+- **The category picker is marked required, in both trees.** It is validated `required` unconditionally while `message` beside it carried the star and it did not, which reads as optional. It is preselected and ships no placeholder, so a reporter cannot submit it empty — the star states the contract rather than warning about a rejection.
+
+- **The screenshot preview is framed like the dropzone beside it** — dashed, rounded, padded — and capped at 240px tall above a 480px viewport. The cap is deliberately not unconditional: on a narrow column, capping the height of a `contain` image pulls its width along, and this preview is where a reporter sees what they are about to send.
+
+- **One spacing step through the form.** Two children that occupy no room, the honeypot and an empty challenge slot, each collected a full step, which put two steps plus the panel's padding between the header and the first field. The screenshot block ran three different steps where every direct child of the form got one.
+
+**Upgrade.** Nothing to do. A consuming application that publishes neither the views nor the stylesheet takes all of this on update. An application that published `resources/views/vendor/visual-feedback` keeps its copy and its old appearance — the message markup changed, so a published WireKit tree should be re-published or diffed against this release.
+
 ## [0.10.1] - 2026-09-11
 
 ### Fixed
@@ -512,6 +536,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
 [Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...HEAD
+[0.11.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...v0.11.0
+
 [0.10.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.0...v0.10.1
 
 [0.10.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.9.3...v0.10.0

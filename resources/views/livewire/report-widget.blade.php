@@ -84,6 +84,13 @@
                     x-on:click="vfResetAndFocus()">
                     {{ __('visual-feedback::messages.widget.report_another') }}
                 </button>
+                {{-- The same second way out as the WireKit tree. This surface is a <dialog>, so
+                     `vfDone()` closes it through the package's own path rather than the kit's
+                     event; see the widget source for why the mode is read from the server state
+                     and not from the DOM. --}}
+                <button type="button" class="visual-feedback-done" x-on:click="vfDone()">
+                    {{ __('visual-feedback::messages.widget.done') }}
+                </button>
             @endif
         </div>
 
@@ -168,7 +175,7 @@
                 <label for="visual-feedback-category">
                     {{ __('visual-feedback::messages.widget.category_label') }}
                 </label>
-                <select id="visual-feedback-category" @if ($vfInvalidField === 'category') aria-invalid="true" aria-describedby="visual-feedback-error" @endif wire:model="category">
+                <select id="visual-feedback-category" required @if ($vfInvalidField === 'category') aria-invalid="true" aria-describedby="visual-feedback-error" @endif wire:model="category">
                     @foreach ($categoryOptions as $key => $label)
                         <option value="{{ $key }}" wire:key="vf-cat-{{ $key }}">{{ $label }}</option>
                     @endforeach
@@ -459,6 +466,14 @@
                         </a>
                     </label>
                 @endif
+
+                {{-- The same legend as the WireKit tree, in the same place: the two trees are
+                     one form to a reporter, and an explanation that exists in only one of them
+                     is worse than none. See the WireKit tree for why it is not aria-hidden. --}}
+                <p class="visual-feedback-required-legend">
+                    <span class="visual-feedback-required-mark" aria-hidden="true">*</span>
+                    {{ __('visual-feedback::messages.widget.required_legend') }}
+                </p>
 
                 <button type="submit" class="visual-feedback-submit">{{ __('visual-feedback::messages.widget.submit') }}</button>
             </form>
