@@ -326,11 +326,56 @@ return [
          * ceiling. Reaching it dispatches `InstanceRateLimitReached` once per window and writes
          * an `error` line; refusals after that carry `RejectionReason::GlobalRateLimited`, so a
          * host can tell "this sender had their share" from "the application did".
+         *
+         * IMPORTANT. THE FILTER IS NOT DECORATION, AND THE FALLBACK IS THE HALF THAT MATTERS. `env()`
+         * hands back a STRING, and the accessor that reads this key takes an `int` — so a bare
+         * `env()` here would have made the key look settable and do nothing, which is the exact
+         * failure this package has already paid for once on its boolean switches. `"0"` has to
+         * survive as the integer `0`, because that is how an operator declines a ceiling they
+         * know is wrong for them; `FILTER_NULL_ON_FAILURE` is what keeps it from colliding with
+         * the failure value. And anything unreadable falls back to the SHIPPED cap rather than to
+         * `0`: a typo must not silently remove the ceiling.
+         *
+         * Written `1000` rather than `1_000`, and the guard that compares this literal with the
+         * documented one is why: the documentation states a default a reader TYPES into a `.env`,
+         * and `1_000` is not that. The digit separator is a PHP nicety; this number now has a
+         * second home where it is not one.
          */
-        'global_rate_limit' => 1_000,
+        'global_rate_limit' => filter_var(
+            env('VISUAL_FEEDBACK_ABUSE_GLOBAL_RATE_LIMIT', 1000),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 1000,
 
         'min_fill_seconds' => 3,   // server-anchored time trap
-        'on_error' => 'open',      // open|closed — builtin only
+
+        /*
+         * The failure mode of the builtin floor's own limiter. `open` lets a submission through
+         * when that check errors; anything else is closed.
+         *
+         * Lower-cased and trimmed before it is stored, which a bare `env()` would not do. The
+         * accessor compares against the exact word `open`, so `OPEN` in a `.env` would degrade
+         * CLOSED — the safe direction, and still not what the person who typed it meant. A host
+         * whose cache is also the thing being rate-limited is exactly who reaches for this key,
+         * and they should not have to discover the casing rule from a silent refusal.
+         */
+        'on_error' => mb_strtolower(trim((string) env('VISUAL_FEEDBACK_ABUSE_ON_ERROR', 'open'))), // open|closed — builtin only
+
+        /*
+         * The failure mode for the SELECTED additional driver, when the map below says nothing
+         * about it. `open` is the shipped default and what every driver gets without a word.
+         *
+         * It exists because the map cannot be reached from the environment and the scalar can.
+         * `drivers` is keyed by a name a host chooses, and no environment variable can express a
+         * map — so a consumer who does not publish the configuration had no way at all to harden
+         * the one driver they actually run. That is the asymmetry a consuming application
+         * reported: the builtin switch became settable and this one would have stayed behind.
+         *
+         * The map still wins where it speaks. A host who publishes the configuration and writes
+         * `'turnstile' => ['on_error' => 'closed']` keeps saying it per driver, which is the
+         * finer instrument and the reason the map exists.
+         */
+        'driver_on_error' => mb_strtolower(trim((string) env('VISUAL_FEEDBACK_ABUSE_DRIVER_ON_ERROR', 'open'))), // open|closed
 
         /*
          * The failure mode of an ADDITIONAL driver, keyed by the same name `driver` selects

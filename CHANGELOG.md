@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.13.0] - 2026-09-12
+
+### Added
+
+- **The two abuse switches a host was most likely to want are settable from the environment, and a third one that had no way in at all.** `VISUAL_FEEDBACK_ABUSE_GLOBAL_RATE_LIMIT` and `VISUAL_FEEDBACK_ABUSE_ON_ERROR` reach the instance ceiling and the builtin floor's failure mode; `VISUAL_FEEDBACK_ABUSE_DRIVER_ON_ERROR` reaches the failure mode of the additional driver. Reported from a consuming application that had just been handed the instance ceiling for free **by** not publishing the configuration — and would have had to publish the whole file, and give up that inheritance, to change one word of it. Defaults are unchanged, so an install that sets nothing behaves exactly as before.
+
+The driver key is new configuration rather than a new spelling of an old one, and the reason is structural: `abuse.drivers` is a map keyed by a name you choose, and no environment variable can express a map. `abuse.driver_on_error` is the scalar that answers when the map says nothing about the driver in use. The map still wins wherever it speaks, so a published `'turnstile' => ['on_error' => 'closed']` keeps doing exactly what it did.
+
+The ceiling is read through an integer filter rather than a bare `env()`, and that is load-bearing twice over: `env()` hands back a string, and the accessor takes an `int`, so the naive version would have made the key look settable while doing nothing. `0` still switches the ceiling off, and a value that cannot be read keeps the shipped cap — never `0`, which a plain `(int)` cast would have produced from any typo and which means *unbounded*. Both failure modes are lower-cased and trimmed, because they are compared against an exact word and `CLOSED` in a `.env` is the same instruction typed by the same person.
+
+**Upgrade:** nothing to do.
+
 ## [0.12.1] - 2026-09-12
 
 ### Fixed
@@ -565,7 +577,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...v0.13.0
 
 [0.12.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.0...v0.12.1
 
