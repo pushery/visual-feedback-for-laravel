@@ -251,7 +251,18 @@ final readonly class Settings
      */
     public function additionalGateOpensOnError(string $driver): bool
     {
-        $configured = $this->config->get("visual-feedback.abuse.drivers.{$driver}.on_error");
+        $configured = $this->config->get("visual-feedback.abuse.drivers.{$driver}.on_error")
+            // The scalar default, for the case the map structurally cannot serve. `drivers` is
+            // keyed by a name the host chooses, and no environment variable can express a map —
+            // so a consumer who does not publish the configuration had no way to harden the one
+            // driver they run. Reported from a consuming application that had just been given the
+            // instance ceiling for free BY not publishing, and would have had to give that up to
+            // change this one word.
+            //
+            // The map still wins wherever it speaks: a published `'turnstile' => ['on_error' =>
+            // 'closed']` is the finer instrument and the reason the map exists. This only answers
+            // when the map is silent about this driver.
+            ?? $this->config->get('visual-feedback.abuse.driver_on_error');
 
         // Anything that is not the explicit word stays OPEN, which is the shipped behavior. This
         // is the one place in this class where an unreadable value degrades permissive, and it is
