@@ -4,6 +4,28 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.12.0] - 2026-09-12
+
+### Added
+
+- **A sign-in-only switch — `require_authentication`, off by default.** A host who wanted this had to build it twice and could only get one of the halves right from outside the package: rendering the trigger conditionally is easy and insufficient, because the Livewire component is registered by name and is therefore addressable without the page that draws it. With the switch on, a guest gets no floating button, no trigger and no form, and a submit from a guest session is refused with `RejectionReason::AuthenticationRequired` — an enum case rather than a validation error, so a log can tell "somebody left a field empty" from "somebody submitted to a form they were never shown". It is the strongest cost brake the package can offer, because it removes the anonymous surface rather than bounding it. "Signed in" is answered by the `ResolvesReporter` contract — the same one that decides whose name is on a report — so there is deliberately no second guard-name setting that could disagree with it. The refusal message ships in all seven languages.
+
+- **An additional abuse driver can be told to fail closed.** When a gate registered through `VisualFeedback::extendAbuse()` throws, the submission was allowed through and the failure logged — the right default, because an outage at a challenge provider should not take every feedback form using it offline. It was also the only option, and "the floor is still there" is a weaker reassurance than it sounds for an install where every delivered report is a mail with attachments: the floor is a honeypot, a time trap and five reports per hour per guest IP. `abuse.drivers.<name>.on_error => 'closed'` buys the other trade, refusing submissions while that driver is not answering. It is keyed by the same name `abuse.driver` selects, because a paid challenge provider and a gate that only reads a header are worth very different amounts of downtime. Nothing changes for anyone who sets nothing: every driver, listed or not, defaults to `open`.
+
+- **A ceiling for the whole application — `abuse.global_rate_limit`, 1000 reports per hour, on by default.** The two limits that existed count per subject: per signed-in account and per guest IP. A distributed sender never meets either — a thousand addresses that each stay under the five-per-hour guest limit are a thousand reports an hour between them, and on the mail channel that is a thousand messages with their attachments at a provider billing per message and per byte. This is one bucket with no subject in it, and it bounds what an attack costs rather than what one attacker gets. The order is load-bearing: the instance bucket is counted only for attempts that already passed their own limit, so one address can never spend the application's ceiling on a form it is locked out of. `0` switches it off, unlike the two per-subject limits where `0` reads as the default. It ships switched on because the installs most exposed to a surprise bill are the ones that never read a changelog — including the ones whose published config predates this key, where absent and deliberately-omitted are the same value and the cap therefore still applies.
+
+- **`InstanceRateLimitReached`**, carrying `$limit` and `$windowSeconds`, dispatched once per window on the attempt that reaches the cap — the last one still accepted, so it arrives one report before anything is refused. An `error` line is written at the same moment. Refusals after it stay observable through `ReportRejected`, which is where per-attempt volume belongs; a signal worth wiring to something that wakes a person up is one that does not repeat a thousand times an hour.
+
+- **`RejectionReason::GlobalRateLimited`**, for a refusal by that ceiling. Deliberately not `RateLimited`: one says this sender has had their share, the other says the whole application has, and a host that cannot tell them apart reads the second as ordinary traffic shaping and never learns that legitimate reporters are being turned away.
+
+- **`RejectionReason::GateUnavailable`**, carried by a rejection that happened because an additional driver was failing closed. Kept apart from `ChallengeFailed` because they say opposite things about the reporter — that one means the submission was judged and refused, this one means nobody was there to judge it — and from the outside a burst of either looks like an attack. The `error` log line is written under both modes and now names the configured driver beside the gate class, so the key that decided it can be found.
+
+### Fixed
+
+- **A rejected bot attempt no longer writes files.** The widget stored attachments and the screenshot before the abuse gate ran, so a submission that filled the honeypot or came in inside the time trap still cost up to five uploads and a capture — real, paid PUT requests on a remote disk, before any protection had run. The two floor arms that cost nothing to ask (the honeypot and the time trap, both pure) are now asked first, and a rejection there skips the writes. Only the writes: the pipeline still runs its whole course, so the decoy success screen, the rejection event and the rate-limit accounting are all unchanged.
+
+**Upgrade.** `require_authentication` is off, so nothing changes unless you turn it on — but if you **published the views**, your copies of `fab.blade.php`, `trigger.blade.php` and `scripts.blade.php` still ask the master switch alone and would keep drawing the trigger for a guest after you do. The submit refusal is unaffected; re-publish or diff those three. Read the rest of this if your form is busy. `abuse.global_rate_limit` arrives switched on at 1000 reports per hour across the whole application, and it applies to a config file published before this release too — absent is not distinguishable from deliberately omitted, and defaulting to "no ceiling" would leave exactly the installs this exists for unprotected. A form that really takes more than that should raise the number or set `0`. Listen for `InstanceRateLimitReached` to hear about it from your own application rather than from an invoice. A host that switches a driver to `on_error: 'closed'` should expect `GateUnavailable` rejections during that provider's outages and treat them as an incident rather than as bot traffic.
+
 ## [0.11.0] - 2026-09-12
 
 ### Added
@@ -536,6 +558,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
 [Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...HEAD
+[0.12.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.11.0...v0.12.0
+
 [0.11.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...v0.11.0
 
 [0.10.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.0...v0.10.1

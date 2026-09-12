@@ -125,6 +125,35 @@ final readonly class Settings
     }
 
     /**
+     * Whether only a signed-in reporter may see and use the widget.
+     *
+     * The strongest cost brake this package can offer, because it removes the anonymous surface
+     * rather than bounding it: no trigger, no form, and a submit from a guest session refused.
+     * Everything under `abuse` is a limit on traffic that is still allowed to arrive.
+     *
+     * Ships OFF, unlike `abuse.global_rate_limit` beside it, and the difference is who it can
+     * hurt. A ceiling that is too low costs an install some reports on its worst day; turning
+     * this on for a host that never asked would delete their entire guest audience silently. A
+     * default may be restrictive about VOLUME and must not be restrictive about WHO.
+     *
+     * An unreadable value reads as off for the same reason: `false` is the documented default, so
+     * degrading to it is degrading to what the file promises.
+     */
+    public function requiresAuthentication(): bool
+    {
+        // `filter_var` rather than `=== true` or a `(bool)` cast, and the two mistakes it avoids
+        // point in opposite directions. A host who publishes the config and writes `1` or `'yes'`
+        // means yes, and a strict identity check would quietly ignore them. A cast would do the
+        // reverse and read the string `'off'` as on, because every non-empty string is truthy —
+        // which is the exact trap the shipped config file documents at length for its env reads.
+        return filter_var(
+            $this->config->get('visual-feedback.require_authentication'),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE,
+        ) === true;
+    }
+
+    /**
      * The configured abuse driver, as a name — NOT validated against a fixed list.
      *
      * It used to be whitelisted to `builtin|botgate|none`, which quietly made the extension point
@@ -171,6 +200,28 @@ final readonly class Settings
         return $this->positiveInt('visual-feedback.abuse.guest_rate_limit', 5);
     }
 
+    /**
+     * The instance-wide per-hour cap, counted across every reporter and every address. `0` is off.
+     *
+     * THE TWO LIMITS ABOVE COUNT PER SUBJECT, AND A DISTRIBUTED SENDER NEVER MEETS EITHER. A
+     * thousand addresses that each stay under the guest limit produce a thousand reports an hour
+     * between them, and on the mail channel every one of those is a message with its attachments
+     * at a provider that bills per message and per byte. Nothing in this package bounded that.
+     *
+     * Note the asymmetry with `positiveInt()`, which every other cap here uses: `0` is honored as
+     * "switched off" rather than discarded as invalid, because an operator has to be able to
+     * decline a ceiling they know is wrong for them. Everything unreadable still falls back to the
+     * shipped cap, and so does an ABSENT key — which is the case that matters, because a config
+     * file published before this key existed cannot be distinguished from one that omits it on
+     * purpose, and the installs most exposed to the bill are the ones that never read a changelog.
+     */
+    public function globalRateLimit(): int
+    {
+        $value = $this->config->get('visual-feedback.abuse.global_rate_limit');
+
+        return is_int($value) && $value >= 0 ? $value : 1_000;
+    }
+
     /** Server-anchored minimum fill time (seconds). Missing/invalid → the default trap. */
     public function minFillSeconds(): int
     {
@@ -184,6 +235,28 @@ final readonly class Settings
     public function abuseOpensOnError(): bool
     {
         return $this->config->get('visual-feedback.abuse.on_error') === 'open';
+    }
+
+    /**
+     * Whether an ADDITIONAL driver lets a submission through when its own check throws.
+     *
+     * Separate from `abuseOpensOnError()` above, and the defaults point opposite ways on purpose.
+     * The builtin floor degrades CLOSED on a missing key, because its own failure is a cache
+     * outage on this host. An added gate is a third party's: a Turnstile outage would otherwise
+     * silence every feedback form that uses it, so the shipped default stays `open`.
+     *
+     * A host who pays per delivered report wants the other trade, and could not have it before.
+     * `closed` is that: while the driver does not answer, submissions are refused rather than
+     * waved through with only the floor underneath.
+     */
+    public function additionalGateOpensOnError(string $driver): bool
+    {
+        $configured = $this->config->get("visual-feedback.abuse.drivers.{$driver}.on_error");
+
+        // Anything that is not the explicit word stays OPEN, which is the shipped behavior. This
+        // is the one place in this class where an unreadable value degrades permissive, and it is
+        // deliberate: a typo in a per-driver key must not take a consumer's form offline.
+        return $configured !== 'closed';
     }
 
     /** Max attachments per report. Missing/invalid → the default cap (never unlimited). */

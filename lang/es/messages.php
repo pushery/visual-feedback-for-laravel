@@ -23,6 +23,7 @@ return [
         'success' => 'Gracias, hemos recibido tus comentarios.',
         'error' => 'Algo ha salido mal. Inténtalo de nuevo.',
         'disabled' => 'Los comentarios están desactivados ahora mismo. Inténtalo más tarde.',
+        'authentication_required' => 'Inicia sesión para enviar comentarios.',
         'report_another' => 'Enviar otro',
         'done' => 'Listo',
         'name_label' => 'Tu nombre',

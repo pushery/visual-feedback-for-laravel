@@ -23,6 +23,7 @@ return [
         'success' => 'Grazie, il tuo feedback è stato inviato.',
         'error' => 'Qualcosa è andato storto. Riprova.',
         'disabled' => 'Il feedback è disattivato al momento. Riprova più tardi.',
+        'authentication_required' => 'Accedi per inviare un feedback.',
         'report_another' => 'Inviane un altro',
         'done' => 'Fatto',
         'name_label' => 'Il tuo nome',

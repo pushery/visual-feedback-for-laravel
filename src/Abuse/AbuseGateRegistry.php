@@ -59,7 +59,12 @@ final class AbuseGateRegistry
      * neither value can remove protection; `none` is the explicit way to decline an additional
      * driver even when one is registered.
      *
-     * @return list<AbuseGate>
+     * Keyed BY DRIVER NAME, because the manager needs it: the failure mode of an added gate is
+     * configured per driver (`abuse.drivers.<name>.on_error`), and a bare list cannot say which
+     * setting belongs to which gate. One entry today — `abuse.driver` selects a single driver —
+     * and a map rather than a pair so a second one costs no signature change.
+     *
+     * @return array<string, AbuseGate>
      */
     public function additional(): array
     {
@@ -82,6 +87,6 @@ final class AbuseGateRegistry
             return [];
         }
 
-        return [$factory()];
+        return [$driver => $factory()];
     }
 }

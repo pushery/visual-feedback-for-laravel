@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Abuse;
 
 use Illuminate\Cache\RateLimiter;
+use Illuminate\Contracts\Events\Dispatcher;
 use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Contracts\AbuseGate;
+use Pushery\VisualFeedback\Events\InstanceRateLimitReached;
 use Pushery\VisualFeedback\Events\RejectionReason;
 use Pushery\VisualFeedback\Support\Settings;
 use Throwable;
@@ -22,9 +24,15 @@ use Throwable;
  * limiter only after a successful store — the obvious ordering — lets an attacker make unlimited
  * failing attempts at full server cost.
  *
- * `on_error` applies ONLY here (the builtin path) and ONLY to the limiter, which is the only
+ * A third limit sits beside the per-subject two and counts the INSTANCE: `abuse.global_rate_limit`,
+ * one bucket with no subject in it. The per-subject limits are what a distributed sender walks
+ * around — a thousand addresses each under the guest limit are a thousand reports an hour, and on
+ * the mail channel a thousand messages with attachments — so the instance cap is the one that
+ * bounds what an attack costs rather than what one attacker gets.
+ *
+ * `on_error` applies ONLY here (the builtin path) and ONLY to the limiters, which are the only
  * part of this gate that does I/O. `closed` refuses the submission when the limiter backend
- * errors; `open` — the SHIPPED default — lets it past the LIMIT, and the honeypot and the time
+ * errors; `open` — the SHIPPED default — lets it past the LIMITS, and the honeypot and the time
  * trap still run.
  *
  * That last clause is the whole point, and it is why the catch is scoped to the limiter call
@@ -40,10 +48,17 @@ final readonly class BuiltinAbuseGate implements AbuseGate
 {
     private const int DECAY_SECONDS = 3600;
 
+    /**
+     * The instance-wide bucket. One key, no subject in it — that is the whole point, and it is why
+     * it is a constant rather than something `rateLimitKey()` builds.
+     */
+    private const string GLOBAL_KEY = 'visual-feedback:abuse:instance';
+
     public function __construct(
         private RateLimiter $limiter,
         private Settings $settings,
         private LoggerInterface $logger,
+        private Dispatcher $events,
     ) {}
 
     public function check(ReportAttempt $attempt): AbuseDecision
@@ -68,6 +83,33 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         //
         // The enum stays as it is -- it is small on purpose and a new case is an API change --
         // and `detail` carries the distinction instead. It costs a listener nothing to ignore.
+        return $this->silentFloor($attempt);
+    }
+
+    /**
+     * The half of this gate that costs nothing to ask: a filled honeypot, a fill faster than a
+     * human manages, a submission that cannot say when its form was opened.
+     *
+     * SEPARATE SO IT CAN BE ASKED EARLY, and the reason is a cost a bot decides. The widget
+     * stores attachments and the screenshot before `check()` runs — deliberately, because calling
+     * this gate twice would burn a second rate-limit token against the reporter's own quota, and
+     * splitting the submission entrance in two would put a seam into the one transport-agnostic
+     * path a second adapter could call in the wrong order. So a rejected submission wrote up to
+     * five files and a screenshot first and discarded them after, which on a remote disk is real
+     * PUT requests paid for before any protection had run.
+     *
+     * This method resolves that without either cost: it touches no cache, no disk and no network,
+     * takes no token, and is exactly the set of arms a bot reliably trips. The widget calls it
+     * before storing; `check()` calls it after the rate limit, so the ordinary path is unchanged
+     * and no verdict is reached twice.
+     *
+     * It is deliberately NOT on the `AbuseGate` contract. A third-party gate may have nothing
+     * that is free to evaluate, and requiring one would either force a meaningless implementation
+     * or make the early call a promise the interface cannot keep. The widget asks for this class,
+     * and any other gate simply keeps today's ordering.
+     */
+    public function silentFloor(ReportAttempt $attempt): AbuseDecision
+    {
         if ($attempt->honeypot !== '') {
             return AbuseDecision::reject(RejectionReason::Honeypot, detail: 'honeypot');
         }
@@ -123,7 +165,63 @@ final readonly class BuiltinAbuseGate implements AbuseGate
                 : AbuseDecision::reject(RejectionReason::RateLimited, visible: true);
         }
 
-        return $hits > $max ? AbuseDecision::reject(RejectionReason::RateLimited, visible: true) : null;
+        if ($hits > $max) {
+            return AbuseDecision::reject(RejectionReason::RateLimited, visible: true);
+        }
+
+        // ONLY NOW, AND THE ORDER IS LOAD-BEARING. The instance bucket is hit for attempts that
+        // got past their own limit, never for ones that did not — otherwise a single address could
+        // burn the whole application's ceiling by hammering a form it is already locked out of,
+        // and a cap built against a distributed bot would hand a lone one a way to silence every
+        // reporter. Counted this way, one sender can contribute at most its own hourly share.
+        return $this->instanceCapVerdict();
+    }
+
+    /**
+     * The instance-wide verdict, or null when the application is still under its ceiling.
+     *
+     * The two limits above ask "has this sender had their share"; this one asks "has the
+     * application had its share", and only the second question bounds what a distributed sender
+     * costs. See Settings::globalRateLimit() for why it ships switched on.
+     */
+    private function instanceCapVerdict(): ?AbuseDecision
+    {
+        $cap = $this->settings->globalRateLimit();
+
+        if ($cap === 0) {
+            return null;   // declined by the operator, and their call to make
+        }
+
+        try {
+            $hits = $this->limiter->hit(self::GLOBAL_KEY, self::DECAY_SECONDS);
+        } catch (Throwable $exception) {
+            $this->logger->warning('visual-feedback: builtin rate limiter errored', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'floor' => 'global_rate_limit_only',
+            ]);
+
+            // Same switch as the per-subject limit, deliberately: two failure policies for one
+            // backend would mean an operator who set `on_error` had answered half the question.
+            return $this->settings->abuseOpensOnError()
+                ? null
+                : AbuseDecision::reject(RejectionReason::GlobalRateLimited, visible: true);
+        }
+
+        // Exactly the attempt that REACHES the cap, so this fires once per window and does it one
+        // report BEFORE anything is refused. An operator who reacts fast enough loses nothing, and
+        // a signal that can wake somebody up is only worth having if it does not repeat a thousand
+        // times an hour. Every refusal after this is still observable as ReportRejected.
+        if ($hits === $cap) {
+            $this->logger->error('visual-feedback: the instance-wide report cap has been reached', [
+                'limit' => $cap,
+                'window_seconds' => self::DECAY_SECONDS,
+            ]);
+
+            $this->events->dispatch(new InstanceRateLimitReached($cap, self::DECAY_SECONDS));
+        }
+
+        return $hits > $cap ? AbuseDecision::reject(RejectionReason::GlobalRateLimited, visible: true) : null;
     }
 
     private function rateLimitKey(ReportAttempt $attempt): string

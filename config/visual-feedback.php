@@ -51,6 +51,25 @@ return [
     // an operator can tell "switched off" from "under attack" in the same listener.
     'enabled' => filter_var(env('VISUAL_FEEDBACK_ENABLED', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
 
+    // Sign-in only. True means: no floating button, no trigger, no form for a guest, and a submit
+    // from a guest session refused with `RejectionReason::AuthenticationRequired` — an enum case
+    // rather than a validation error, so a host can tell it apart in a log.
+    //
+    // This is the strongest cost brake the package can offer, because it removes the anonymous
+    // surface instead of bounding it. Everything under `abuse` limits traffic that is still
+    // allowed to arrive; this decides whether it arrives.
+    //
+    // Off by default, and deliberately not for symmetry with the ceiling under `abuse` — that one
+    // ships on. A ceiling that is too low costs an install some reports on its worst day. Turning
+    // this on for a host who never asked would delete their entire guest audience, silently. A
+    // default may be restrictive about VOLUME; it must not be restrictive about WHO.
+    //
+    // "Signed in" is answered by the package's ResolvesReporter contract — the same one that
+    // decides whose name is on a report — so a host on a non-default guard binds their own
+    // resolver and this switch follows it. There is no second guard-name setting, because a
+    // second answer could only disagree with the first.
+    'require_authentication' => filter_var(env('VISUAL_FEEDBACK_REQUIRE_AUTHENTICATION', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+
     /*
     |--------------------------------------------------------------------------
     | Categories
@@ -280,16 +299,59 @@ return [
     | `VisualFeedback::extendAbuse($key, fn () => new YourGate)`. The set is
     | deliberately open — naming a key with no gate registered logs a warning and
     | leaves the floor carrying the request, it never protects nothing silently.
-    | Limits are per hour. `on_error` only applies to the builtin driver: `open`
-    | lets a submission through if the check itself errors.
+    | Limits are per hour. `on_error` is the failure mode of the builtin floor's own
+    | limiter: `open` lets a submission through if that check errors. An additional
+    | driver has its own, under `drivers.<name>.on_error` — same two words, different
+    | subject and a different default, both spelled out at the key itself.
     |
     */
     'abuse' => [
         'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|none|any key you register
         'rate_limit' => 30,        // per authenticated user per hour
         'guest_rate_limit' => 5,   // per guest IP per hour (IPv6: per /64, see the abuse page)
+
+        /*
+         * The ceiling for the WHOLE application, per hour, counted across every reporter and
+         * every address. `0` switches it off.
+         *
+         * The two limits above count per subject, and a distributed sender never meets either:
+         * a thousand addresses that each stay under the guest limit are a thousand reports an
+         * hour between them, and on the mail channel that is a thousand messages with their
+         * attachments at a provider billing per message and per byte. This is the key that
+         * bounds what an attack COSTS rather than what one attacker gets.
+         *
+         * It ships switched on, and the number is chosen to be invisible to any plausible
+         * feedback volume while still turning "unbounded" into "bounded" — a form that really
+         * takes more than a thousand reports an hour should say so here rather than inherit a
+         * ceiling. Reaching it dispatches `InstanceRateLimitReached` once per window and writes
+         * an `error` line; refusals after that carry `RejectionReason::GlobalRateLimited`, so a
+         * host can tell "this sender had their share" from "the application did".
+         */
+        'global_rate_limit' => 1_000,
+
         'min_fill_seconds' => 3,   // server-anchored time trap
         'on_error' => 'open',      // open|closed — builtin only
+
+        /*
+         * The failure mode of an ADDITIONAL driver, keyed by the same name `driver` selects
+         * above. `open` is the default for every driver, listed here or not, and is what ships:
+         * when that gate's own check throws, the submission goes through on the floor alone —
+         * a Cloudflare outage must not take every feedback form on the internet offline.
+         *
+         * `closed` buys the other trade, and it exists because "the floor still ran" is not the
+         * reassurance it sounds like for everyone. The floor is a honeypot, a time trap and five
+         * reports per hour per guest IP; on an install that mails every report with its
+         * attachments, an afternoon of that is a bill. Under `closed` a submission is refused
+         * while the driver is not answering, with reason `gate_unavailable` so a host can tell
+         * a provider outage from real bot defense.
+         *
+         * Per driver rather than one global switch: two layered gates can differ in how much
+         * their absence costs, and the answer for a paid challenge provider is rarely the answer
+         * for a gate that only reads a header.
+         *
+         *   'botgate' => ['on_error' => 'closed'],
+         */
+        'drivers' => [],
 
         /*
          * A Blade view rendered inside the form, for a challenge widget your gate verifies.
