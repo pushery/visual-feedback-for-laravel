@@ -22,6 +22,7 @@ return [
         'submitting' => 'Sending…',
         'success' => 'Thanks — your feedback was sent.',
         'error' => 'Something went wrong. Please try again.',
+        'error_check_field' => 'Please check the highlighted field.',
         'disabled' => 'Feedback is switched off right now. Please try again later.',
         'authentication_required' => 'Please sign in to send feedback.',
         'report_another' => 'Send another',

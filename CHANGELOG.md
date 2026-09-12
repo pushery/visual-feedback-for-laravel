@@ -4,6 +4,14 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.12.1] - 2026-09-12
+
+### Fixed
+
+- **A rejected submit no longer says the same sentence twice on the WireKit surface.** An empty message put "your message is still missing" under the message box and again in the danger box at the foot of the form — about 310 px apart on a desktop and 350 on a phone, far enough not to read as one message and near enough to be in view at once, so it reads as two problems and the reporter goes looking for the second one. Reported from a consuming application across both engines and both viewports. The nearer copy is the more useful one, because it sits at the control that has to change, so it keeps the reason; the box now sends the reporter to the marked control instead of repeating it. The box still carries the full reason whenever **no** control was marked — a listener veto, a rate limit and an unattached screenshot all refuse without naming a field, and there it is the only place the reason can be. The plain surface is unchanged and never had the duplicate: it paints no message at the field and points its controls at the shared region with `aria-describedby`.
+
+**Upgrade:** nothing to do. The new line ships in all seven languages, and a published lang file keeps working because the package's own keys stay underneath it. A host that published the WireKit form template carries its own copy of this markup and keeps the duplicate until it re-publishes.
+
 ## [0.12.0] - 2026-09-12
 
 ### Added
@@ -557,7 +565,10 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...HEAD
+
+[0.12.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.0...v0.12.1
+
 [0.12.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.11.0...v0.12.0
 
 [0.11.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.10.1...v0.11.0
