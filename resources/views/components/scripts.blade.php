@@ -55,7 +55,7 @@
 {{-- Master switch. The host places this tag in ITS own layout, so the widget cannot take it away
      by rendering nothing itself — this component has to ask too, exactly as the fab and the
      trigger do, or an operator who switched the package off still ships the whole renderer. --}}
-@if (app(\Pushery\VisualFeedback\Support\Settings::class)->enabled())
+@if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
 {{-- THE STYLESHEET, IF THE LAYOUT DID NOT ALREADY ASK FOR IT — and this is a self-heal, not a
      second documented way to install the widget. Keep writing @include('visual-feedback::style')
      in your <head>; that is where it belongs and it is where it will not flash.

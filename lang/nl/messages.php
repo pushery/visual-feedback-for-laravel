@@ -23,6 +23,7 @@ return [
         'success' => 'Bedankt, je feedback is verstuurd.',
         'error' => 'Er ging iets mis. Probeer het opnieuw.',
         'disabled' => 'Feedback staat nu uit. Probeer het later opnieuw.',
+        'authentication_required' => 'Log in om feedback te sturen.',
         'report_another' => 'Nog een sturen',
         'done' => 'Klaar',
         'name_label' => 'Je naam',

@@ -23,6 +23,7 @@ return [
         'success' => 'Danke — dein Feedback wurde gesendet.',
         'error' => 'Etwas ist schiefgelaufen. Bitte versuch es noch mal.',
         'disabled' => 'Feedback ist gerade abgeschaltet. Bitte versuch es später noch mal.',
+        'authentication_required' => 'Bitte melde dich an, um Feedback zu senden.',
         'report_another' => 'Weiteres Feedback senden',
         'done' => 'Fertig',
         'name_label' => 'Dein Name',

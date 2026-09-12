@@ -492,6 +492,26 @@ return AbuseDecision::reject(RejectionReason::ChallengeFailed, visible: true);
 `RejectionReason` lives under `Events`, not under `Abuse` — it is the enum the
 `ReportRejected` event carries, so a gate and a listener name the same value.
 
+**If your gate THROWS, the submission goes through by default.** The floor still judged it, so
+this is a defensible default and it is what ships — an outage at a challenge provider should not
+take a host's feedback form offline. It is also the host's call now, per driver, under the name
+they registered you as:
+
+```php
+// config/visual-feedback.php
+'abuse' => ['drivers' => ['acme' => ['on_error' => 'closed']]],
+```
+
+Under `closed` the submission is refused instead, with `RejectionReason::GateUnavailable` — kept
+apart from `ChallengeFailed` because they say opposite things: one means the submission was judged
+and refused, the other that nobody was there to judge it. Either way an `error` line names your
+gate class and the driver name beside it.
+
+Write defensively rather than relying on the mode. The client controls the `challenge` payload
+completely, so `{}` or `{"token": ["x"]}` reaches you as a missing key or an array where you
+expected a string — both raise in PHP, and a malformed field must not decide whether a form
+accepts or refuses. Return a rejection instead of letting anything throw.
+
 ## Examples
 
 Attach application context to every report — the thing that turns "it's broken" into a

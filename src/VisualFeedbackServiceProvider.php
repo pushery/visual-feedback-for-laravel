@@ -167,6 +167,10 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             // selected nothing.
             $app->make(AbuseGateRegistry::class)->additional(),
             $app->make(LoggerInterface::class),
+            // Read at CHECK time, not here: `abuse.drivers.<name>.on_error` is a per-request
+            // question, and a host that binds this gate once at boot must still be able to flip
+            // the mode in a config cache warmed afterwards.
+            $app->make(Settings::class),
         ));
 
         // The delivery-channel registry + its public manager (the VisualFeedback facade target).

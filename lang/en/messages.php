@@ -23,6 +23,7 @@ return [
         'success' => 'Thanks — your feedback was sent.',
         'error' => 'Something went wrong. Please try again.',
         'disabled' => 'Feedback is switched off right now. Please try again later.',
+        'authentication_required' => 'Please sign in to send feedback.',
         'report_another' => 'Send another',
         'done' => 'Done',
         'name_label' => 'Your name',

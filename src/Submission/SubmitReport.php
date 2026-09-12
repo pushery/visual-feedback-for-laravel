@@ -77,6 +77,29 @@ final readonly class SubmitReport
             );
         }
 
+        // 0b. Sign-in only, when the host asked for it. Before the abuse floor on purpose: a guest
+        // on an authenticated-only install is not traffic to be measured, they are traffic that
+        // was never invited, and spending a rate-limit token on them would let a bot drain the
+        // bucket of whichever subject it is keyed on.
+        //
+        // This is the half that HOLDS. The five component templates and the widget's render()
+        // also ask, and all of those are drawing: the component is registered by name, so a stale
+        // tab or anything that can address a Livewire component still arrives here.
+        //
+        // Its own reason rather than a validation error, because a host reading a log needs to
+        // tell "somebody left a required field empty" from "somebody submitted to a form they
+        // were never shown". Visible, like the master switch and unlike the honeypot: the person
+        // who reaches this is usually somebody whose session expired while the tab was open, and
+        // a decoy success would tell them a report was received that was discarded.
+        if ($this->settings->requiresAuthentication() && $input->reporter->isGuest) {
+            $this->events->dispatch(new ReportRejected(RejectionReason::AuthenticationRequired));
+
+            return SubmissionResult::rejected(
+                RejectionReason::AuthenticationRequired,
+                new ValidationFailure('message', (string) trans('visual-feedback::messages.widget.authentication_required')),
+            );
+        }
+
         // 1. Abuse floor — the always-on gate runs BEFORE validation, so a failing attempt
         // still burns a rate-limit token. A filled honeypot or a too-fast fill
         // is a SILENT decoy (nothing stored, a bot learns nothing); a rate limit is a visible

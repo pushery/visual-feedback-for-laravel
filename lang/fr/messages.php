@@ -23,6 +23,7 @@ return [
         'success' => 'Merci, ton retour a bien été envoyé.',
         'error' => 'Une erreur est survenue. Réessaie.',
         'disabled' => 'Le retour d’expérience est désactivé pour le moment. Réessaie plus tard.',
+        'authentication_required' => 'Connecte-toi pour envoyer un retour.',
         'report_another' => 'En envoyer un autre',
         'done' => 'Terminé',
         'name_label' => 'Ton nom',

@@ -29,7 +29,7 @@
      the package off is left with a button that opens an empty dialog. `visual-feedback.enabled`
      is documented in the shipped config as "the widget renders nothing"; this is part of what
      makes that sentence true. --}}
-@if (app(\Pushery\VisualFeedback\Support\Settings::class)->enabled())
+@if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
 @php
     // The physical config vocabulary onto WireKit's two logical axes. All four corners are
     // reachable — the gap that made the earlier release unadoptable for this widget.

@@ -15,7 +15,9 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Psr\Log\LoggerInterface;
+use Pushery\VisualFeedback\Abuse\BuiltinAbuseGate;
 use Pushery\VisualFeedback\Abuse\FormOpenedAt;
+use Pushery\VisualFeedback\Abuse\ReportAttempt;
 use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Attachments\FilenameSanitizer;
@@ -31,6 +33,7 @@ use Pushery\VisualFeedback\Submission\ValidationFailure;
 use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\ClientConfig;
 use Pushery\VisualFeedback\Support\Settings;
+use Pushery\VisualFeedback\Support\WidgetAvailability;
 use Throwable;
 
 /**
@@ -222,10 +225,11 @@ class ReportWidget extends Component
      *
      * Nothing else in this package reads it, so a hostile value cannot reach anything of ours: it
      * is never stored, queued, mailed, logged or rendered. What it CAN do is make a gate throw,
-     * and an additional gate that throws fails OPEN by design (AbuseGateManager) — leaving the
-     * always-on floor, which is the protection every install has anyway, plus a warning in the
-     * log. A gate that verifies a token should therefore treat a surprising shape as a failed
-     * challenge rather than let it become an exception.
+     * and what that costs is the host's choice: an additional gate that throws fails OPEN by
+     * default, leaving the always-on floor plus an error in the log, and under
+     * `abuse.drivers.<name>.on_error = 'closed'` it refuses instead. Both are bad outcomes to
+     * reach by sending a malformed field — a gate that verifies a token should therefore treat a
+     * surprising shape as a failed challenge rather than let it become an exception.
      *
      * Typed `mixed`, not `scalar|null`: Livewire hydrates whatever the client sends and nothing
      * coerces it, so the narrower annotation would be a promise the runtime does not keep — and
@@ -518,15 +522,52 @@ class ReportWidget extends Component
         // Behind the master switch as well, and this is the step the promise is really about:
         // storing is the only thing in this method that WRITES.
         //
-        // The ABUSE floor deliberately stays where it is. Moving it ahead of the store would mean
-        // either running the gate here as well — BuiltinAbuseGate::check() hits the rate limiter,
-        // so a second call burns a second token against the reporter's own quota — or splitting
-        // handle() into a two-phase public API, which would put a seam into the one
-        // transport-agnostic entrance a second adapter could call in the wrong order. A
-        // gate-rejected submission therefore still writes and then discards; that residue is
-        // reclaimed on the same request and, failing that, by the orphan sweep.
-        $attachmentPaths = $enabled ? $this->storeAttachments() : [];
-        $screenshotPath = $enabled ? $this->storeScreenshot() : null;
+        // THE FREE HALF OF THE ABUSE FLOOR RUNS FIRST NOW, and the paragraph this replaces is worth
+        // keeping in mind: the full gate still stays where it is, for the reasons it gave. Calling
+        // `check()` here would burn a second rate-limit token against the reporter's own quota, and
+        // splitting `handle()` into two public phases would put a seam into the one
+        // transport-agnostic entrance a second adapter could call in the wrong order.
+        //
+        // What changed is that part of that floor costs nothing to ask. `silentFloor()` is the
+        // honeypot and the time trap: no cache, no disk, no network, no token — and exactly the
+        // arms a bot trips. Asking them here means a rejected bot attempt writes NOTHING, where it
+        // used to write up to five attachments and a screenshot and discard them after. On a
+        // remote disk those were real PUT requests, paid for before any protection had run.
+        //
+        // A gate that is not this one keeps today's ordering: the early call is deliberately not
+        // part of the `AbuseGate` contract, because a third-party gate may have nothing that is
+        // free to evaluate, and requiring it would make the promise an interface cannot keep.
+        // IT SKIPS THE WRITE, NOT THE SUBMISSION, and that distinction is the whole design.
+        // Returning early here would also skip `handle()` — and with it the rejection event a host
+        // listens to, the decoy-success decision, and the mapping of the failure onto a field. A
+        // host counting honeypot hits would simply stop seeing them, which is a worse defect than
+        // the one being fixed. So the pipeline runs exactly as before and reaches the same verdict;
+        // only the files are not there to be written and discarded again.
+        // The FLOOR is asked directly, not the gate the container hands out, and both halves of
+        // that are deliberate.
+        //
+        // The first version asked `app(AbuseGate::class)` and tested `instanceof
+        // BuiltinAbuseGate`. That binding returns the manager, so the test was false in every
+        // installation and the whole optimization was dead code — caught by static analysis
+        // before any test ran, because nothing about it is visible in behavior: a widget that
+        // skips no write looks exactly like one whose early floor never rejects.
+        //
+        // Resolving the floor itself keeps this independent of what a host layered on top. The
+        // floor is what the manager runs first and whose rejection it calls final, so an attempt
+        // rejected here is rejected by the full gate too, by the same arm for the same reason. A
+        // host that replaced the binding entirely still gets today's ordering, which is correct:
+        // this is an optimization for the gate we ship, not a promise about someone else's.
+        $storeIsWorthIt = ! app(BuiltinAbuseGate::class)->silentFloor(new ReportAttempt(
+            reporter: $reporterDto,
+            honeypot: $this->feedbackReference,
+            ipAddress: request()->ip(),
+            formOpenedAt: $this->formOpenedAt(),
+            submittedAt: new DateTimeImmutable,
+            challenge: $this->challenge,
+        ))->rejected();
+
+        $attachmentPaths = $enabled && $storeIsWorthIt ? $this->storeAttachments() : [];
+        $screenshotPath = $enabled && $storeIsWorthIt ? $this->storeScreenshot() : null;
 
         $result = $submit->handle(new SubmissionInput(
             category: $this->category,
@@ -884,7 +925,13 @@ class ReportWidget extends Component
         //
         // This is the cosmetic half. The one that holds is in SubmitReport::handle(), because a
         // Livewire component registered by name is reachable without the page that renders it.
-        if (! $this->settings()->enabled()) {
+        //
+        // Both switches at once, through the same object the five component templates ask, so the
+        // button and the form can never disagree about whether this reporter has a form. The
+        // sign-in switch renders the SAME nothing as the master switch on purpose: a guest on an
+        // authenticated-only install is not being told the form is broken, they are being shown a
+        // page that has no feedback widget on it.
+        if (! app(WidgetAvailability::class)->forThisRequest()) {
             return view('visual-feedback::livewire.disabled');
         }
 
