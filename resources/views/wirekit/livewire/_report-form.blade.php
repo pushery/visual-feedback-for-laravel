@@ -27,11 +27,36 @@
 <div role="status" aria-live="polite"
     x-effect="vfFocusReportAnother()">
     @if ($submitted)
-        <p class="visual-feedback-success"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.success') }}</p>
-        {{-- Resetting removes this button, so hand focus on to the fresh form's message field. --}}
+        {{-- The kit draws this, not the package: `intent="success"` brings the tint, border,
+             radius, icon and dark mode from the same tokens every other alert in a WireKit
+             application uses. The glyph the package used to paint by hand is the component's
+             own icon now, so there is one success mark in the tree rather than two that drift.
+             IMPORTANT. `role="presentation"` is deliberate and it is the whole reason this is not a
+             one-word change. The kit sets its OWN role -- `alert` for danger, `status`
+             otherwise -- through `merge()`, which keeps a caller-supplied role and drops its
+             own. Without that word this line would be a `status` region nested inside the
+             `status` region around it, and a screen reader can announce a nested live region
+             twice. The announcement stays on the OUTER element for the reason the region
+             exists at all: a live region must be in the DOM BEFORE its content changes, and
+             this alert only exists once `$submitted` is true. Same at all six sites, and the
+             suite holds it: one live role per region. --}}
+        <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success">{{ __('visual-feedback::messages.widget.success') }}</x-wirekit::alert>
+        {{-- Two ways out of the success screen, and the order is the decision.
+
+             "Send another" comes first because focus is moved to it: a reporter who just sent
+             something and wants to send another thing is the one who needs a target, and the
+             one who is finished reaches for the mouse or presses Escape. Tab finds "Done"
+             immediately after, so neither is buried.
+
+             The x in the modal header is a WINDOW gesture; this is a step of the flow, and
+             inline there is no header at all -- that surface had no way to end the flow before
+             this button existed. --}}
         <x-wirekit::button class="visual-feedback-report-another" x-ref="reportAnother"
             x-on:click="vfResetAndFocus()">
             {{ __('visual-feedback::messages.widget.report_another') }}
+        </x-wirekit::button>
+        <x-wirekit::button class="visual-feedback-done" intent="neutral" x-on:click="vfDoneWireKit()">
+            {{ __('visual-feedback::messages.widget.done') }}
         </x-wirekit::button>
     @endif
 </div>
@@ -101,14 +126,14 @@
         @if ($showGuestFields)
             @if ($showName)
                 <x-wirekit::input
-                    id="visual-feedback-name" :aria-invalid="$vfInvalidField === 'name' ? 'true' : null" :aria-describedby="$vfInvalidField === 'name' ? 'visual-feedback-error' : null"
+                    id="visual-feedback-name" :error="$vfInvalidField === 'name' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     :label="__('visual-feedback::messages.widget.name_label')"
                     :required="in_array('name', $requiredFields, true)"
                     wire:model="guestName" autocomplete="name" />
             @endif
             @if ($showEmail)
                 <x-wirekit::input
-                    id="visual-feedback-email" :aria-invalid="$vfInvalidField === 'email' ? 'true' : null" :aria-describedby="$vfInvalidField === 'email' ? 'visual-feedback-error' : null"
+                    id="visual-feedback-email" :error="$vfInvalidField === 'email' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="email"
                     :label="__('visual-feedback::messages.widget.email_label')"
                     :required="in_array('email', $requiredFields, true)"
@@ -116,7 +141,7 @@
             @endif
             @if ($showPhone)
                 <x-wirekit::input
-                    id="visual-feedback-phone" :aria-invalid="$vfInvalidField === 'phone' ? 'true' : null" :aria-describedby="$vfInvalidField === 'phone' ? 'visual-feedback-error' : null"
+                    id="visual-feedback-phone" :error="$vfInvalidField === 'phone' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="tel"
                     :label="__('visual-feedback::messages.widget.phone_label')"
                     :required="in_array('phone', $requiredFields, true)"
@@ -127,13 +152,19 @@
         {{-- Same id as the plain tree's select, so a host (or a test) addresses one control
              by one name regardless of which view tree is published. --}}
         <x-wirekit::select
-            id="visual-feedback-category" :aria-invalid="$vfInvalidField === 'category' ? 'true' : null" :aria-describedby="$vfInvalidField === 'category' ? 'visual-feedback-error' : null"
+            id="visual-feedback-category" :error="$vfInvalidField === 'category' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
             :label="__('visual-feedback::messages.widget.category_label')"
+            {{-- Required because the server says so, not because the form looks better with a
+                 star: `SubmitReport` validates `category` as `required` unconditionally, so a
+                 reporter who leaves it alone is rejected either way. It is NOT in
+                 `$requiredFields` -- that list is the four fields an operator can switch
+                 between optional and required, and this one is never optional. --}}
+            required
             wire:model="category" :options="$categoryOptions" />
 
         @if ($showSubject)
             <x-wirekit::input
-                id="visual-feedback-subject" :aria-invalid="$vfInvalidField === 'subject' ? 'true' : null" :aria-describedby="$vfInvalidField === 'subject' ? 'visual-feedback-error' : null"
+                id="visual-feedback-subject" :error="$vfInvalidField === 'subject' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 :label="__('visual-feedback::messages.widget.subject_label')"
                 wire:model="subject" />
         @endif
@@ -152,7 +183,7 @@
              an identifier Alpine's CSP evaluator cannot resolve. --}}
         <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
             <x-wirekit::textarea
-                id="visual-feedback-message" :aria-invalid="$vfInvalidField === 'message' ? 'true' : null" :aria-describedby="$vfInvalidField === 'message' ? 'visual-feedback-error' : null"
+                id="visual-feedback-message" :error="$vfInvalidField === 'message' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 :label="__('visual-feedback::messages.widget.message_label')"
                 wire:model="message"
                 required
@@ -198,8 +229,15 @@
                     {{ __('visual-feedback::messages.widget.screenshot_native_hint') }}
                 </p>
 
-                {{-- Progress + terminal status → aria-live (the Alpine state is the only source). --}}
-                <p class="visual-feedback-capture-status" aria-live="polite">
+                {{-- Progress + terminal status → aria-live (the Alpine state is the only source).
+
+                     A `div`, not the `p` this used to be, and that is a correctness fix rather
+                     than taste: the attached-screenshot line below is a kit alert now, the kit
+                     renders it as a `div`, and a `div` inside a `p` is invalid HTML that the
+                     parser REPAIRS by closing the paragraph early. The alert would have landed
+                     outside the live region that announces it, and the elements after it would
+                     have moved, which is the overlap a reporter sees beside the retake button. --}}
+                <div class="visual-feedback-capture-status" aria-live="polite">
                     <span x-show="status === 'capturing'">{{ __('visual-feedback::messages.widget.screenshot_capturing') }}</span>
                     <span x-show="status === 'uploading'">{{ __('visual-feedback::messages.widget.screenshot_uploading') }}</span>
                     {{-- The `attached` claim is the one piece of this status line that a server-side
@@ -211,12 +249,19 @@
                     file is too large. The retake button below is deliberately NOT wrapped:
                     it is the recovery path, and its label is an offer rather than a claim. --}}
                     @unless ($errors->has('screenshot'))
-                        <span class="visual-feedback-success" x-show="status === 'attached'"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.screenshot_attached') }}</span>
+                        <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success"
+                            x-show="status === 'attached'">{{ __('visual-feedback::messages.widget.screenshot_attached') }}</x-wirekit::alert>
                     @endunless
-                </p>
+                </div>
 
-                {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
-                <div x-show="status === 'captured'">
+                {{-- Preview before submit: discard (never uploaded), retake, or attach.
+
+                     The class marks this as the OPEN POINT while the capture is neither attached
+                     nor discarded. The sentence that says so is at the end of the form, and a
+                     sentence naming a state without showing which part of the screen it means
+                     leaves the reader to search for it. The border is not the only carrier -- the
+                     sentence stays exactly as it was, and the border is added to it. --}}
+                <div class="visual-feedback-captured-pending" x-show="status === 'captured'">
                     {{-- `x-if`, NOT the `x-show` on the container, and the difference is a request per page
                          view. `x-show` sets `display:none` and leaves the element in the DOM, so before the
                          first capture every page carrying the widget held an image element whose `src` was empty.
@@ -264,21 +309,24 @@
 
                 {{-- A capture failure is VISIBLE with retry, not a silent console.warn.
 
-                     Both alert classes are UNCONDITIONAL here, unlike the server-rendered
-                     regions below: this one's text is always in the markup and `x-show` is what
-                     decides whether it is seen. `x-show` writes `display:none` as an inline
-                     style, which outranks the stylesheet, so the box cannot leak out while the
-                     capture is idle. --}}
-                <div class="visual-feedback-alert visual-feedback-alert--shown"
-                    x-show="status === 'failed'" role="alert" aria-live="assertive">
-                    {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                    <x-wirekit::button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                     The region is unconditional and the ALERT inside it carries the `x-show`,
+                     unlike the server-rendered region below: this one's text is always in the
+                     markup and Alpine decides whether it is seen. `x-show` writes
+                     `display:none` as an inline style, which outranks any stylesheet, so the
+                     box cannot leak out while the capture is idle. --}}
+                <div class="visual-feedback-alert" role="alert" aria-live="assertive">
+                    <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown"
+                        x-show="status === 'failed'">
+                        {{ __('visual-feedback::messages.widget.screenshot_failed') }}
+                        <x-wirekit::button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                    </x-wirekit::alert>
                 </div>
 
                 {{-- Perimeter error surfaced from the screenshot upload validation. --}}
-                <div @class(['visual-feedback-alert', 'visual-feedback-alert--shown' => $errors->has('screenshot')])
-                    role="alert" aria-live="assertive">
-                    @error('screenshot') {{ $message }} @enderror
+                <div class="visual-feedback-alert" role="alert" aria-live="assertive">
+                    @error('screenshot')
+                        <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown">{{ $message }}</x-wirekit::alert>
+                    @enderror
                 </div>
             </div>
         @endif
@@ -296,7 +344,7 @@
              deliberately — the component only emits `name="…[]"` when it is given one, and the
              plain tree's file input carries none either. --}}
         <x-wirekit::file-upload
-            id="visual-feedback-files" :aria-invalid="$vfInvalidField === 'files' ? 'true' : null" :aria-describedby="$vfInvalidField === 'files' ? 'visual-feedback-error' : null"
+            id="visual-feedback-files" :error="$vfInvalidField === 'files' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
             wire:model="attachments"
             multiple
             :accept="$acceptAttribute"
@@ -312,12 +360,13 @@
              Both keys are tested, because both are rendered: a per-file failure lands under
              `attachments.0`, never under `attachments`, and a box keyed on the bare name alone
              would stay unpainted for exactly the rejection a reporter is most likely to hit. --}}
-        <div @class([
-            'visual-feedback-alert',
-            'visual-feedback-alert--shown' => $errors->has('attachments') || $errors->has('attachments.*'),
-        ]) role="alert" aria-live="assertive">
-            @error('attachments') {{ $message }} @enderror
-            @error('attachments.*') {{ $message }} @enderror
+        <div class="visual-feedback-alert" role="alert" aria-live="assertive">
+            @if ($errors->has('attachments') || $errors->has('attachments.*'))
+                <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown">
+                    @error('attachments') {{ $message }} @enderror
+                    @error('attachments.*') {{ $message }} @enderror
+                </x-wirekit::alert>
+            @endif
         </div>
 
         {{-- Error region. Two things are keyed on the failure COUNTER rather than on `failed`:
@@ -328,13 +377,15 @@
              pipeline gave. Both used to be blunt: any failure showed one generic line and pointed
              at the message box, so a typo in the email sent the reporter to the text they had
              written correctly. --}}
-        <div @class([
-            'visual-feedback-error',
-            'visual-feedback-alert',
-            'visual-feedback-alert--shown' => $failed,
-        ]) id="visual-feedback-error" role="alert" aria-live="assertive"
+        {{-- The id stays on the REGION, never on the alert inside it: it is the focus target
+             `vfFocusFailedField()` falls back to, and a target that only exists while the
+             failure is on screen is missing exactly when focus is moved to it. --}}
+        <div class="visual-feedback-error visual-feedback-alert"
+            id="visual-feedback-error" role="alert" aria-live="assertive"
             x-effect="$wire.failureCount && vfFocusFailedField()">
-            @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
+            @if ($failed)
+                <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown">{{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}</x-wirekit::alert>
+            @endif
         </div>
 
         @if ($showGuestFields && $privacyNoticeUrl)
@@ -343,7 +394,7 @@
                  WireKit renders the label as `{{ $label }}` (verified — checkbox.blade.php:185),
                  which matters because legal-consent never runs this field through a sanitizer. --}}
             <x-wirekit::checkbox
-                id="visual-feedback-privacy" :aria-invalid="$vfInvalidField === 'privacy' ? 'true' : null" :aria-describedby="$vfInvalidField === 'privacy' ? 'visual-feedback-error' : null"
+                id="visual-feedback-privacy" :error="$vfInvalidField === 'privacy' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 wire:model="privacyAcknowledged"
                 required
                 :label="$privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge')" />
@@ -357,6 +408,24 @@
                 {{ __('visual-feedback::messages.widget.privacy_notice_link') }}
             </a>
         @endif
+
+        {{-- The star the required controls carry, spelled out. A red mark with no key is a
+             convention, and a convention only works for the people who already know it.
+
+             It is NOT aria-hidden. A screen reader announces a required control from the
+             attribute itself, so this sentence is not what carries the information for that
+             reader -- but it is ordinary page text, it costs nothing to hear, and hiding it
+             would be the package deciding that one audience gets an explanation the other
+             does not. What it must not be is a live region or an error: it says nothing has
+             gone wrong.
+
+             Rendered unconditionally, because both controls it explains are always on screen:
+             `message` and `category` are required in every configuration. The guest fields and
+             the privacy tick can add more, never fewer. --}}
+        <p class="visual-feedback-required-legend">
+            <span class="visual-feedback-required-mark" aria-hidden="true">*</span>
+            {{ __('visual-feedback::messages.widget.required_legend') }}
+        </p>
 
         <x-wirekit::button type="submit" class="visual-feedback-submit" intent="primary">
             {{ __('visual-feedback::messages.widget.submit') }}

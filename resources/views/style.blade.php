@@ -392,6 +392,26 @@
         color: var(--vf-muted);
     }
 
+    {{-- The required-field legend, muted like every other note in this form, with the star in the
+       tone the controls use for theirs. Two colors on one line and only one of them is the
+       point: the star has to read as the SAME mark the fields carry, or the legend explains a
+       symbol the reporter never saw. --}}
+    .visual-feedback-required-legend {
+        display: block;
+        margin-top: 0.75rem;
+        font-size: 0.8125rem;
+        color: var(--vf-muted);
+    }
+
+    .visual-feedback-required-mark {
+        {{-- `--vf-error`, the token this tree already paints the invalid border with, and NOT a
+           second red of its own: the legend explains the mark the fields carry, so the two have
+           to be the same tone in both schemes. It has a dark-scheme value, which a literal
+           would not. --}}
+        color: var(--vf-error);
+        margin-inline-end: 0.25rem;
+    }
+
     {{-- The capture block's own separation from the field above it.
 
        The rhythm in this tree comes from `label { margin-top }`, which works for every group
@@ -451,6 +471,22 @@
         border: 1px solid var(--vf-border);
         border-radius: 6px;
         box-sizing: border-box;
+    }
+
+    {{-- The block while a capture is waiting for a decision: attached or discarded, neither yet.
+
+       The message naming this state lives at the end of the form, so without a mark here a
+       reporter reads "you captured a screenshot but have not attached it yet" and then has to
+       find what it refers to. `warning` rather than `danger`: nothing is broken, a choice is
+       open -- the form submits fine from here, it simply sends without the image.
+
+       It disappears by itself, because it is keyed on the state rather than set by a handler:
+       attaching moves the status to `attached`, discarding resets it, and either way this
+       container is no longer shown. --}}
+    .visual-feedback-captured-pending {
+        padding: var(--space-wk-md, 1rem);
+        border: 1px solid var(--color-wk-warning, #b45309);
+        border-radius: var(--radius-wk-md, 0.5rem);
     }
 
     .visual-feedback-preview-actions {
@@ -667,18 +703,54 @@
 
     {{-- The row under the preview. Without `display: flex` the three buttons are inline boxes
        with a word space between them, which is why this one reads as broken rather than tight. --}}
+    {{-- The row under the preview. Without `display: flex` the three buttons are inline boxes
+       with a word space between them, which is why this one reads as broken rather than tight.
+
+       The step above it is the FORM's step, not a smaller one of its own. The block used to run
+       0.75rem / 0.5rem / 0.5rem over its three parts while every direct child of the form got
+       1rem, and the button row was the one that read as cramped -- it sits between two things
+       that are spaced a third wider than it is. --}}
     .visual-feedback-preview-actions {
         display: flex;
         flex-wrap: wrap;
         gap: var(--gap-wk-sm, 0.5rem);
-        margin-block-start: var(--space-wk-sm, 0.5rem);
+        margin-block-start: var(--space-wk-md, 1rem);
     }
 
+    {{-- The preview speaks the dropzone's language: dashed, rounded, with room around it. It sat
+       next to WireKit's own file-upload area wearing a thin solid hairline and no padding, so two
+       controls that do the same job -- "here is the file you picked" -- looked unrelated.
+
+       The height cap is the other half. Unbounded, a desktop capture is taller than the rest of
+       the form put together and pushes the buttons below the fold; `contain` keeps the aspect
+       ratio while it shrinks, so the preview still shows what was captured rather than a crop. --}}
     .visual-feedback-preview {
         display: block;
         max-width: 100%;
         height: auto;
-        margin-block-start: var(--space-wk-sm, 0.5rem);
+        padding: var(--space-wk-sm, 0.5rem);
+        border: 1px dashed var(--color-wk-border, #7b8390);
+        border-radius: var(--radius-wk-md, 0.5rem);
+        margin-block-start: var(--space-wk-md, 1rem);
+    }
+
+    {{-- The height cap, and the media query around it is the whole point.
+
+       An unconditional `max-height` was proposed once and rejected on a measurement: on an iPhone
+       SE profile it shrank a PORTRAIT capture to 128x227 inside a 232px column -- 55% of the space
+       it had -- because capping the height of a `contain` image pulls its width along. That is the
+       worst place to lose it: this preview is the step where a reporter sees what they are about
+       to send.
+
+       Above 480px the column is wide enough that the cap takes height without taking width, and
+       there the unbounded preview was the problem: a desktop capture is taller than the rest of
+       the form together and pushes the buttons below the fold. So the cap applies exactly where
+       it helps, and the narrow case keeps the behavior that measurement earned. --}}
+    @media (min-width: 480px) {
+        .visual-feedback-preview {
+            max-height: 240px;
+            object-fit: contain;
+        }
     }
 
     {{-- Secondary text under a field: the character counter, the attachment caps, and the capture
@@ -692,11 +764,20 @@
         color: var(--color-wk-text-muted, #6b7280);
     }
 
-    {{-- The two sentences that say something worked, on WireKit's own success tone -- and in the
-       same box shape as the alert further down, from the same token scale. Color and weight
-       alone made a success read as a marginal note beside a failure that had a full box; both
-       are the same class of statement and now look like it. --}}
-    .visual-feedback-success {
+    {{-- THE BOX IS THE KIT'S NOW, and what is left here is only the gap above it.
+
+       This rule used to paint a full success box of its own -- border, left rule, radius, tone,
+       weight -- built to match the alert "from the same token scale". Matching by hand is exactly
+       the drift the alert component exists to prevent, and it showed: the two were a token release
+       apart, so the success box and the danger box beside it stopped being the same shape.
+
+       The appearance comes from <x-wirekit::alert intent="success">, and these declarations are
+       the FALLBACK beneath it, in `:where()` so they carry zero specificity and lose to the kit
+       wherever its utilities are compiled. A host without a Tailwind build -- the case this
+       stylesheet exists for -- would otherwise get a confirmation with no box at all. The glyph
+       rule is gone with the glyph: the kit draws its own icon and the package no longer paints a
+       second one beside it. --}}
+    :where(.visual-feedback-success) {
         margin-block-start: var(--space-wk-sm, 0.5rem);
         padding: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
         border: 1px solid var(--color-wk-border-success, #15803d);
@@ -704,10 +785,6 @@
         border-radius: var(--radius-wk-md, 0.5rem);
         color: var(--color-wk-success-text, #15803d);
         font-weight: var(--font-wk-heading-weight, 600);
-    }
-
-    .visual-feedback-success-glyph {
-        margin-inline-end: var(--gap-wk-xs, 0.375rem);
     }
 
     {{-- The three buttons that are bare siblings of a paragraph or a link, and therefore had no
@@ -736,6 +813,31 @@
        (the capture button, which is inside `.visual-feedback-screenshot`) keep theirs. --}}
     .visual-feedback-panel form > * + * {
         margin-block-start: var(--space-wk-md, 1rem);
+    }
+
+    {{-- ...and the two children that must not COUNT in that rhythm, because they take no room.
+
+       Measured in the live dialog: the honeypot is 1px tall and the challenge slot is 0px while
+       no provider renders into it, and each still collected a full step. With no guest fields on
+       screen that put two steps plus the panel padding between the header and the first field --
+       the gap the report is about.
+
+       `:empty` is not enough for the honeypot: it HAS children, it is just positioned out of the
+       flow, so it is named directly. The challenge slot is the opposite case -- an ordinary block
+       that is genuinely empty until a host injects something -- and `:empty` is exactly the
+       question there, so its spacing returns by itself the moment it has content.
+
+       The margin is removed from the element AFTER them as well: the owl selector spaces a child
+       from its predecessor, so skipping a zero-height predecessor means the next visible element
+       must not inherit a step from it either. That is what the second selector does. --}}
+    .visual-feedback-panel form > .visual-feedback-honeypot,
+    .visual-feedback-panel form > .visual-feedback-challenge:empty {
+        margin-block-start: 0;
+    }
+
+    .visual-feedback-panel form > .visual-feedback-honeypot + *,
+    .visual-feedback-panel form > .visual-feedback-challenge:empty + * {
+        margin-block-start: 0;
     }
 
     {{-- …and the one child the rule above cannot reach on its own. The privacy anchor is a direct
@@ -767,7 +869,19 @@
        here is how a widget stops looking like the app it is embedded in. The fallbacks are the
        plain tree's own error tone, so a host that loads this tree without WireKit's stylesheet
        still gets a red box rather than an unpainted one. --}}
-    .visual-feedback-alert--shown {
+    {{-- THE BOX IS THE KIT'S, and this is the FALLBACK underneath it -- which is why it is wrapped
+       in `:where()`.
+
+       The first attempt deleted these declarations outright, on the reasoning that a hand copy of
+       the alert component's shape drifts from it. True, and it broke something the browser suite
+       caught: WireKit's own box is Tailwind utilities that the CONSUMING APP compiles. A host
+       without a Tailwind build -- the case this stylesheet exists for, and the one the demo
+       reproduces -- got a refusal with no border at all.
+
+       `:where()` has zero specificity, so every one of these loses to the kit's utilities wherever
+       they are compiled, and applies where they are not. That is the honest shape of a fallback:
+       present, and never in the way. --}}
+    :where(.visual-feedback-alert--shown) {
         margin-block-start: var(--space-wk-sm, 0.5rem);
         padding: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
         border: 1px solid var(--color-wk-border-error, #b91c1c);
