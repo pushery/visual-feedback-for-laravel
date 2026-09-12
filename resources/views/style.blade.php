@@ -913,9 +913,16 @@
        matters more than the specific number. The safe-area term is kept exactly as WireKit
        composes it; dropping it would put the button under the home indicator on a phone.
 
-       This is a WORKAROUND for an upstream defect and is reported there. Delete this rule the
-       day the component positions both axes from one token; the guard that pins it says how to
-       check. --}}
+       This is a WORKAROUND for an upstream defect and was reported there. It is FIXED upstream
+       as of WireKit v2.49.0, which positions `.wk-fab` from the inline token exactly as this
+       rule does -- so on 2.49 and up the two say the same thing and this one costs nothing.
+
+       IT STAYS ANYWAY, and the reason is the `suggest` line in composer.json: this package tells
+       consumers `^2.21`, and every version from 2.21 to 2.48 still needs it. Deleting it the day
+       the upstream fix landed would have put the unequal inset back for all of them, silently --
+       the suite resolves the NEWEST WireKit the constraint allows, so nothing here would have
+       gone red. The guard that pins it asks the right question now: it fires when the DECLARED
+       FLOOR carries the fix, not when the newest release does. --}}
     .visual-feedback-fab.wk-fab {
         inset-block-end: calc(var(--padding-wk-x-lg, 1rem) + env(safe-area-inset-bottom, 0px));
     }

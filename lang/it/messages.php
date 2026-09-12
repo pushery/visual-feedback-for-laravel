@@ -22,6 +22,7 @@ return [
         'submitting' => 'Invio…',
         'success' => 'Grazie, il tuo feedback è stato inviato.',
         'error' => 'Qualcosa è andato storto. Riprova.',
+        'error_check_field' => 'Controlla il campo evidenziato.',
         'disabled' => 'Il feedback è disattivato al momento. Riprova più tardi.',
         'authentication_required' => 'Accedi per inviare un feedback.',
         'report_another' => 'Inviane un altro',

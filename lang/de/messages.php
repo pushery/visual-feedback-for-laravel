@@ -22,6 +22,7 @@ return [
         'submitting' => 'Wird gesendet…',
         'success' => 'Danke — dein Feedback wurde gesendet.',
         'error' => 'Etwas ist schiefgelaufen. Bitte versuch es noch mal.',
+        'error_check_field' => 'Bitte prüf das markierte Feld.',
         'disabled' => 'Feedback ist gerade abgeschaltet. Bitte versuch es später noch mal.',
         'authentication_required' => 'Bitte melde dich an, um Feedback zu senden.',
         'report_another' => 'Weiteres Feedback senden',

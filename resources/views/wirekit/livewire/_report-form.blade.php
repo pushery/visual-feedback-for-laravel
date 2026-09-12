@@ -380,11 +380,28 @@
         {{-- The id stays on the REGION, never on the alert inside it: it is the focus target
              `vfFocusFailedField()` falls back to, and a target that only exists while the
              failure is on screen is missing exactly when focus is moved to it. --}}
+        {{-- IMPORTANT. THE BOX SUMMONS, THE FIELD EXPLAINS -- and it is one or the other, never both.
+             This line used to print `$failedMessage` unconditionally, which in THIS tree put the
+             identical sentence on screen twice: every control above takes the same string through
+             `:error`, and the kit paints it under the field. Reported from a consumer against
+             0.11.0 over both engines and both viewports, roughly 310 px apart on a desktop and 350
+             on a phone -- far enough not to read as one message, near enough to be in view at
+             once, so it reads as two problems and the reader goes looking for the second one.
+
+             The plain tree never had this: it has no per-field message slot, so its controls point
+             at THIS region with `aria-describedby` and the sentence exists once. The kit does have
+             one, and the nearer copy is the more useful of the two -- it sits at the control the
+             reporter has to change -- so that is the one that keeps the reason.
+
+             `$vfInvalidField` is the right condition rather than `$failed`, and the difference is
+             load-bearing: a listener veto, a rate limit and the master switch being off all fail
+             with NO field marked, and there the box is the only place the reason can be. It keeps
+             it. --}}
         <div class="visual-feedback-error visual-feedback-alert"
             id="visual-feedback-error" role="alert" aria-live="assertive"
             x-effect="$wire.failureCount && vfFocusFailedField()">
             @if ($failed)
-                <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown">{{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}</x-wirekit::alert>
+                <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown">{{ $vfInvalidField !== null ? __('visual-feedback::messages.widget.error_check_field') : ($failedMessage ?? __('visual-feedback::messages.widget.error')) }}</x-wirekit::alert>
             @endif
         </div>
 

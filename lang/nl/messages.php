@@ -22,6 +22,7 @@ return [
         'submitting' => 'Bezig met versturen…',
         'success' => 'Bedankt, je feedback is verstuurd.',
         'error' => 'Er ging iets mis. Probeer het opnieuw.',
+        'error_check_field' => 'Controleer het gemarkeerde veld.',
         'disabled' => 'Feedback staat nu uit. Probeer het later opnieuw.',
         'authentication_required' => 'Log in om feedback te sturen.',
         'report_another' => 'Nog een sturen',

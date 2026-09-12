@@ -22,6 +22,7 @@ return [
         'submitting' => 'Enviando…',
         'success' => 'Gracias, hemos recibido tus comentarios.',
         'error' => 'Algo ha salido mal. Inténtalo de nuevo.',
+        'error_check_field' => 'Revisa el campo marcado.',
         'disabled' => 'Los comentarios están desactivados ahora mismo. Inténtalo más tarde.',
         'authentication_required' => 'Inicia sesión para enviar comentarios.',
         'report_another' => 'Enviar otro',
