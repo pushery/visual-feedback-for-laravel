@@ -546,6 +546,38 @@
         cursor: pointer;
     }
 
+    {{-- ── The panel's SECONDARY buttons ───────────────────────────────────────────────
+       Capture, attach, discard, retake, done, report another. Every one of them was a bare
+       `<button type="button">` with no rule anywhere, so each rendered in whatever chrome the
+       engine's own stylesheet supplies -- and that chrome is not the same chrome.
+
+       Measured in both engines, the capture button in the open panel:
+
+         Blink    border rgb(118, 118, 118) on buttonface -- passes the 3:1 non-text threshold
+         WebKit   border 2px outset rgb(192, 192, 192) on white -- 1.82:1, and it FAILS
+
+       Dark mode is worse and it is the same cause: the engine keeps its light button surface
+       while the label inherits the panel's dark-scheme foreground, so the text came back white
+       on white at a ratio of exactly 1. A reader on Safari had an unreadable button and a
+       reader on Chrome did not, from identical markup.
+
+       The tokens are the panel's own, so a host that overrode them gets buttons that match:
+       `--vf-border` is #7b8390 in both schemes and clears 3:1 against the light surface and the
+       dark one alike, and `--vf-fg` on `--vf-bg` is the pair the panel's body text already uses.
+
+       The close button keeps its own rule -- it is a borderless glyph in the corner, not a
+       control in the flow -- and is named out rather than left to specificity. --}}
+    .visual-feedback-dialog button[type="button"]:not(.visual-feedback-close) {
+        padding: 0.5rem 1rem;
+        min-height: 44px;
+        border: 1px solid var(--vf-border);
+        border-radius: 6px;
+        background: var(--vf-bg);
+        color: var(--vf-fg);
+        font: inherit;
+        cursor: pointer;
+    }
+
     {{-- ── The report browser ──────────────────────────────────────────────────────────
        Same custom properties as the widget, so a host that already overrode --vf-accent
        gets a browser that matches without touching anything else. No new tokens: a
