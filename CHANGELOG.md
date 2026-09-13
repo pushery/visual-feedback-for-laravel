@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.13.1] - 2026-09-13
+
+### Fixed
+
+- **The widget no longer leaves an unhandled promise rejection when a round trip fails.** Opening the panel books the open time through `markOpened()`, and ending or resetting it calls `resetWidget()`. Neither result is used, and neither rejection was held: when the session had expired, Livewire rejected the call with a 419, and Chromium and WebKit reported an unhandled rejection for every such open, so an application that forwards browser errors received a report that said nothing about a defect. The widget now discards those rejections. Livewire's own handling of the failure, and anything an application registered on it, runs as before.
+
 ## [0.13.0] - 2026-09-12
 
 ### Added
@@ -577,7 +583,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...v0.13.0
 
 [0.12.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.0...v0.12.1
