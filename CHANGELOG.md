@@ -4,6 +4,16 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.13.2] - 2026-09-14
+
+### Changed
+
+- **The integration contract says which engine reproduces `filter: grayscale()`.** It claimed, twice and without qualification, that the capture reproduces it. It does in Blink; in WebKit the capture drops the filter and the element comes back in its original color — measured in both engines. The page's point is unchanged and sharper for it: no filter is a way to keep something out of a screenshot, and now the reader can see that the answer moves with the renderer as well as with the property.
+
+### Fixed
+
+- **Every secondary button in the panel is readable, and it no longer depends on which browser you use.** Capture, attach, discard, retake, done and report-another were bare `<button type="button">` elements with no rule of their own, so each rendered in whatever chrome the engine supplies — and that chrome differs. Measured in both: Blink draws a border that clears the 3:1 non-text threshold, WebKit draws `2px outset silver` at **1.82:1**, and in dark mode WebKit kept its light button surface while the label inherited the panel's dark foreground, so the text came back **white on white**. All of them now carry the panel's own tokens, so a host that overrode `--vf-border`, `--vf-bg` or `--vf-fg` gets buttons that match. The close button keeps its own borderless look.
+
 ## [0.13.1] - 2026-09-13
 
 ### Fixed
@@ -583,7 +593,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...HEAD
+[0.13.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...v0.13.0
 
