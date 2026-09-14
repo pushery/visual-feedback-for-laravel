@@ -629,6 +629,12 @@ return [
         'variant' => env('VISUAL_FEEDBACK_UI_VARIANT', 'auto'), // auto|plain|wirekit
         'trigger' => env('VISUAL_FEEDBACK_UI_TRIGGER', 'fab'), // fab|inline|none
         'position' => env('VISUAL_FEEDBACK_UI_POSITION', 'bottom-right'),
+
+        // The glyph on the WireKit tree's floating trigger, as a WireKit icon alias. A plus reads as "create
+        // something", so the default is `message`; set `plus` for the glyph earlier releases showed. A name
+        // WireKit does not declare, or a WireKit older than v2.27.0, keeps the plus. The plain tree's trigger is
+        // a text button and ignores this.
+        'fab_icon' => env('VISUAL_FEEDBACK_UI_FAB_ICON', 'message'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
 
         // Subresource Integrity on the two script tags. OFF by default, and the default is the
