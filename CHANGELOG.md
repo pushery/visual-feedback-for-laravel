@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.14.1] - 2026-09-14
+
+### Fixed
+
+- **The panel's category picker is as tall as every other field, in every engine.** The stylesheet gives each field in the panel a minimum height of 44 pixels, the target size it promises for every control. WebKit draws a native select as a menu-list button and ignores both the padding and the minimum height, so the picker came out 23 pixels tall in WebKit while Blink drew it at 44. The picker now has a fixed height of 44 pixels, the one size WebKit honors on a select, and keeps its native arrow. The report browser's select filters get the same height.
+
 ## [0.14.0] - 2026-09-14
 
 ### Changed
@@ -599,7 +605,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...v0.13.1
