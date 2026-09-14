@@ -39,6 +39,21 @@
         'top-left' => ['block-start', 'start'],
         default => ['block-end', 'end'],
     };
+
+    // The glyph. WireKit draws a plus when it is handed none, and a plus reads as "create something":
+    // beside a list with its own New button the trigger looked like one more of them. So it names an
+    // icon that means feedback, `ui.fab_icon`, which is `message` unless a host says otherwise.
+    //
+    // Only an alias WireKit declares is handed over. `message` arrived in WireKit v2.25.0 and
+    // `isIconAlias()` in v2.27.0, and a name WireKit does not declare falls through to the icon set's
+    // own naming, where it may name no glyph at all. On an older WireKit, and for a name it does not
+    // know, the plus stays, which is what this trigger showed before. The `method_exists` half cannot be
+    // exercised by this package's suites, whose WireKit has the method. Without an icon set installed,
+    // WireKit draws its plus whatever it is handed.
+    $icon = config('visual-feedback.ui.fab_icon', 'message');
+    $icon = is_string($icon) && method_exists(\Pushery\WireKit\WireKit::class, 'isIconAlias') && \Pushery\WireKit\WireKit::isIconAlias($icon)
+        ? $icon
+        : null;
 @endphp
 {{-- No wrapper. `.visual-feedback-fab` goes straight onto the button — it is the marker the
      capture pipeline hides itself by, and it has to sit on the element that IS the FAB.
@@ -59,6 +74,7 @@
     class="visual-feedback-fab"
     :placement="$placement"
     :position="$inline"
+    :icon="$icon"
     :label="$label ?? __('visual-feedback::messages.widget.heading')"
     haspopup="dialog"
     x-data

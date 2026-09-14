@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.14.0] - 2026-09-14
+
+### Changed
+
+- **The floating trigger in the WireKit tree shows a message glyph instead of a plus.** A plus reads as "create something", and on a screen with its own New button the trigger looked like one more of them. The trigger now hands WireKit the `message` icon, configurable through `ui.fab_icon`; set `plus` to keep the old glyph. Only an alias WireKit declares is passed on, so a name it does not know, and a WireKit older than 2.27, keep the plus instead of failing. The plain tree's text button is unchanged.
+
 ## [0.13.2] - 2026-09-14
 
 ### Changed
@@ -593,7 +599,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.12.1...v0.13.0
