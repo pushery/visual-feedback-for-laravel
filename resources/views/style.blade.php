@@ -235,6 +235,12 @@
     }
     .visual-feedback-dialog textarea { min-height: 6rem; resize: vertical; }
 
+    {{-- WebKit draws a native select as a menu-list button and ignores both the padding and the
+       min-height above, so the category picker came out 23px tall in WebKit while Blink drew it at
+       44px, under the floor this rule exists for. A fixed height is the one size WebKit honors on
+       a select, and the select keeps its native arrow. Only the select: a textarea must grow. --}}
+    .visual-feedback-dialog select { height: 44px; }
+
     {{-- The privacy acknowledgment is the one control a guest cannot submit without, and it was
        the UA default: a 13x13 box on a 20px-tall label block. Sized here rather than restyled —
        `appearance: none` would hand this package the tick, the checked, indeterminate and focus
@@ -616,6 +622,10 @@
         color: var(--vf-fg);
         font: inherit;
     }
+
+    {{-- The same fixed height as the panel's select, for the same reason: WebKit ignores the
+       min-height above on a native select. --}}
+    .visual-feedback-browser-field select { height: 44px; }
 
     .visual-feedback-browser-table {
         width: 100%;
