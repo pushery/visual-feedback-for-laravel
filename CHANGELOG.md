@@ -4,6 +4,14 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.14.3] - 2026-09-15
+
+### Fixed
+
+- **On a small phone the panel uses the height of the screen, so a failed submit keeps the send button whole.** The panel was capped at 80% of the viewport's height while its width kept a 1rem margin, so a 568-pixel phone left 114 pixels of the screen unused and the form scrolled inside the rest. After an empty submit the failed field, the failure and the send button needed 466 pixels under a system-ui host font against 452 of room, and Send sat partly under the panel's edge; Georgia and Verdana measured the same. Only a narrow serif fitted, and few hosts set one. The panel now keeps the same 1rem margin at the top and bottom as at the sides, which gives it 536 pixels on that phone. From 800 pixels of height up nothing changes, because the 40rem cap decides.
+
+  **Upgrade:** nothing to do. A host that published the views keeps its own copy of `style.blade.php`, and the 80% cap with it, until it publishes again.
+
 ## [0.14.2] - 2026-09-15
 
 ### Fixed
@@ -612,7 +620,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.3...HEAD
+[0.14.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...v0.14.0
