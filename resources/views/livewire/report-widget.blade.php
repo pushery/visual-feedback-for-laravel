@@ -97,7 +97,7 @@
         @unless ($submitted)
             {{-- Re-measure metadata in the capture phase, before Livewire's own submit
                  handler fires, so the report carries the state AT submit — not at open. --}}
-            <form wire:submit="submit" novalidate x-on:submit.capture="$wire.metadata = vfMeta()">
+            <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
                 {{-- The modal's opening focus is ANCHORED here, not left to the UA. Without an
                      autofocus target the browser picks the first focusable descendant — today
                      the close button, which tells a screen-reader user nothing about what just
