@@ -70,8 +70,14 @@
              carried a picture of the feedback form instead of the page being reported. It
              cannot go on <x-wirekit::modal> itself: stray attributes land on a wrapper OUTSIDE
              the x-teleport, not on the overlay that paints over the page. --}}
+        {{-- The form goes into `card.body`, not straight into the card. WireKit's card root is a
+             padding-free frame and its body carries the padding, so a form placed in the root sat
+             against the card's border: measured at 320 px wide, every field started directly inside
+             it. --}}
         <x-wirekit::card class="visual-feedback-panel">
-            @include('visual-feedback::wirekit.livewire._report-form')
+            <x-wirekit::card.body>
+                @include('visual-feedback::wirekit.livewire._report-form')
+            </x-wirekit::card.body>
         </x-wirekit::card>
     @endif
 </div>
