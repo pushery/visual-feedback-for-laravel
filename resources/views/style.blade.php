@@ -145,9 +145,15 @@
         {{-- dvh, not vh. On a phone `vh` is the viewport with the browser UI RETRACTED, so a
            dialog sized in vh is taller than the space actually on screen while the URL bar is
            showing — its submit button sits under the chrome and the reporter cannot reach it.
-           The vh line stays as the fallback for engines without dvh. --}}
-        max-height: min(80vh, 40rem);
-        max-height: min(80dvh, 40rem);
+           The vh line stays as the fallback for engines without dvh.
+
+           The same 1rem margin as the width, not a share of the height. At 80% of a 568px
+           phone the panel left 114px of the screen unused while the form scrolled inside it,
+           and after an empty submit Send sat partly under the panel's edge with any common
+           host font. With the margin the panel gets 536px there, and the failed field, the
+           failure and Send fit together. From 800px of height up, 40rem decides either way. --}}
+        max-height: min(calc(100vh - 2rem), 40rem);
+        max-height: min(calc(100dvh - 2rem), 40rem);
         padding: 1.5rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius);
