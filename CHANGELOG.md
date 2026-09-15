@@ -4,6 +4,14 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.14.4] - 2026-09-15
+
+### Fixed
+
+- **Under Livewire's CSP build the report measures its metadata again as it is sent, without a script error.** Both forms refreshed the metadata on submit with `$wire.metadata = vfMeta()`. Livewire 4.4.5 bundles Alpine 3.17.3, whose CSP evaluator reads `constructor` off the target of every assignment, and Livewire's `$wire` proxy answers that name as a magic that does not exist: every send threw `el[t] is not a function`, and the report carried the state from when the widget opened. The forms now set the metadata with `$wire.$set('metadata', vfMeta(), false)`, which stores it without a request, exactly as the assignment did, in both builds.
+
+  **Upgrade:** nothing to do. A host that published the views keeps the assignment in its own copies of `livewire/report-widget.blade.php` and `wirekit/livewire/_report-form.blade.php` until it publishes again or makes the same one-line change.
+
 ## [0.14.3] - 2026-09-15
 
 ### Fixed
@@ -620,7 +628,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.3...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.4...HEAD
+[0.14.4]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...v0.14.1

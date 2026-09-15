@@ -80,7 +80,7 @@
          carried `required` on both controls. It stayed wrong in a more useful way afterwards,
          because this tree carried it on NEITHER — which is the defect it was hiding, not a
          reason the sentence was true. --}}
-    <form wire:submit="submit" novalidate x-on:submit.capture="$wire.metadata = vfMeta()">
+    <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
         {{-- In modal mode the heading lives in <x-wirekit::modal.header>, which owns the id the
              dialog's aria-labelledby points at; rendering it twice would announce it twice. The
              inline (card) surface has no header component, so it keeps its own heading. --}}
