@@ -4,6 +4,13 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.14.2] - 2026-09-15
+
+### Fixed
+
+- **After a failed submit, the send button is in view again, together with the field and the reason.** The failure line renders above the send button, so a reporter who had scrolled down to press Send watched the button slide below the panel's edge while the panel kept its scroll position: 16 of its 44 pixels stayed in view. The panel now scrolls the failed field, the failure and the send button into view together, in both trees. Focus still lands in the field that failed, and when all three do not fit at once, the button and the failure win while the field keeps at least half of itself in view.
+- **The inline form in the WireKit tree sits inside the card's padding.** It was placed straight into WireKit's card, whose root is a padding-free frame, so every field started directly inside the card's border. The form now sits in the card's body, which carries the padding.
+
 ## [0.14.1] - 2026-09-14
 
 ### Fixed
@@ -605,7 +612,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.2...HEAD
+[0.14.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.13.1...v0.13.2
