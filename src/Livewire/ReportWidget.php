@@ -7,10 +7,10 @@ namespace Pushery\VisualFeedback\Livewire;
 use DateTimeImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
-use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -39,15 +39,46 @@ use Throwable;
 /**
  * The feedback widget — a THIN shell over the transport-agnostic SubmitReport pipeline.
  * It binds the form, hands the pipeline a plain SubmissionInput, and reflects the
- * result. `mode` (modal | inline) is a per-instance override, Locked so the client can
- * never change it after mount. The reset lifecycle lets a reporter file a second report
+ * result. `mode` (modal | inline) is a per-instance override, CLAMPED on every request
+ * rather than locked -- see the property. The reset lifecycle lets a reporter file a second report
  * in the same session; without a reset, a screenshot button that has been used once stays gone.
  */
 class ReportWidget extends Component
 {
     use WithFileUploads;
 
-    #[Locked]
+    /**
+     * The shapes this widget renders, and the only values `$mode` may hold.
+     *
+     * Named here because two places now decide it -- the mount prop and the per-request clamp --
+     * and a set written twice is a set that disagrees with itself the first time a third shape
+     * arrives.
+     *
+     * @var list<string>
+     */
+    public const array MODES = ['modal', 'inline'];
+
+    /**
+     * Which shape this instance renders: `modal` or `inline`.
+     *
+     * DELIBERATELY NOT #[Locked], and the reason is the same one that unlocked `openedAt`. This
+     * widget hangs in the host's layout, so it survives every `wire:navigate` transition and the
+     * browser sends the unchanged state back. A lock throws during HYDRATION -- before any method
+     * of ours runs, so nothing can catch it -- and the visitor gets a 419 on a page that was only
+     * being navigated. Measured at a consumer: three separate locked props produced that in
+     * production, this one among them.
+     *
+     * The guarantee the lock was supposed to give is kept, and kept where it can be checked: the
+     * value is normalized on every request, so it is one of {@see MODES} whatever arrives. Every
+     * reader -- the rendered shape, the screenshot default, the FAB condition, and the `mode` this
+     * records on a submitted report -- therefore sees a value this package chose from its own set.
+     *
+     * What a client CAN now do is render their own widget in the other shape and have the report
+     * say so. That is their own page and their own record of it; a 419 for everybody navigating
+     * past is the worse trade by a distance. The per-instance override stays, which is why the
+     * snapshot value is normalized rather than re-derived: a host placing two widgets on one page
+     * mixes the shapes deliberately, and re-deriving would collapse both onto the configured one.
+     */
     public string $mode = 'modal';
 
     /**
@@ -56,7 +87,7 @@ class ReportWidget extends Component
      *
      * @var list<string>
      */
-    #[Locked]
+    // Client-writable in the snapshot and restored from the sealed copy on every request, because a widened list does not merely change the select -- it widens `allowedCategories` at the validation seam.
     public array $availableCategories = [];
 
     /**
@@ -67,7 +98,7 @@ class ReportWidget extends Component
      *
      * @var list<array<string, mixed>>
      */
-    #[Locked]
+    // Client-writable in the snapshot and restored from the sealed copy on every request. Its content reaches the report, so the guarantee has to survive the round trip rather than be asserted once.
     public array $context = [];
 
     /**
@@ -76,7 +107,7 @@ class ReportWidget extends Component
      *
      * @var array<string, mixed>
      */
-    #[Locked]
+    // Client-writable in the snapshot and restored from the sealed copy on every request, because a changed mode here decides which fields are REQUIRED.
     public array $fields = [];
 
     /**
@@ -84,8 +115,18 @@ class ReportWidget extends Component
      * `mail.to`: a docs page and a billing page in the same app can reach different teams.
      * Validated as an address in mount(), so an invalid one fails loudly at the call site
      * instead of silently swallowing every report from that page.
+     *
+     * DELIBERATELY NOT #[Locked] any more, for the reason `mode` and `openedAt` lost theirs: a
+     * lock throws during HYDRATION, before any method here runs, and this widget lives in the
+     * host's layout — so ordinary `wire:navigate` traffic answered with a 419 the application
+     * could not catch. Measured at a consumer: 52 events on this property alone.
+     *
+     * THE GUARANTEE IS NOT DROPPED, IT MOVED. This value decides where the mail goes, so it is
+     * checked against {@see aPermittedRecipient()} on the way in and on every request after:
+     * `mail.to` or an address the host listed under `mail.allowed_recipients`, and otherwise
+     * `null`, which is `mail.to`. A browser can therefore write whatever it likes into the
+     * snapshot and still not move one report.
      */
-    #[Locked]
     public ?string $recipient = null;
 
     /**
@@ -97,8 +138,41 @@ class ReportWidget extends Component
      * Named `withScreenshot`, not `screenshot`: that name is already the uploaded capture
      * below, and one property cannot be both the switch and the file.
      */
-    #[Locked]
+    // Client-writable in the snapshot and restored from the sealed copy on every request. A host that refused the capture on one page keeps refusing it, and the tag may still widen it on an inline widget.
     public ?bool $withScreenshot = null;
+
+    /**
+     * The mount props as this widget received them, sealed so the round trip cannot change them.
+     *
+     * THIS IS WHAT `#[Locked]` SHOULD HAVE BEEN. A lock forbids a write and throws while doing it —
+     * during hydration, where nothing can catch it, which on a widget living in the host's layout
+     * answered ordinary `wire:navigate` traffic with a 419. Measured at one consumer across three
+     * properties, 80 events.
+     *
+     * The question a lock was actually standing in for is about ORIGIN: did this value come from
+     * the Blade tag, or from the browser? `mount()` runs once and the tag is never evaluated again,
+     * so nothing in Livewire can answer it — unless the answer travels along. It does now, and
+     * encrypted rather than signed, so a client can neither forge it nor read the values out of the
+     * page. On every request the four properties are restored from it.
+     *
+     * NOTE: A COPY, NOT A DIGEST, and the difference is the whole design. A digest detects tampering
+     * and cannot undo it: the tag values would be gone, the fallback would have to be the
+     * configuration, and a client could then tamper ON PURPOSE to pull a page onto the wider
+     * defaults. That is the same widening through the back door. A copy carries the values, so
+     * there is something to restore to.
+     *
+     * Failing to open it -- or opening to another widget's copy -- is the one case that does fall
+     * back to the configuration, and there it is correct: nothing trustworthy is left. It still
+     * does not throw.
+     *
+     * WHERE THE ARMS REACH, stated rather than implied. Livewire's protocol sends property changes
+     * as update entries, and a test can only produce those, so every arm below exercises the
+     * `updatedX()` side. The `hydrate()` side covers a different path: a value changed in the
+     * snapshot's own data block and sent with NO update entry, which the test helper cannot
+     * express. Removing the hydrate call therefore leaves the suite green -- measured -- and the
+     * call stays because the path is real, not because an arm demands it.
+     */
+    public string $sealedProps = '';
 
     public string $category = '';
 
@@ -241,6 +315,276 @@ class ReportWidget extends Component
     public array $challenge = [];
 
     /**
+     * Normalize whatever arrived into a shape this widget actually renders.
+     *
+     * One function for both entry points. The mount prop goes through it so a host writing
+     * `mode="banana"` gets the configured default instead of a value every `@if` below compares
+     * false against -- which rendered a widget with no trigger and no form, reachable by nobody.
+     * And the hydrated snapshot goes through it because that is where an arbitrary value now
+     * arrives from, once the lock is gone.
+     *
+     * `null` is not a failure: it is the documented way to say "take the default", and the default
+     * is the host's `ui.trigger`.
+     */
+    /**
+     * The recipient this widget is allowed to name, or null for the configured default.
+     *
+     * Permitted means `mail.to` or listed under `mail.allowed_recipients`. Everything else answers
+     * null, which the mail channel reads as "use `mail.to`" — so an address that is not permitted
+     * cannot redirect a report, it simply does not reach the header.
+     *
+     * The comparison is case-insensitive on the whole address, which is coarser than the RFC (the
+     * local part is technically case-sensitive) and correct for what this list is: a host writing
+     * down its own inboxes, not a mail server routing between two of them.
+     */
+    /**
+     * The four properties whose value must come from the tag rather than from the browser.
+     *
+     * Named once because three methods walk it, and a list written three times is a list that
+     * disagrees with itself the first time a fifth prop arrives.
+     *
+     * @var list<string>
+     */
+    private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot'];
+
+    /** Put the mount props beyond the round trip. Called once, at the end of mount(). */
+    private function sealMountProps(): void
+    {
+        $values = [];
+
+        foreach (self::SEALED as $property) {
+            $values[$property] = $this->{$property};
+        }
+
+        // BOUND TO THIS COMPONENT, and that is not decoration. Measured before it was: without
+        // the id, a seal is portable between widgets of the same application. A page offering one
+        // category could be handed the seal of a page offering two and accept the wider list --
+        // which reaches `allowedCategories` at the validation seam, so the replay widened what
+        // the server would accept. The values are the host's own either way, which is exactly why
+        // it looked harmless and was not.
+        $values['id'] = $this->getId();
+
+        // Encrypted, not merely signed: a signature would keep the values readable in the page,
+        // which is the other half of what the lock never gave. Laravel's own APP_KEY, so a host
+        // rotating it invalidates every open page -- which reads as a tamper and lands on the
+        // configuration, not on an error.
+        $this->sealedProps = Crypt::encryptString((string) json_encode($values));
+    }
+
+    /**
+     * Restore the four from the sealed copy, or fall back to the configuration if it will not open.
+     *
+     * The fallback is deliberately the CONFIGURATION and not "leave what arrived": if the copy is
+     * unreadable there is nothing trustworthy left, and keeping the arriving values would make a
+     * forged seal the way to keep a forged prop.
+     */
+    private function restoreMountProps(): void
+    {
+        $values = $this->openTheSeal();
+
+        if ($values === null) {
+            $this->availableCategories = [];
+            $this->context = [];
+            $this->fields = [];
+            $this->withScreenshot = null;
+            $this->sealMountProps();
+
+            return;
+        }
+
+        $this->availableCategories = $values['availableCategories'];
+        $this->context = $values['context'];
+        $this->fields = $values['fields'];
+        $this->withScreenshot = $values['withScreenshot'];
+    }
+
+    /**
+     * The sealed copy as this widget's own values, or null if it is not that.
+     *
+     * Three ways to be null, and they are one answer on purpose: the copy will not decrypt, it
+     * belongs to another widget, or it does not hold the shape this widget sealed. All three mean
+     * "nothing trustworthy is left", and the caller answers all three from the configuration.
+     *
+     * THE SHAPE IS CHECKED RATHER THAN REPAIRED, and that is a correction to the first version of
+     * this. That one rebuilt the arrays row by row and skipped anything malformed -- and the
+     * `continue` for a malformed row was a line no run could enter, because `mount()` filters the
+     * rows before sealing them. The 100 % coverage floor said so, which is the honest reading of an
+     * uncovered line: the case cannot arise. Rejecting the whole copy is one branch instead, it is
+     * reachable by a test that seals a bad payload itself, and it says something stronger -- a copy
+     * that is not what we sealed is not partially used.
+     *
+     * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool}|null
+     */
+    private function openTheSeal(): ?array
+    {
+        try {
+            $values = json_decode(Crypt::decryptString($this->sealedProps), true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (! is_array($values) || ($values['id'] ?? null) !== $this->getId()) {
+            return null;
+        }
+
+        $categories = $values['availableCategories'] ?? null;
+        $context = $values['context'] ?? null;
+        $fields = $values['fields'] ?? null;
+        $withScreenshot = $values['withScreenshot'] ?? null;
+
+        if (! is_array($categories) || ! is_array($context) || ! is_array($fields)) {
+            return null;
+        }
+
+        if ($withScreenshot !== null && ! is_bool($withScreenshot)) {
+            return null;
+        }
+
+        $strings = array_values(array_filter($categories, is_string(...)));
+        $rows = array_values(array_filter($context, is_array(...)));
+
+        // Counted rather than filtered-and-hoped: if anything was dropped, the copy did not hold
+        // what this widget sealed, and a partially usable copy is the one outcome to refuse.
+        if (count($strings) !== count($categories) || count($rows) !== count($context)) {
+            return null;
+        }
+
+        $keyed = [];
+
+        foreach ($fields as $field => $mode) {
+            if (! is_string($field)) {
+                return null;
+            }
+
+            $keyed[$field] = $mode;
+        }
+
+        $shaped = [];
+
+        foreach ($rows as $row) {
+            $entry = [];
+
+            foreach ($row as $key => $value) {
+                if (! is_string($key)) {
+                    return null;
+                }
+
+                $entry[$key] = $value;
+            }
+
+            $shaped[] = $entry;
+        }
+
+        return [
+            'availableCategories' => $strings,
+            'context' => $shaped,
+            'fields' => $keyed,
+            'withScreenshot' => $withScreenshot,
+        ];
+    }
+
+    private function aPermittedRecipient(?string $address): ?string
+    {
+        if (! is_string($address) || $address === '') {
+            return null;
+        }
+
+        $configured = config('visual-feedback.mail.to');
+        $allowed = config('visual-feedback.mail.allowed_recipients');
+
+        $permitted = array_map(
+            static fn (mixed $one): string => mb_strtolower(trim((string) $one)),
+            array_filter(
+                [$configured, ...(is_array($allowed) ? $allowed : [])],
+                static fn (mixed $one): bool => is_string($one) && trim($one) !== '',
+            ),
+        );
+
+        return in_array(mb_strtolower(trim($address)), $permitted, true) ? $address : null;
+    }
+
+    private function aShapeThisWidgetRenders(?string $shape): string
+    {
+        if (is_string($shape) && in_array($shape, self::MODES, true)) {
+            return $shape;
+        }
+
+        return config('visual-feedback.ui.trigger') === 'inline' ? 'inline' : 'modal';
+    }
+
+    /**
+     * Livewire's per-request entry point, and the reason this component no longer needs a lock.
+     *
+     * It runs after the snapshot is restored and before anything reads a property, so a client can
+     * send whatever it likes and every reader still meets a value from {@see MODES}. That is the
+     * shape of the fix the earlier one found for `openedAt`: what a lock PROMISED is checked where
+     * the value is used, instead of thrown about where nobody can catch it.
+     */
+    public function hydrate(): void
+    {
+        $this->mode = $this->aShapeThisWidgetRenders($this->mode);
+        $this->recipient = $this->aPermittedRecipient($this->recipient);
+        $this->restoreMountProps();
+    }
+
+    /**
+     * The same restore for the value being written in THIS request, one hook per property.
+     *
+     * Livewire hydrates, then applies the client's updates, then runs methods -- so the hook above
+     * cannot see a write that happens after it. Measured rather than assumed: with only the hydrate
+     * side, a test writing into `fields` read its own value back, and the validation built from it
+     * would have used it.
+     */
+    public function updatedAvailableCategories(): void
+    {
+        $this->restoreMountProps();
+    }
+
+    public function updatedContext(): void
+    {
+        $this->restoreMountProps();
+    }
+
+    public function updatedFields(): void
+    {
+        $this->restoreMountProps();
+    }
+
+    public function updatedWithScreenshot(): void
+    {
+        $this->restoreMountProps();
+    }
+
+    /** A forged seal is answered the same way a forged property is: from the copy, or the config. */
+    public function updatedSealedProps(): void
+    {
+        $this->restoreMountProps();
+    }
+
+    /** The recipient half of the same pair -- see updatedMode() for why both hooks are needed. */
+    public function updatedRecipient(): void
+    {
+        $this->recipient = $this->aPermittedRecipient($this->recipient);
+    }
+
+    /**
+     * The same clamp on the other half of the request, and it is not redundant.
+     *
+     * Livewire's order is hydrate, then apply the client's updates, then run methods. So
+     * {@see hydrate()} normalizes the value that ARRIVED and cannot see the one being written in
+     * the same request -- a client setting `mode` would be read unnormalized by everything after
+     * it, including the shape recorded on a report submitted in that very request. Measured: with
+     * only the hydrate hook, a test writing `banana` read `banana` back.
+     *
+     * Both hooks matter and neither covers the other: the first is what ends the 419, the second
+     * is what keeps the promise the lock used to make.
+     */
+    public function updatedMode(): void
+    {
+        $this->mode = $this->aShapeThisWidgetRenders($this->mode);
+    }
+
+    /**
      * @param  list<string>  $categories  per-instance category override (empty = config default)
      * @param  list<array<string, mixed>>  $context  host-built instance context entries
      * @param  array<string, mixed>  $fields  per-instance field overrides (e.g. ['subject' => false])
@@ -257,6 +601,17 @@ class ReportWidget extends Component
             throw new InvalidArgumentException('visual-feedback: the recipient mount prop must be a valid email address.');
         }
 
+        if ($recipient !== null && $this->aPermittedRecipient($recipient) === null) {
+            // A developer-supplied prop again, and the second half of the same idea as the address
+            // check above: fail where somebody can fix it. A visitor rewriting this in the snapshot
+            // meets the same rule silently, one method down.
+            throw new InvalidArgumentException(
+                'visual-feedback: the recipient mount prop must be `mail.to` or listed in '
+                .'visual-feedback.mail.allowed_recipients. It decides where a report is sent, so '
+                .'the permitted set is declared rather than trusted from the page.'
+            );
+        }
+
         $this->recipient = $recipient;
         $this->withScreenshot = $withScreenshot;
         // `ui.trigger = inline` is documented as "no modal; the form is part of the page", and it
@@ -268,10 +623,11 @@ class ReportWidget extends Component
         // The mount prop still wins, so a host placing two widgets on one page can mix them; the
         // config only supplies the default. Hence a NULL default rather than 'modal' — with a
         // string default there is no way to tell "not passed" from "passed modal".
-        $this->mode = $mode ?? (config('visual-feedback.ui.trigger') === 'inline' ? 'inline' : 'modal');
+        $this->mode = $this->aShapeThisWidgetRenders($mode);
         $this->availableCategories = array_values(array_filter($categories, is_string(...)));
         $this->context = array_values(array_filter($context, is_array(...)));
         $this->fields = $fields;
+        $this->sealMountProps();
         $this->category = $this->firstCategory();
         // The inline widget is open from the moment it renders, so mount IS its open — and
         // nothing else will ever stamp it, because the open listener is modal-only. A modal is

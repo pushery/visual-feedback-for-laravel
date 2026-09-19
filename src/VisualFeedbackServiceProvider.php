@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback;
 
 use Composer\InstalledVersions;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Foundation\CachesConfiguration;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -138,7 +140,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     #[Override]
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/visual-feedback.php', 'visual-feedback');
+        $this->mergeConfigRecursivelyFrom(__DIR__.'/../config/visual-feedback.php', 'visual-feedback');
 
         $this->app->singleton(Settings::class);
         // Singleton so the memoized measurement happens once per request: two
@@ -283,5 +285,75 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../database/migrations/optional/0001_01_01_000000_create_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000000_create_visual_feedback_reports_table.php'),
         ], 'visual-feedback-migrations');
+    }
+
+    /**
+     * Merge the shipped config UNDER a published one, descending into maps.
+     *
+     * Laravel's `mergeConfigFrom()` is a flat `array_merge`, so it asks one question per TOP-LEVEL
+     * key: is it already there? A host that ran `vendor:publish` has every top-level key, so a key
+     * this package adds INSIDE one of those blocks in a later release never reaches them. Their
+     * block wins whole, the new setting reads as null, and nothing errors or logs.
+     *
+     * RECURSING IS NOT ENOUGH ON ITS OWN, and this is the half that gets skipped — A LIST IS A VALUE, NEVER A STRUCTURE. The trap next
+     * door is `array_replace_recursive()`, which the framework's own `replaceConfigRecursivelyFrom()`
+     * uses: it merges lists BY INDEX. A host narrowing this package's shipped `attachments.mimes`
+     * to a shorter set would get the removed types back, and an upload allowlist that quietly
+     * regains entries is a security regression rather than a merge. So recursion stops at any list
+     * on either side, and what the host wrote stands.
+     *
+     * `array_is_list([])` is true, which is the behavior you want: an empty array is a host saying
+     * "none", and descending into it could only re-introduce what it emptied.
+     *
+     * NOTE THE EARLY RETURN, because it bounds what this can rescue. A host with a CACHED config is
+     * never merged at all -- the framework's design, not this method's limit. For those installs
+     * the published file is the whole truth, which is why a read site for a nested key needs a
+     * fallback that agrees with the shipped default.
+     *
+     * Adopted from the package skeleton rather than invented here, so the packages that had solved
+     * this apiece stop each carrying their own answer.
+     */
+    private function mergeConfigRecursivelyFrom(string $path, string $key): void
+    {
+        if ($this->app instanceof CachesConfiguration && $this->app->configurationIsCached()) {
+            return;
+        }
+
+        $shipped = require $path;
+
+        $repository = $this->app->make(ConfigRepository::class);
+        $existing = $repository->get($key);
+
+        // Neither side is provably string-keyed: a config array is just an array. The recursion
+        // below is written for that -- it asks whether a value is a LIST, never whether a key is
+        // a string.
+        $repository->set($key, $this->mergeConfigSections(
+            is_array($shipped) ? $shipped : [],
+            is_array($existing) ? $existing : [],
+        ));
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $shipped
+     * @param  array<array-key, mixed>  $published
+     * @return array<array-key, mixed>
+     */
+    private function mergeConfigSections(array $shipped, array $published): array
+    {
+        foreach ($shipped as $key => $value) {
+            if (! array_key_exists($key, $published)) {
+                $published[$key] = $value;
+
+                continue;
+            }
+
+            // Recurse only where BOTH sides are maps. If either is a list, or the published value
+            // is a scalar or an explicit null, what the host wrote stands.
+            if (is_array($value) && is_array($published[$key]) && ! array_is_list($value) && ! array_is_list($published[$key])) {
+                $published[$key] = $this->mergeConfigSections($value, $published[$key]);
+            }
+        }
+
+        return $published;
     }
 }

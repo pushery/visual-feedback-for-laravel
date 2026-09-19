@@ -165,9 +165,15 @@ final readonly class MailChannel implements ReportChannel
 
         return [
             // A per-report recipient overrides `mail.to` — the widget can be mounted with
-            // one on a page whose feedback belongs to a different team. It is a #[Locked]
-            // mount prop validated as an address at the boundary, so it can neither be set
-            // from the browser nor carry a header-injecting newline this far.
+            // one on a page whose feedback belongs to a different team.
+            //
+            // NOTE: THIS PARAGRAPH SAID "#[Locked] mount prop … can neither be set from the browser",
+            // and the lock is gone: it threw during hydration and answered ordinary navigation
+            // with a 419. The value CAN now be written into the snapshot, and it still cannot move
+            // a report: the widget permits only `mail.to` or an address the host declared under
+            // `mail.allowed_recipients`, and answers null for anything else — which is this line's
+            // fallback. The address check at the boundary is unchanged, so a header-injecting
+            // newline still never reaches here.
             'to' => $report->recipient ?? (is_string($mail['to'] ?? null) ? $mail['to'] : null),
             'from' => [
                 'address' => is_string($from['address'] ?? null) ? $from['address'] : null,

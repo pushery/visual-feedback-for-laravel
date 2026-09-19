@@ -436,6 +436,21 @@
         margin-top: 0.75rem;
     }
 
+    {{-- The retake button that stands alone under the capture status, rather than inside the
+       preview action row. This tree spaces buttons by element and attribute, and the two rules
+       that do it reach `button[type="submit"]` and nothing else with a margin -- so this one sat
+       flush against the green "screenshot attached" box exactly as it did in the WireKit tree.
+       Reported there, present in both.
+
+       It gets a class rather than a structural selector because the OTHER tree already needs one
+       and the two must not answer the question differently: `EveryBareCaptureButtonHasSpacing`
+       derives the buttons from the rendered markup and asks each for a class with a rule, in both
+       trees. A `.visual-feedback-screenshot > button` here would pass that arm only by accident
+       and would also catch the capture button, which has its own spacing already. --}}
+    .visual-feedback-dialog .visual-feedback-retake {
+        margin-top: 0.5rem;
+    }
+
     {{-- The control the server marked invalid, for the reporter who can see it.
        Until this rule existed the error state was audible and invisible: `aria-invalid` told a
        screen reader which field was wrong while a sighted reporter had only the shared alert
@@ -835,10 +850,18 @@
         font-weight: var(--font-wk-heading-weight, 600);
     }
 
-    {{-- The three buttons that are bare siblings of a paragraph or a link, and therefore had no
-       selector at all -- not even one a host could have hung their own rule on. --}}
+    {{-- The buttons that are bare siblings of a paragraph, a link or a status box, and therefore
+       had no selector at all -- not even one a host could have hung their own rule on.
+
+       NOTE: this comment used to say THREE, and it was wrong by one for as long as it existed: the
+       retake button that stands alone under the capture status is the same shape and was not
+       listed, so it sat flush against the green "screenshot attached" box in both trees. A
+       hand-written enumeration only answers for the cases it names. `EveryBareCaptureButtonHasSpacing`
+       derives the set from the rendered markup instead, so the fifth is caught without this list
+       being right. --}}
     .visual-feedback-capture,
     .visual-feedback-submit,
+    .visual-feedback-retake,
     .visual-feedback-report-another {
         margin-block-start: var(--space-wk-sm, 0.5rem);
     }
@@ -963,7 +986,18 @@
 
        This is a WORKAROUND for an upstream defect and was reported there. It is FIXED upstream
        as of WireKit v2.49.0, which positions `.wk-fab` from the inline token exactly as this
-       rule does -- so on 2.49 and up the two say the same thing and this one costs nothing.
+       rule does -- so from 2.49 the two say the same thing and this one costs nothing.
+
+       THEY STOPPED SAYING THE SAME THING ONCE, AND THAT IS THE COST OF RESTATING SOMEBODY
+       ELSE'S FORMULA. WireKit v2.53.0 added a term: `.wk-fab` reads a custom property a host
+       sets and adds it to its own clearance. This rule, being two classes against one and inline
+       in the document, WINS -- so a host that set the lift moved every FAB except this one, which
+       is the one it was setting it for. The term is carried here now, with the same default, so
+       a kit that has no such property renders byte for byte what it rendered before.
+
+       A restatement has to grow with what it restates, and prose cannot hold that. The arm below
+       asks the installed kit what terms its own rule uses and requires this one to carry all of
+       them -- so the next term arrives as a red test rather than as a consumer report.
 
        IT STAYS ANYWAY, and the reason is the `suggest` line in composer.json: this package tells
        consumers `^2.21`, and every version from 2.21 to 2.48 still needs it. Deleting it the day
@@ -972,7 +1006,7 @@
        gone red. The guard that pins it asks the right question now: it fires when the DECLARED
        FLOOR carries the fix, not when the newest release does. --}}
     .visual-feedback-fab.wk-fab {
-        inset-block-end: calc(var(--padding-wk-x-lg, 1rem) + env(safe-area-inset-bottom, 0px));
+        inset-block-end: calc(var(--padding-wk-x-lg, 1rem) + var(--wk-fab-lift, 0px) + env(safe-area-inset-bottom, 0px));
     }
 </style>
 @endif
