@@ -319,8 +319,8 @@
                             </div>
                         </div>
 
-                        <button type="button" x-ref="attached" x-show="status === 'attached'"
-                            x-on:click="retake()">
+                        <button type="button" class="visual-feedback-retake" x-ref="attached"
+                            x-show="status === 'attached'" x-on:click="retake()">
                             {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                         </button>
 

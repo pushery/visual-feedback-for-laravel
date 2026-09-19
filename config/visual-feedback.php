@@ -120,25 +120,45 @@ return [
         'subject' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_SUBJECT_MODE')
                 ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false ? 'off' : 'optional'),
-            'max_length' => 150,
+            'max_length' => filter_var(
+                env('VISUAL_FEEDBACK_FIELD_SUBJECT_MAX_LENGTH', 150),
+                FILTER_VALIDATE_INT,
+                ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+            ) ?? 150,
         ],
         'message' => [
-            'max_length' => 50_000,
+            'max_length' => filter_var(
+                env('VISUAL_FEEDBACK_FIELD_MESSAGE_MAX_LENGTH', 50000),
+                FILTER_VALIDATE_INT,
+                ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+            ) ?? 50000,
         ],
         'name' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_NAME_MODE')
                 ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
-            'max_length' => 150,
+            'max_length' => filter_var(
+                env('VISUAL_FEEDBACK_FIELD_NAME_MAX_LENGTH', 150),
+                FILTER_VALIDATE_INT,
+                ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+            ) ?? 150,
         ],
         'email' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_EMAIL_MODE')
                 ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
-            'max_length' => 254,
+            'max_length' => filter_var(
+                env('VISUAL_FEEDBACK_FIELD_EMAIL_MAX_LENGTH', 254),
+                FILTER_VALIDATE_INT,
+                ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+            ) ?? 254,
         ],
         'phone' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_PHONE_MODE')
                 ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_PHONE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'optional' : 'off'),
-            'max_length' => 32,
+            'max_length' => filter_var(
+                env('VISUAL_FEEDBACK_FIELD_PHONE_MAX_LENGTH', 32),
+                FILTER_VALIDATE_INT,
+                ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+            ) ?? 32,
         ],
     ],
 
@@ -172,16 +192,41 @@ return [
     'attachments' => [
         'disk' => env('VISUAL_FEEDBACK_ATTACHMENTS_DISK', 'local'),
         'directory' => env('VISUAL_FEEDBACK_ATTACHMENTS_DIR', 'visual-feedback'),
-        'max_files' => 5,
-        'max_file_size' => 5 * 1024 * 1024,   // 5 MB per file (bytes)
+        'max_files' => filter_var(
+            env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_FILES', 5),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 5,
+        // 5 MB per file, in bytes. Written out rather than as `5 * 1024 * 1024`: the documented
+        // default has to be the number a host TYPES into a `.env`, and an arithmetic expression
+        // is not one -- the same reason `global_rate_limit` below spells 1000 without separators.
+        'max_file_size' => filter_var(
+            env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_FILE_SIZE', 5242880),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 5242880,
         // Bytes, and it bounds the UPLOADS only — the screenshot is validated on its own
         // path against `screenshot.max_bytes` and never enters this sum. With both at their
         // shipped defaults one report can therefore carry 15 MB + 8 MB = 23 MB, which is the
         // number to size a disk quota or an MTA limit against, not this one.
-        'max_total_size' => 15 * 1024 * 1024,  // 15 MB per report (bytes)
+        'max_total_size' => filter_var(
+            env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_TOTAL_SIZE', 15728640),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 15728640,   // 15 MB per report, in bytes
         'mimes' => ['jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'mp4', 'quicktime'],
-        'max_image_dimension' => 15_000,        // px, either edge — decompression-bomb guard
-        'max_image_pixels' => 100_000_000,      // 100 MP — decompression-bomb guard
+        // px, either edge — decompression-bomb guard
+        'max_image_dimension' => filter_var(
+            env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_IMAGE_DIMENSION', 15000),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 15000,
+        // 100 MP — decompression-bomb guard
+        'max_image_pixels' => filter_var(
+            env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_IMAGE_PIXELS', 100000000),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 100000000,
     ],
 
     /*
@@ -203,7 +248,11 @@ return [
         // uploaded and then refused — lower this and a reporter gets a capture→reject loop with
         // no way out, because nothing on the client knows to shrink. Sized against what the DOM
         // renderer produces at `scale`, not chosen freely.
-        'max_bytes' => 8 * 1024 * 1024,
+        'max_bytes' => filter_var(
+            env('VISUAL_FEEDBACK_SCREENSHOT_MAX_BYTES', 8388608),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 8388608,   // 8 MB, in bytes
         'viewport_only' => true,                 // capture the visible viewport, not the full page
         // The forced background for a page whose html AND body backgrounds are both
         // transparent while color-scheme is dark (the UA canvas is invisible to the renderer).
@@ -275,7 +324,11 @@ return [
             'language', 'languages', 'timezone', 'platform',
             'touch', 'online', 'cookies_enabled', 'dark_mode',
         ],
-        'max_value_length' => 2_000,
+        'max_value_length' => filter_var(
+            env('VISUAL_FEEDBACK_CONTEXT_MAX_VALUE_LENGTH', 2000),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 2000,
         'user_agent_max' => 512,
     ],
 
@@ -307,8 +360,19 @@ return [
     */
     'abuse' => [
         'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|none|any key you register
-        'rate_limit' => 30,        // per authenticated user per hour
-        'guest_rate_limit' => 5,   // per guest IP per hour (IPv6: per /64, see the abuse page)
+        // per authenticated user per hour. `0` switches this ceiling off, which is why the
+        // floor here is 0 and not 1 -- the same reading `global_rate_limit` documents below.
+        'rate_limit' => filter_var(
+            env('VISUAL_FEEDBACK_ABUSE_RATE_LIMIT', 30),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 30,
+        // per guest IP per hour (IPv6: per /64, see the abuse page)
+        'guest_rate_limit' => filter_var(
+            env('VISUAL_FEEDBACK_ABUSE_GUEST_RATE_LIMIT', 5),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 5,
 
         /*
          * The ceiling for the WHOLE application, per hour, counted across every reporter and
@@ -347,7 +411,12 @@ return [
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
         ) ?? 1000,
 
-        'min_fill_seconds' => 3,   // server-anchored time trap
+        // server-anchored time trap; `0` switches it off
+        'min_fill_seconds' => filter_var(
+            env('VISUAL_FEEDBACK_ABUSE_MIN_FILL_SECONDS', 3),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 3,
 
         /*
          * The failure mode of the builtin floor's own limiter. `open` lets a submission through
@@ -488,6 +557,25 @@ return [
     */
     'mail' => [
         'to' => env('VISUAL_FEEDBACK_MAIL_TO'),
+
+        /*
+         * The addresses a per-instance `recipient` mount prop may name, besides `to` itself.
+         *
+         * The widget can be mounted with its own recipient, so feedback from one page reaches the
+         * team that owns it. That value used to be trusted because the property was `#[Locked]`,
+         * and a lock is the wrong instrument here: it throws during hydration, which on a widget
+         * living in the host's layout answered ordinary navigation with a 419 nobody could catch.
+         *
+         * So the trust moved to where it can be checked. An address is permitted when it is `to`
+         * or appears on this list, and nothing else reaches `Mail::to()` — whatever a browser
+         * sends. Empty is the shipped state and means "only `to`", which is what an application
+         * that never used the prop already had.
+         *
+         * A host that DOES use it lists its addresses here. Passing one that is not listed fails
+         * at the call site with a message naming this key, because that is a developer's mistake
+         * and a developer can fix it; the alternative was a value a visitor could rewrite.
+         */
+        'allowed_recipients' => [],
         'from' => [
             'address' => env('VISUAL_FEEDBACK_MAIL_FROM_ADDRESS'),
             // Falls back to the application name, the way Laravel's own `config/mail.php` does.
@@ -511,7 +599,14 @@ return [
         // at or under 79 - inside the ~60-80 characters a mail client shows in its list view.
         //
         // Set it to 0 to keep the old behavior: the category alone, no excerpt.
-        'subject_excerpt_length' => (int) env('VISUAL_FEEDBACK_MAIL_SUBJECT_EXCERPT', 60),
+        // Tested before it is trusted, not cast. `(int) 'abc'` is `0`, and `0` is a DOCUMENTED
+        // setting here -- the line above says so -- so a bare cast made a typo indistinguishable
+        // from a host that meant it, and silently dropped the excerpt.
+        'subject_excerpt_length' => filter_var(
+            env('VISUAL_FEEDBACK_MAIL_SUBJECT_EXCERPT', 60),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+        ) ?? 60,
         'attach_files' => true,
 
         // Refuse to "deliver" through a transport that accepts a message and drops it — `log`,
@@ -554,7 +649,13 @@ return [
         // reports itself unavailable and is skipped rather than signing with nothing. A
         // receiver that ignores the signature header is satisfied by any string.
         'secret' => env('VISUAL_FEEDBACK_WEBHOOK_SECRET'),
-        'timeout' => 5,
+        // seconds. Floor 1, not 0: for most HTTP clients `0` means WAIT FOREVER, so a typo
+        // that fell back to zero would turn a hardening value into a hang.
+        'timeout' => filter_var(
+            env('VISUAL_FEEDBACK_WEBHOOK_TIMEOUT', 5),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 5,
         // The receiver may be a third party, so the payload never carries attachment
         // paths/binaries. Set this false to also drop reporter PII (name/email/id),
         // leaving only `is_guest` in the reporter block.
@@ -594,7 +695,13 @@ return [
     */
     'retention' => [
         'reports_days' => env('VISUAL_FEEDBACK_RETENTION_DAYS'),
-        'orphan_attachments_min_age' => 1_440, // minutes (24 h) — > queue retry horizon
+        // minutes (24 h) — must stay above the queue retry horizon, so the floor is 1 rather
+        // than 0: a zero here would delete an attachment a retry is still on its way to use.
+        'orphan_attachments_min_age' => filter_var(
+            env('VISUAL_FEEDBACK_RETENTION_ORPHAN_ATTACHMENTS_MIN_AGE', 1440),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 1440,
         'prune_delivered_only' => true,
     ],
 
