@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.17.0] - 2026-09-23
+
+### Changed
+
+- **The WireKit view tree needs WireKit 2.50 or newer.** The report dialog is a WireKit modal, and before 2.50 its panel was not a column: a dialog taller than the screen lost its header and its close button on a small device. From 2.49 the kit also positions the trigger from the same token on both axes, so the package's own inset rule for the trigger is gone. `ui.variant = auto` now serves the WireKit tree from 2.50 on and the plain tree below it, which has neither defect. The plain view tree does not use WireKit and is unaffected.
+
+  **Upgrade:** if you use the WireKit view tree, through `auto`, a forced `wirekit` or a published copy, require `pushery/wirekit` `^2.50`. On an older WireKit, `auto` switches to the plain tree until you do.
+
+### Fixed
+
+- **The time trap measures the open and the submit time on one clock.** The open time came from Carbon and the submit time from the wall clock, so a test of yours that moved Carbon's clock around the widget saw its own submissions rejected as too fast, or waved through. Both now come from Carbon. In production both were the wall clock, so nothing changes there.
+
 ## [0.16.0] - 2026-09-23
 
 ### Added
@@ -689,7 +701,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.4...v0.15.0
 [0.14.4]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.3...v0.14.4

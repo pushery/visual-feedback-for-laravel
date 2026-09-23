@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Submission;
 
-use DateTimeImmutable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Validation\Factory;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Pushery\VisualFeedback\Abuse\ReportAttempt;
 use Pushery\VisualFeedback\Attachments\AttachmentValidator;
@@ -111,7 +111,7 @@ final readonly class SubmitReport
             honeypot: $input->honeypot,
             ipAddress: $input->ipAddress,
             formOpenedAt: $input->formOpenedAt,
-            submittedAt: new DateTimeImmutable,
+            submittedAt: Carbon::now()->toImmutable(),
             challenge: $input->challenge,
         ));
 
@@ -164,7 +164,7 @@ final readonly class SubmitReport
             attachments: $attachments,
             metadata: $input->metadata,
             mode: $input->mode,
-            submittedAt: new DateTimeImmutable,
+            submittedAt: Carbon::now()->toImmutable(),
             recipient: $input->recipient,
         );
 

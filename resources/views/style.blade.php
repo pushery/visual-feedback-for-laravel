@@ -978,43 +978,5 @@
         font-size: var(--text-wk-sm, 0.8125rem);
         color: var(--color-wk-text-muted, #6b7280);
     }
-
-    {{-- ── The trigger's two offsets, made equal ───────────────────────────────────────
-       WireKit places its FAB with a DIFFERENT token per axis: `.wk-fab` sets
-       `inset-block-end` from `--padding-wk-y-lg` while the position class sets the inline edge
-       from `--padding-wk-x-lg`. Measured in the installed stylesheet, not inferred: y is
-       .75rem and x is 1rem, so the button sits 16px from the side and 12px from the bottom.
-       Reported from a consumer as the button looking pushed against the side rather than
-       resting in the corner, and that is what an unequal inset looks like once you see it.
-
-       So this restates the block axis from the INLINE token -- the two axes then move together
-       and follow whatever a host has themed `--padding-wk-x-lg` to, which is the property that
-       matters more than the specific number. The safe-area term is kept exactly as WireKit
-       composes it; dropping it would put the button under the home indicator on a phone.
-
-       This is a WORKAROUND for an upstream defect and was reported there. It is FIXED upstream
-       as of WireKit v2.49.0, which positions `.wk-fab` from the inline token exactly as this
-       rule does -- so from 2.49 the two say the same thing and this one costs nothing.
-
-       THEY STOPPED SAYING THE SAME THING ONCE, AND THAT IS THE COST OF RESTATING SOMEBODY
-       ELSE'S FORMULA. WireKit v2.53.0 added a term: `.wk-fab` reads a custom property a host
-       sets and adds it to its own clearance. This rule, being two classes against one and inline
-       in the document, WINS -- so a host that set the lift moved every FAB except this one, which
-       is the one it was setting it for. The term is carried here now, with the same default, so
-       a kit that has no such property renders byte for byte what it rendered before.
-
-       A restatement has to grow with what it restates, and prose cannot hold that. The arm below
-       asks the installed kit what terms its own rule uses and requires this one to carry all of
-       them -- so the next term arrives as a red test rather than as a consumer report.
-
-       IT STAYS ANYWAY, and the reason is the `suggest` line in composer.json: this package tells
-       consumers `^2.21`, and every version from 2.21 to 2.48 still needs it. Deleting it the day
-       the upstream fix landed would have put the unequal inset back for all of them, silently --
-       the suite resolves the NEWEST WireKit the constraint allows, so nothing here would have
-       gone red. The guard that pins it asks the right question now: it fires when the DECLARED
-       FLOOR carries the fix, not when the newest release does. --}}
-    .visual-feedback-fab.wk-fab {
-        inset-block-end: calc(var(--padding-wk-x-lg, 1rem) + var(--wk-fab-lift, 0px) + env(safe-area-inset-bottom, 0px));
-    }
 </style>
 @endif

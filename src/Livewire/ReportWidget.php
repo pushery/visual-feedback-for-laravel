@@ -967,7 +967,9 @@ class ReportWidget extends Component
             honeypot: $this->feedbackReference,
             ipAddress: request()->ip(),
             formOpenedAt: $this->formOpenedAt(),
-            submittedAt: new DateTimeImmutable,
+            // The same clock the open time was stamped with (markOpened), so the elapsed time is
+            // measured on one clock: a moved test clock and the wall clock would disagree by the move.
+            submittedAt: Carbon::now()->toImmutable(),
             challenge: $this->challenge,
         ))->rejected();
 
