@@ -121,10 +121,18 @@
     }
     .visual-feedback-fab:focus-visible { outline: 3px solid var(--vf-accent); outline-offset: 2px; }
 
-    .visual-feedback-fab--bottom-right { bottom: calc(var(--vf-gap) + env(safe-area-inset-bottom, 0px)); right: calc(var(--vf-gap) + env(safe-area-inset-right, 0px)); }
-    .visual-feedback-fab--bottom-left  { bottom: calc(var(--vf-gap) + env(safe-area-inset-bottom, 0px)); left: calc(var(--vf-gap) + env(safe-area-inset-left, 0px)); }
-    .visual-feedback-fab--top-right    { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); right: calc(var(--vf-gap) + env(safe-area-inset-right, 0px)); }
-    .visual-feedback-fab--top-left     { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); left: calc(var(--vf-gap) + env(safe-area-inset-left, 0px)); }
+    {{-- The corner is LOGICAL, in this tree as in the WireKit one: `end` is the side a line of
+       text ends on, so a right-to-left page mirrors the trigger the way it mirrors the rest of
+       its layout. The safe-area insets are physical, so each direction names the one on its own
+       side; a browser without :dir() drops that rule and keeps the left-to-right pairing, which
+       only a landscape notch would show. The physical class names are selectors too, for a fab
+       component published before the corners were logical. --}}
+    .visual-feedback-fab { --vf-safe-end: env(safe-area-inset-right, 0px); --vf-safe-start: env(safe-area-inset-left, 0px); }
+    .visual-feedback-fab:dir(rtl) { --vf-safe-end: env(safe-area-inset-left, 0px); --vf-safe-start: env(safe-area-inset-right, 0px); }
+    .visual-feedback-fab--bottom-end,   .visual-feedback-fab--bottom-right { bottom: calc(var(--vf-gap) + env(safe-area-inset-bottom, 0px)); inset-inline-end: calc(var(--vf-gap) + var(--vf-safe-end)); }
+    .visual-feedback-fab--bottom-start, .visual-feedback-fab--bottom-left  { bottom: calc(var(--vf-gap) + env(safe-area-inset-bottom, 0px)); inset-inline-start: calc(var(--vf-gap) + var(--vf-safe-start)); }
+    .visual-feedback-fab--top-end,      .visual-feedback-fab--top-right    { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); inset-inline-end: calc(var(--vf-gap) + var(--vf-safe-end)); }
+    .visual-feedback-fab--top-start,    .visual-feedback-fab--top-left     { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); inset-inline-start: calc(var(--vf-gap) + var(--vf-safe-start)); }
 
     {{-- Native <dialog>: the browser gives us the top layer, focus trap, Esc-to-close and
        focus return to the trigger for free — we only style the surface. --}}

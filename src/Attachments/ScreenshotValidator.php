@@ -90,11 +90,9 @@ final readonly class ScreenshotValidator
      * $finfo leaves scope, so finfo_close() has had nothing to do here for three major versions —
      * and PHP 8.5 deprecates the function outright.
      *
-     * That deprecation is invisible to this suite, which is why it survived so long: Laravel's
-     * error handler routes E_DEPRECATED to the "deprecations" log channel and returns, so
-     * phpunit.xml.dist's failOnDeprecation never receives it and the php-next lane on 8.5 cannot
-     * go red on it either. Eight surviving mutants on these lines named it — a failing test never
-     * could have.
+     * That deprecation is invisible to this suite: Laravel's error handler routes E_DEPRECATED to
+     * the "deprecations" log channel and returns, so phpunit.xml.dist's failOnDeprecation never
+     * receives it and the php-next lane on 8.5 cannot go red on it either.
      */
     private function sniff(string $content): string
     {

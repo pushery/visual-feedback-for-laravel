@@ -112,8 +112,7 @@ final readonly class AttachmentValidator
      * finfo_close() has had nothing to do here for three major versions — and PHP 8.5 deprecates
      * the function outright. That deprecation is invisible to this suite: Laravel's error handler
      * routes E_DEPRECATED to the "deprecations" log channel and returns, so PHPUnit's
-     * failOnDeprecation never receives it and the 8.5 lane cannot go red on it either. It was a
-     * surviving mutant on the removed lines, not a failing test, that named it.
+     * failOnDeprecation never receives it and the 8.5 lane cannot go red on it either.
      */
     private function sniff(string $content): string
     {

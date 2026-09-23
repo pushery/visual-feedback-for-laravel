@@ -5,11 +5,14 @@
     menu, so a single tap opens feedback directly. Place it once per page.
 
     Props:
-      position — bottom-right (default) | bottom-left | top-right | top-left
+      position — bottom-end (default) | bottom-start | top-end | top-start. Read logically:
+                 `end` is the side a line of text ends on, so a right-to-left page mirrors
+                 it, exactly as the WireKit tree does. The physical spellings (bottom-right,
+                 bottom-left, top-right, top-left) still work as their left-to-right reading.
       label    — button text; falls back to the widget heading. A slot overrides both.
 --}}
 @props([
-    'position' => 'bottom-right',
+    'position' => 'bottom-end',
     'label' => null,
 ])
 {{-- Master switch. A host places this trigger in ITS own layout, so the widget cannot take it
@@ -21,7 +24,7 @@
 <button
     type="button"
     x-data
-    {{ $attributes->class(['visual-feedback-fab', 'visual-feedback-fab--'.$position]) }}
+    {{ $attributes->class(['visual-feedback-fab', 'visual-feedback-fab--'.\Pushery\VisualFeedback\Support\FabCorner::of($position)]) }}
     aria-haspopup="dialog"
     x-on:click="$dispatch('visual-feedback:open')"
 >{{ $slot->isEmpty() ? ($label ?? __('visual-feedback::messages.widget.heading')) : $slot }}</button>

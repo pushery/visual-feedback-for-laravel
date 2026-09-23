@@ -4,6 +4,30 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.16.0] - 2026-09-23
+
+### Added
+
+- **A request that tries to change a sealed widget property leaves a warning in the log again.** Since 0.15.0 the widget restores its mount props and refuses an unpermitted recipient silently, which ended the 419s that ordinary navigation used to raise and also removed the only trace a real attempt left. It now compares first: a written value that differs from the sealed one, a recipient the host does not permit, or a write to the seal itself logs one warning naming the component and the property, never the value. Navigation sends back the value the page was rendered with and stays silent.
+
+  **Upgrade:** nothing to do. A host that watches its log for tampering sees these warnings under the `visual-feedback:` prefix.
+
+### Changed
+
+- **`pushery/legal-consent-for-laravel` 0.41 is accepted.** The range reached 0.40, so the legal-consent bridge had not been run against the release published on 2026-09-22. It has now: the bridge, its notice and the acknowledgment wording guard pass with 0.41.0 installed. Nothing here calls anything that changed.
+
+  **Upgrade:** nothing to do.
+
+- **The trigger sits in the same corner in both view trees, because the plain tree now reads `ui.position` in the writing direction too.** The plain tree placed the value physically, and the WireKit tree, whose FAB only knows `start` and `end`, placed it logically. On a left-to-right page the two agreed. On a right-to-left page the same configuration put the trigger bottom right in one tree and bottom left in the other, so the corner depended on whether WireKit was installed. Both trees now read the value logically, in the vocabulary WireKit already used: `bottom-end` (the new default), `bottom-start`, `top-end` and `top-start`. The four physical spellings still work and mean their left-to-right corner, so `bottom-right` is `bottom-end`. A value that is none of the eight now puts the button in the default corner, where the plain tree used to leave it with no offset at all.
+
+  **Upgrade:** nothing to do on a left-to-right page, where every spelling keeps its corner. On a right-to-left page served by the plain tree the trigger moves to the mirrored corner, as it already did under the WireKit tree; to keep it where it was, set the other logical corner, for example `bottom-start` for the bottom right. If you published the views, re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force` (or `--tag=visual-feedback-wirekit`): a copy from an earlier release knows only the physical spellings.
+
+### Fixed
+
+- **A capture under `Permissions-Policy: camera=()` no longer writes a policy violation to the console.** The native stage read its frame through `ImageCapture` where the browser had it, and Chrome ties `ImageCapture` to the `camera` feature even on a screen track, so a host that withholds the camera saw a violation on every capture. The capture itself worked, through the `<video>` path the stage already had. That path is now taken whenever the policy withholds `camera`, and the integration contract says which features the capture uses: `display-capture` only.
+
+  **Upgrade:** re-publish the bundles with `php artisan vendor:publish --tag="visual-feedback" --force`. Until you do, the published capture bundle is the earlier one, and the publish check reports it as `stale`.
+
 ## [0.15.0] - 2026-09-19
 
 ### Added
@@ -665,7 +689,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.4...v0.15.0
 [0.14.4]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.2...v0.14.3

@@ -39,7 +39,7 @@ php artisan vendor:publish --tag="visual-feedback"
 php artisan vendor:publish --tag="visual-feedback-config"
 ```
 
-⚠️ The first is **not** everything, and reading it that way is the mistake this line exists to
+The first is **not** everything, and reading it that way is the mistake this line exists to
 prevent. It covers the config, the translations, the views and the bundles. Two tags stand
 outside it on purpose, because each is a decision rather than a default:
 `visual-feedback-migrations` (the reports table — see the `database` channel below) and
@@ -113,7 +113,7 @@ succeed with the message going nowhere, and Laravel's own default is `env('MAIL_
 happen. `VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT=false` allows it on purpose; the
 check is never applied while the application runs its tests.
 
-⚠️ The `log` transport writes the whole message — free text, the reporter's address, the
+The `log` transport writes the whole message — free text, the reporter's address, the
 screenshot as base64 — into the log in plaintext, and from there into every error tracker the
 log stack feeds.
 
@@ -158,7 +158,7 @@ can paste into `.env` whole. The ones a consuming application reaches for most:
 | `VISUAL_FEEDBACK_ENABLED` | `true` | master switch; off refuses every submission before it touches a disk |
 | `VISUAL_FEEDBACK_UI_VARIANT` | `auto` | `auto`, `plain` or `wirekit` |
 | `VISUAL_FEEDBACK_UI_TRIGGER` | `fab` | `fab`, `inline` or `none` when you place the trigger yourself |
-| `VISUAL_FEEDBACK_UI_POSITION` | `bottom-right` | which corner the floating button sits in |
+| `VISUAL_FEEDBACK_UI_POSITION` | `bottom-end` | which corner the floating button sits in, read in the writing direction |
 | `VISUAL_FEEDBACK_SCREENSHOT_STRATEGY` | `auto` | `auto`, `native`, `dom` or `off` |
 | `VISUAL_FEEDBACK_ATTACHMENTS_DISK` | `local` | keep it private: screenshots carry whatever was on screen |
 | `VISUAL_FEEDBACK_CHANNEL_DATABASE` | `false` | also store reports in the optional table |
@@ -399,10 +399,11 @@ nothing under the WireKit tree.
 **Needs WireKit 2.21 or newer** — that tree builds its trigger from `<x-wirekit::fab.button>`
 using the `placement` prop and the accessible-name path 2.21 introduced. Check the installed
 version before publishing; on an older one the trigger lands in the wrong corner and announces
-nothing. Two things differ from the plain tree by design: the trigger is an **icon** button
-rather than a text one (its accessible name is the widget heading either way), and
-`ui.position` is read **logically**, so `bottom-right` follows the writing direction and
-mirrors in a right-to-left application.
+nothing. One thing differs from the plain tree by design: the trigger is an **icon** button
+rather than a text one (its accessible name is the widget heading either way). The corner does
+not differ: `ui.position` follows the writing direction in both trees, so `bottom-end` mirrors
+in a right-to-left application, and the physical spellings such as `bottom-right` still work as
+their left-to-right corner.
 
 ### 9. Ask guests to acknowledge a privacy notice (optional)
 
