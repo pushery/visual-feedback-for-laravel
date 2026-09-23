@@ -537,34 +537,83 @@ class ReportWidget extends Component
      */
     public function updatedAvailableCategories(): void
     {
-        $this->restoreMountProps();
+        $this->restoreAfterAWrite('availableCategories');
     }
 
     public function updatedContext(): void
     {
-        $this->restoreMountProps();
+        $this->restoreAfterAWrite('context');
     }
 
     public function updatedFields(): void
     {
-        $this->restoreMountProps();
+        $this->restoreAfterAWrite('fields');
     }
 
     public function updatedWithScreenshot(): void
     {
-        $this->restoreMountProps();
+        $this->restoreAfterAWrite('withScreenshot');
     }
 
-    /** A forged seal is answered the same way a forged property is: from the copy, or the config. */
+    /**
+     * A forged seal is answered the same way a forged property is: from the copy, or the config.
+     *
+     * A page never writes the seal itself, so any write to it is an attempt and is reported as one.
+     */
     public function updatedSealedProps(): void
     {
+        $this->reportAWriteToASealedProp('sealedProps');
         $this->restoreMountProps();
     }
 
     /** The recipient half of the same pair -- see updatedMode() for why both hooks are needed. */
     public function updatedRecipient(): void
     {
+        $arrived = $this->recipient;
+
         $this->recipient = $this->aPermittedRecipient($this->recipient);
+
+        if (is_string($arrived) && $arrived !== '' && $this->recipient === null) {
+            $this->reportAWriteToASealedProp('recipient');
+        }
+    }
+
+    /**
+     * Restore after a client wrote one of the sealed props, and say so when the write changed it.
+     *
+     * The restore is silent on purpose: it is what ended the 419s that ordinary navigation used to
+     * raise. That also took away the only trace a real attempt left, so the difference is looked at
+     * first. Navigation sends back the value the page was rendered with and stays quiet; a value
+     * that differs from the sealed one never comes from the rendered page.
+     */
+    private function restoreAfterAWrite(string $property): void
+    {
+        $sealed = $this->openTheSeal();
+
+        $written = match ($property) {
+            'availableCategories' => $this->availableCategories,
+            'context' => $this->context,
+            'fields' => $this->fields,
+            default => $this->withScreenshot,
+        };
+
+        if ($sealed !== null && $written !== $sealed[$property]) {
+            $this->reportAWriteToASealedProp($property);
+        }
+
+        $this->restoreMountProps();
+    }
+
+    /**
+     * One warning per attempt, naming the property and never its value: what arrived is the
+     * attacker's text, and a log is the wrong place to keep it.
+     */
+    private function reportAWriteToASealedProp(string $property): void
+    {
+        app(LoggerInterface::class)->warning(
+            'visual-feedback: a request tried to change a widget property the page cannot change; the sealed value was kept',
+            ['component' => $this->getName(), 'property' => $property],
+        );
     }
 
     /**
@@ -1348,7 +1397,10 @@ class ReportWidget extends Component
             // Max message length for the live counter. Code points here match the
             // server's mb_strlen-based validation, so the two never disagree.
             'messageMax' => is_numeric($max = config('visual-feedback.fields.message.max_length')) ? (int) $max : 50_000,
-            // FAB corner for the built-in modal trigger.
+            // FAB corner for the built-in modal trigger. Passed through as configured, because the
+            // fab component resolves it and a copy published before the logical corners only knows
+            // the physical spellings. The fallback is spelled physically for that copy's sake; it
+            // is the same corner as `bottom-end`.
             'fabPosition' => is_string($pos = config('visual-feedback.ui.position')) ? $pos : 'bottom-right',
             // The built-in FAB renders only for a modal widget whose trigger is `fab`.
             // With `none`/`inline` the host places its own <x-visual-feedback::trigger>

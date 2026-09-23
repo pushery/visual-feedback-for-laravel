@@ -9,19 +9,18 @@
     capability. v2.21.0 closed both, so the workaround is gone: no positioning arithmetic,
     no safe-area composition, no hand-built accessible name.
 
-    ONE difference is worth stating rather than leaving to be discovered.
-    `visual-feedback.ui.position` is named PHYSICALLY (bottom-right), and the plain view tree
-    implements it that way with `right` and `left`. WireKit's `position` is LOGICAL — `end`
-    follows the writing direction. In a left-to-right application the two trees agree exactly;
-    in a right-to-left one this tree mirrors and the plain tree does not. WireKit's behavior is
-    the better default, so this maps onto it rather than fighting it. Unifying the vocabulary
-    across both trees is its own change, tracked separately, because it would alter a documented
-    config value.
+    `visual-feedback.ui.position` is LOGICAL in both trees, which is the vocabulary WireKit's
+    `position` already spoke: `end` follows the writing direction, so a right-to-left
+    application mirrors the trigger. The plain tree used to read the same value physically, and
+    the two trees then put it in different corners of a right-to-left page. FabCorner is the one
+    place both trees resolve the value, so they cannot drift apart again.
 
-    Props: position — bottom-right (default) | bottom-left | top-right | top-left.
+    Props: position — bottom-end (default) | bottom-start | top-end | top-start, or the
+    physical spellings (bottom-right, bottom-left, top-right, top-left) as their left-to-right
+    reading.
 --}}
 @props([
-    'position' => 'bottom-right',
+    'position' => 'bottom-end',
     'label' => null,
 ])
 {{-- Master switch. A host places this trigger in ITS own layout, so the widget cannot take it
@@ -31,13 +30,13 @@
      makes that sentence true. --}}
 @if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
 @php
-    // The physical config vocabulary onto WireKit's two logical axes. All four corners are
-    // reachable — the gap that made the earlier release unadoptable for this widget.
-    [$placement, $inline] = match ($position) {
-        'bottom-left' => ['block-end', 'start'],
-        'top-right' => ['block-start', 'end'],
-        'top-left' => ['block-start', 'start'],
-        default => ['block-end', 'end'],
+    // The corner onto WireKit's two logical axes. All four corners are reachable — the gap that
+    // made the earlier release unadoptable for this widget.
+    [$placement, $inline] = match (\Pushery\VisualFeedback\Support\FabCorner::of($position)) {
+        'bottom-end' => ['block-end', 'end'],
+        'bottom-start' => ['block-end', 'start'],
+        'top-end' => ['block-start', 'end'],
+        'top-start' => ['block-start', 'start'],
     };
 
     // The glyph. WireKit draws a plus when it is handed none, and a plus reads as "create something":

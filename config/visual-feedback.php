@@ -735,7 +735,13 @@ return [
         // wins, for a host that genuinely wants to edit them.
         'variant' => env('VISUAL_FEEDBACK_UI_VARIANT', 'auto'), // auto|plain|wirekit
         'trigger' => env('VISUAL_FEEDBACK_UI_TRIGGER', 'fab'), // fab|inline|none
-        'position' => env('VISUAL_FEEDBACK_UI_POSITION', 'bottom-right'),
+
+        // The corner the floating trigger sits in: bottom-end|bottom-start|top-end|top-start. It
+        // is read logically in both view trees, so `end` follows the writing direction and a
+        // right-to-left application mirrors the trigger. bottom-right, bottom-left, top-right and
+        // top-left still work and mean their left-to-right corner, so a published config that
+        // carries one of them needs no edit.
+        'position' => env('VISUAL_FEEDBACK_UI_POSITION', 'bottom-end'),
 
         // The glyph on the WireKit tree's floating trigger, as a WireKit icon alias. A plus reads as "create
         // something", so the default is `message`; set `plus` for the glyph earlier releases showed. A name

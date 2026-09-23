@@ -281,7 +281,7 @@ final readonly class Settings
     // AttachmentValidator, each reading the config itself — so these were a second, unused
     // implementation of the same rule.
     //
-    // Worse than dead code: SettingsBehaviourTest asserted through them that the caps "never
+    // Worse than dead code: SettingsBehaviorTest asserted through them that the caps "never
     // become unlimited", which is a guarantee about a path no request takes. The assurance read
     // as coverage of the upload perimeter and covered nothing. It lives with the enforcers now,
     // in AttachmentPolicyDefaultsTest and AttachmentValidatorDefaultsTest.
