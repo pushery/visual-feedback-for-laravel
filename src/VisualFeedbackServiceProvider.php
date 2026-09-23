@@ -42,13 +42,14 @@ use Pushery\VisualFeedback\Support\StylesheetPresence;
 final class VisualFeedbackServiceProvider extends ServiceProvider
 {
     /**
-     * The WireKit release that first carried what the WireKit tree binds to.
+     * The oldest WireKit release the WireKit tree is served against.
      *
-     * 2.21 introduced the `placement` prop and the accessible-name path `<x-wirekit::fab.button>`
-     * needs. Serving the tree against anything older renders a trigger with no accessible name,
-     * which is worse than not serving it at all — so `auto` refuses below that line.
+     * 2.50 is the release whose modal panel is a column, so the report dialog keeps its header and
+     * its close button in reach when it is taller than the screen; from 2.49 the kit also sets its
+     * floating trigger the same distance from both edges. Below it, `auto` serves the plain tree,
+     * which has neither defect, rather than a tree that shows them.
      */
-    public const string WIREKIT_MINIMUM = '2.21.0';
+    public const string WIREKIT_MINIMUM = '2.50.0';
 
     /**
      * Whether an installed WireKit is new enough for the tree this package ships.
@@ -79,9 +80,9 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         }
 
         // The leading `v` has to go, and it is not cosmetic. Composer's getPrettyVersion returns
-        // the tag as written — `v2.42.0` for this package's own vendor — and version_compare
-        // reads a leading letter as a pre-release marker, so `v2.42.0` compares BELOW `2.21.0`.
-        // Measured here on the real vendor tree: the check said no while WireKit 2.42 was
+        // the tag as written — `v2.54.0` for this package's own vendor — and version_compare
+        // reads a leading letter as a pre-release marker, so a `v`-tag compares BELOW the bare
+        // minimum. Measured here on the real vendor tree: the check said no while WireKit was
         // installed, which would have served the plain tree to every host that has WireKit.
         return version_compare(ltrim($version, 'vV'), self::WIREKIT_MINIMUM, '>=');
     }

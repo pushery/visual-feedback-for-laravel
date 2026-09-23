@@ -379,7 +379,7 @@ which is the copy that gets corrected when a dependency moves.
 
 ### 8. Use a WireKit-styled widget (optional)
 
-**Nothing to do — an application with WireKit 2.21+ installed already gets it.** The shipped
+**Nothing to do — an application with WireKit 2.50+ installed already gets it.** The shipped
 `ui.variant` is `auto`, which serves the WireKit tree when a new enough WireKit is present and
 the framework-free one otherwise. Force either tree when the automatic choice is not what the
 application wants:
@@ -396,10 +396,10 @@ views, which every update then silently leaves behind. That is what `ui.variant`
 replace. The stylesheet needs no attention either way: it carries the same switch and renders
 nothing under the WireKit tree.
 
-**Needs WireKit 2.21 or newer** — that tree builds its trigger from `<x-wirekit::fab.button>`
-using the `placement` prop and the accessible-name path 2.21 introduced. Check the installed
-version before publishing; on an older one the trigger lands in the wrong corner and announces
-nothing. One thing differs from the plain tree by design: the trigger is an **icon** button
+**Needs WireKit 2.50 or newer** — the report dialog is a `<x-wirekit::modal>`, and 2.50 is the
+release whose panel is a column, so a dialog taller than the screen keeps its header and close
+button in reach. `auto` serves the plain tree below 2.50; check the installed version before
+forcing or publishing the WireKit tree. One thing differs from the plain tree by design: the trigger is an **icon** button
 rather than a text one (its accessible name is the widget heading either way). The corner does
 not differ: `ui.position` follows the writing direction in both trees, so `bottom-end` mirrors
 in a right-to-left application, and the physical spellings such as `bottom-right` still work as
