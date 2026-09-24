@@ -70,13 +70,29 @@ final readonly class SubmissionInput
          * rendered a labeled option the pipeline rejected on every submit, with a message about
          * an invalid selection and no way for the reporter to get past it.
          *
-         * SERVER-AUTHORED, and that is what makes trusting it safe. The mount prop is
-         * `#[Locked]`, so a browser cannot widen it after mount, and any other caller of this
-         * pipeline is server code by definition. Empty means "use the configured list", which is
-         * what every caller that offers no list of its own passes.
+         * SERVER-AUTHORED, and that is what makes trusting it safe. The mount prop is sealed
+         * (see `ReportWidget::$sealedProps`), so a browser cannot widen it after mount, and any
+         * other caller of this pipeline is server code by definition. Empty means "use the
+         * configured list", which is what every caller that offers no list of its own passes.
          *
          * @var list<string>
          */
         public array $allowedCategories = [],
+        /**
+         * The mode of each optional field as THIS call site resolved it: `off`, `optional` or
+         * `required`, keyed by field name.
+         *
+         * The widget's `fields` mount prop wins over the configuration, so the form a reporter
+         * is shown can differ from the configured one, and validation has to judge the form that
+         * was shown. A field the prop switched off is not on the screen, so it cannot be
+         * required; a field the prop made required is marked as one, so it must be. Null means
+         * "use the configuration", which is what a caller without per-instance modes passes.
+         *
+         * Server-authored for the same reason as the list above. A field this array does not
+         * name, or names with anything other than a mode, falls back to the configuration.
+         *
+         * @var array<string, string>|null
+         */
+        public ?array $fieldModes = null,
     ) {}
 }

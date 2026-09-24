@@ -998,6 +998,14 @@ class ReportWidget extends Component
             // — `categoryOptions()` filters on `is_string($key)` — so casting them back is a
             // restoration rather than a widening.
             allowedCategories: array_map(strval(...), array_keys($this->categoryOptions())),
+            // The form as this widget rendered it, so the validator judges the fields the reporter
+            // was shown rather than the configured ones: the `fields` prop wins over both.
+            fieldModes: [
+                'subject' => $this->fieldMode('subject'),
+                'name' => $this->fieldMode('name'),
+                'email' => $this->fieldMode('email'),
+                'phone' => $this->fieldMode('phone'),
+            ],
         ));
 
         // Reclaim the files of a submission that produced no report.
@@ -1415,8 +1423,10 @@ class ReportWidget extends Component
             // allowlist the validation uses — so the two can never drift apart.
             'acceptAttribute' => app(AttachmentPolicy::class)->acceptAttribute(),
             'screenshotEnabled' => $this->screenshotEnabled(),
-            // Client-capture options for the Alpine state machine — the single ClientConfig
-            // source, so the widget and the <x-visual-feedback::scripts> island never drift.
+            // Client-capture options, for a view published before 0.10.0: those copies open the
+            // capture state machine with `@js($screenshotCaptureConfig)` in their x-data. The
+            // shipped views read the same ClientConfig source through the
+            // <x-visual-feedback::scripts> island, so the two cannot drift apart either way.
             'screenshotCaptureConfig' => ClientConfig::screenshot(),
         ]);
     }

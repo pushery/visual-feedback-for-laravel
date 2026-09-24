@@ -166,6 +166,7 @@
             <x-wirekit::input
                 id="visual-feedback-subject" :error="$vfInvalidField === 'subject' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 :label="__('visual-feedback::messages.widget.subject_label')"
+                :required="in_array('subject', $requiredFields, true)"
                 wire:model="subject" />
         @endif
 
