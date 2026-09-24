@@ -185,7 +185,7 @@
                     <label for="visual-feedback-subject">
                         {{ __('visual-feedback::messages.widget.subject_label') }}
                     </label>
-                    <input id="visual-feedback-subject" @if ($vfInvalidField === 'subject') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="subject">
+                    <input id="visual-feedback-subject" @if ($vfInvalidField === 'subject') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="subject" @required(in_array('subject', $requiredFields, true))>
                 @endif
 
                 {{-- The counter's locale comes from the app (never a hardcoded literal

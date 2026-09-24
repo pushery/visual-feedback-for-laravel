@@ -339,7 +339,7 @@ final readonly class SubmitReport
 
         $rules = [
             'category' => ['required', 'string', Rule::in($categories)],
-            'subject' => [$this->requiredness('subject'), 'string', "max:{$subjectMax}"],
+            'subject' => [$this->requiredness($input, 'subject'), 'string', "max:{$subjectMax}"],
             'message' => ['required', 'string', "max:{$messageMax}"],
         ];
 
@@ -365,13 +365,13 @@ final readonly class SubmitReport
             ];
 
             foreach ($lengths as $field => $max) {
-                if (! $this->settings->fieldIsShown($field)) {
+                if ($this->modeOf($input, $field) === Settings::FIELD_OFF) {
                     continue;
                 }
 
                 $data["guest_{$field}"] = $given[$field];
                 $rules["guest_{$field}"] = array_values(array_filter([
-                    $this->requiredness($field),
+                    $this->requiredness($input, $field),
                     'string',
                     $field === 'email' ? 'email' : null,
                     "max:{$max}",
@@ -396,9 +396,26 @@ final readonly class SubmitReport
     }
 
     /** `required` or `nullable` for one field, from the single `fields.<f>.mode` vocabulary. */
-    private function requiredness(string $field): string
+    private function requiredness(SubmissionInput $input, string $field): string
     {
-        return $this->settings->fieldIsRequired($field) ? 'required' : 'nullable';
+        return $this->modeOf($input, $field) === Settings::FIELD_REQUIRED ? 'required' : 'nullable';
+    }
+
+    /**
+     * The mode of one field for this submission: the one the call site resolved, else the
+     * configured one.
+     *
+     * The call site's mode wins because it is the form the reporter was shown. Judging that form
+     * by the configuration instead refused a report over a field the page had switched off, and
+     * waved through an empty one the page had marked as required.
+     */
+    private function modeOf(SubmissionInput $input, string $field): string
+    {
+        $mode = $input->fieldModes[$field] ?? null;
+
+        return is_string($mode) && in_array($mode, Settings::FIELD_MODES, true)
+            ? $mode
+            : $this->settings->fieldMode($field);
     }
 
     private function configInt(string $key, int $default): int

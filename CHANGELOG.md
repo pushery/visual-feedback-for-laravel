@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.18.0] - 2026-09-24
+
+### Fixed
+
+- **The widget's `fields` prop reaches the validation.** The prop wins over the configuration, and the widget showed the form it asked for, but the server validated the configured one. A field the prop switched off was still demanded when the configuration required it, so a guest on that page could never send a report and was told to fill in a field that was not on the screen. A field the prop made required was marked as one and accepted empty, and a field the prop switched on where the configuration had it off went into the report without any check. The server now validates the form the widget rendered.
+
+  **Upgrade:** nothing to do. A frontend of your own that calls `SubmitReport` directly can pass the modes it resolved as `fieldModes` on `SubmissionInput`. Without them the configuration decides, as before.
+
+- **A subject set to `required` is marked as required in both view trees.** The server refused an empty subject in that mode, but neither the plain nor the WireKit form said the field was mandatory, so a reporter learned it only from the rejection after sending. The subject input now carries `required` the way the name, email and phone inputs already did.
+
+  **Upgrade:** nothing to do unless you published the widget views. A published copy keeps its own markup: add `@required(in_array('subject', $requiredFields, true))` to the subject input of the plain tree, or `:required="in_array('subject', $requiredFields, true)"` to the one of the WireKit tree.
+
 ## [0.17.0] - 2026-09-23
 
 ### Changed
@@ -701,7 +713,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.14.4...v0.15.0
