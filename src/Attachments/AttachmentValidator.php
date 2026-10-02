@@ -51,7 +51,7 @@ final readonly class AttachmentValidator
         // prevent: they agree today, and nothing would have caught the day they stopped.
         $maxFiles = $this->policy->maxFiles();
         $perFile = $this->policy->maxFileBytes();
-        $totalCap = $this->configInt('max_total_size', 15 * 1024 * 1024);
+        $totalCap = $this->policy->maxTotalBytes();
         $allowed = $this->policy->mimeTypes();
 
         $disk = $this->storage->disk($this->diskName());

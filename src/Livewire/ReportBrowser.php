@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Livewire;
 
+use DateTimeImmutable;
 use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
@@ -11,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -132,11 +134,17 @@ final class ReportBrowser extends Component
      * to delete in the convenient order.
      *
      * The uuid arrives from the client, so it is authorized and then used only as a WHERE
-     * value. Nothing here trusts a client-supplied path.
+     * value. Nothing here trusts a client-supplied path. A value that is no uuid names no
+     * report and is not looked up at all: PostgreSQL refuses to compare it with its `uuid`
+     * column rather than finding nothing.
      */
     public function delete(string $uuid): void
     {
         $this->authorizeBrowsing();
+
+        if (! Str::isUuid($uuid)) {
+            return;
+        }
 
         $config = app(Config::class);
         $db = app(DatabaseManager::class);
@@ -308,28 +316,49 @@ final class ReportBrowser extends Component
         // Whole days on both ends: a reader typing a date means the day, not midnight. Without
         // the end-of-day the `to` filter silently excludes everything filed after 00:00:00 on
         // the very day the reader asked for, which reads as "no reports today".
-        if ($this->filterFrom !== '') {
-            $query->where('created_at', '>=', $this->filterFrom.' 00:00:00');
+        $from = $this->day($this->filterFrom);
+        $to = $this->day($this->filterTo);
+
+        if ($from !== null) {
+            $query->where('created_at', '>=', $from.' 00:00:00');
         }
 
-        if ($this->filterTo !== '') {
-            $query->where('created_at', '<=', $this->filterTo.' 23:59:59');
+        if ($to !== null) {
+            $query->where('created_at', '<=', $to.' 23:59:59');
         }
 
         return $query;
+    }
+
+    /**
+     * A bound of the period as the day it names, or null when it names none.
+     *
+     * The bounds arrive in the URL, so they are client input. A value that is not a `Y-m-d`
+     * date bounds nothing: compared with a timestamp, PostgreSQL refuses it rather than
+     * matching no row.
+     */
+    private function day(string $value): ?string
+    {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date !== false && $date->format('Y-m-d') === $value ? $value : null;
     }
 
     public function render(): View
     {
         $this->authorizeBrowsing();
 
+        // The id breaks ties between reports filed in the same second. Without it the engine may
+        // order such rows differently for each page, and a report then shows on two pages or none.
         $reports = $this->tableExists()
-            ? $this->query()->orderByDesc('created_at')->paginate(20)
+            ? $this->query()->orderByDesc('created_at')->orderByDesc('id')->paginate(20)
             : null;
 
         $detail = null;
 
-        if ($this->selected !== '' && $this->tableExists()) {
+        // `selected` is client state, and a value that is no uuid opens nothing, for the reason
+        // delete() gives.
+        if (Str::isUuid($this->selected) && $this->tableExists()) {
             $detail = app(DatabaseManager::class)->connection()
                 ->table($this->reportsTable(app(Config::class)))
                 ->where('uuid', $this->selected)

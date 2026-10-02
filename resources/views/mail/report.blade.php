@@ -4,7 +4,7 @@
         from the content — MailCell::fence(). A HARDCODED ``` fence does not make text inert:
         CommonMark closes on the first line with at least as many backticks as opened it, so a
         reporter typing three backticks ended the block and everything after it rendered as live
-        Markdown. Measured, not theorised — a link injected that way reached the rendered mail as
+        Markdown. Measured, not theorized — a link injected that way reached the rendered mail as
         a real <a href>. The fence is now one backtick longer than the longest run in the content;
       - context values and the technical-details cells go through MailCell (pipes escaped so a
         `Bob | Alice` value cannot shift the table columns — the "Undefined array key 1"

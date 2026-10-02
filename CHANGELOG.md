@@ -4,6 +4,26 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.18.1] - 2026-10-02
+
+### Fixed
+
+- **`laravel/ai` and `anthropic-ai/sdk` are no longer listed under `suggest`.** Neither is used by anything the package ships: both serve this repository's own evals, and `laravel/ai` is a development dependency. The suggestions told consumers the opposite on the package page.
+
+- **A per-sender rate limit set to `0` reads as the shipped value in the configuration too.** `VISUAL_FEEDBACK_ABUSE_RATE_LIMIT=0` and `VISUAL_FEEDBACK_ABUSE_GUEST_RATE_LIMIT=0` already fell back to 30 and 5 where the package reads them, as the abuse-protection page says, but the configuration kept the `0` and its comment called it an off switch. Both now hold to a floor of 1 before the value is cast, the comment says what the package does, and the abuse-protection page names both defaults. The instance-wide `global_rate_limit` still reads `0` as off.
+
+  **Upgrade:** nothing to do. Only code of your own that reads `visual-feedback.abuse.rate_limit` or `visual-feedback.abuse.guest_rate_limit` directly sees 30 or 5 instead of 0 for a `0` in the environment.
+
+- **The report browser no longer fails on PostgreSQL over a value the request made up.** Deleting or opening a report with a value that is no uuid, and a `from` or `to` in the URL that names no day, reached the database there and failed the request, because PostgreSQL refuses to compare such values with a `uuid` or timestamp column. The browser now looks up no report for a value that is no uuid and ignores a period bound that is not a `Y-m-d` date, on every database. On MySQL and SQLite such a bound could hide every report instead.
+
+- **The report browser pages reports filed in the same second consistently.** The list is ordered by `created_at` and then by `id`, so a report no longer shows on two pages, or on none, when several share a timestamp.
+
+### Security
+
+- **The widget writes no upload for a submission it already knows it will refuse.** A guest on an installation with `require_authentication`, a sender whose rate limit is spent, and a submission with more files or more bytes than `attachments.max_files` and `attachments.max_total_size` allow had their uploads copied onto the attachments disk and deleted again when the refusal came. A script that passed the honeypot and the time trap could repeat that up to fifty times a request, on S3 a billed PUT and DELETE per file each time. These refusals are now reached before anything is stored. An upload the form refuses is also dropped from the widget, so `max_files` bounds what a submit can store, and the sum of the uploads is checked against `max_total_size` the moment one lands.
+
+  **Upgrade:** nothing to do.
+
 ## [0.18.0] - 2026-09-24
 
 ### Fixed
@@ -713,7 +733,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.15.0...v0.16.0
