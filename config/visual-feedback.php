@@ -360,18 +360,19 @@ return [
     */
     'abuse' => [
         'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|none|any key you register
-        // per authenticated user per hour. `0` switches this ceiling off, which is why the
-        // floor here is 0 and not 1 -- the same reading `global_rate_limit` documents below.
+        // per authenticated user per hour. The floor is 1: a per-sender limit cannot be switched
+        // off, so anything below 1 keeps the shipped value, here as in Settings. Only
+        // `global_rate_limit` below reads `0` as off.
         'rate_limit' => filter_var(
             env('VISUAL_FEEDBACK_ABUSE_RATE_LIMIT', 30),
             FILTER_VALIDATE_INT,
-            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 30,
-        // per guest IP per hour (IPv6: per /64, see the abuse page)
+        // per guest IP per hour (IPv6: per /64, see the abuse page), with the same floor of 1
         'guest_rate_limit' => filter_var(
             env('VISUAL_FEEDBACK_ABUSE_GUEST_RATE_LIMIT', 5),
             FILTER_VALIDATE_INT,
-            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 5,
 
         /*

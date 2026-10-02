@@ -138,6 +138,30 @@ final readonly class BuiltinAbuseGate implements AbuseGate
     }
 
     /**
+     * Whether the rate limit this attempt would be counted against is already spent, asked without
+     * counting it.
+     *
+     * The widget asks this before it stores an upload, for the same reason it asks silentFloor():
+     * check() refuses a sender who has had their share, and writing every upload of that attempt
+     * only to delete it again is a cost the refusal does not need. Both limits are read, the
+     * sender's and the application's, as check() would apply them, and no token is taken, so the
+     * verdict check() reaches afterwards is the same one it reached before. A backend that cannot
+     * be read answers "not spent", which leaves the decision to check() and its on_error switch.
+     */
+    public function limitAlreadySpent(ReportAttempt $attempt): bool
+    {
+        $max = $attempt->reporter->isGuest ? $this->settings->guestRateLimit() : $this->settings->rateLimit();
+        $cap = $this->settings->globalRateLimit();
+
+        try {
+            return $this->limiter->tooManyAttempts($this->rateLimitKey($attempt), $max)
+                || ($cap > 0 && $this->limiter->tooManyAttempts(self::GLOBAL_KEY, $cap));
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * The rate limit's verdict, or null when the attempt is under the limit and the rest of the
      * floor should decide.
      *

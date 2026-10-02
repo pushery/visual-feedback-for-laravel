@@ -108,6 +108,12 @@ final readonly class AttachmentPolicy
         return $this->configInt('max_file_size', 5 * 1024 * 1024);
     }
 
+    /** The cap on all uploads of one report together, in bytes. The screenshot is not part of it. */
+    public function maxTotalBytes(): int
+    {
+        return $this->configInt('max_total_size', 15 * 1024 * 1024);
+    }
+
     /**
      * A byte count as the megabyte NUMBER both surfaces show — one rounding, one source.
      *

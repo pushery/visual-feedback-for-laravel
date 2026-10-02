@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Livewire\Component;
@@ -25,6 +26,7 @@ use Pushery\VisualFeedback\Context\ContextRegistry;
 use Pushery\VisualFeedback\Contracts\ResolvesReporter;
 use Pushery\VisualFeedback\Data\ReportContextEntry;
 use Pushery\VisualFeedback\Events\RejectionReason;
+use Pushery\VisualFeedback\Events\ReportRejected;
 use Pushery\VisualFeedback\Metadata\MetadataSanitizer;
 use Pushery\VisualFeedback\Privacy\PrivacyNotice;
 use Pushery\VisualFeedback\Submission\SubmissionInput;
@@ -761,17 +763,37 @@ class ReportWidget extends Component
     /**
      * Real-time upload perimeter: every uploaded file is validated the MOMENT it lands
      * (not only at submit), against the MIME allowlist and byte cap derived from config
-     * via the AttachmentPolicy, and the count against max_files. An unacceptable file
-     * surfaces an error immediately instead of riding to the submit.
+     * via the AttachmentPolicy, the count against max_files and the sum against
+     * max_total_size. An unacceptable file surfaces an error immediately instead of riding
+     * to the submit.
+     *
+     * A refused upload is dropped from the component here, as updatedScreenshot() drops a
+     * refused capture. Livewire appends an upload to the property before this hook runs, and the
+     * validation error does not take it back out, so without the drop the property would keep
+     * every file it was sent and max_files would bound the error message rather than the uploads
+     * a submit stores. What stays is the files that pass on their own, in the order they came, up
+     * to the count and the total the policy allows.
      */
     public function updatedAttachments(): void
     {
         $policy = app(AttachmentPolicy::class);
 
-        $this->validate([
-            'attachments' => ['array', 'max:'.$policy->maxFiles()],
-            'attachments.*' => ['file', 'mimes:'.$policy->ruleExtensions(), 'max:'.$policy->maxFileKilobytes()],
-        ]);
+        try {
+            $this->validate([
+                'attachments' => ['array', 'max:'.$policy->maxFiles()],
+                'attachments.*' => ['file', 'mimes:'.$policy->ruleExtensions(), 'max:'.$policy->maxFileKilobytes()],
+            ]);
+
+            $refusal = $this->uploadCapsRefusal($policy);
+
+            if ($refusal !== null) {
+                throw ValidationException::withMessages(['attachments' => $refusal]);
+            }
+        } catch (ValidationException $exception) {
+            $this->attachments = $this->attachmentsWithinThePerimeter($policy);
+
+            throw $exception;
+        }
     }
 
     /** Remove one queued attachment by index — bounds-checked, never trusting the client index. */
@@ -962,7 +984,7 @@ class ReportWidget extends Component
         // rejected here is rejected by the full gate too, by the same arm for the same reason. A
         // host that replaced the binding entirely still gets today's ordering, which is correct:
         // this is an optimization for the gate we ship, not a promise about someone else's.
-        $storeIsWorthIt = ! app(BuiltinAbuseGate::class)->silentFloor(new ReportAttempt(
+        $attempt = new ReportAttempt(
             reporter: $reporterDto,
             honeypot: $this->feedbackReference,
             ipAddress: request()->ip(),
@@ -971,10 +993,39 @@ class ReportWidget extends Component
             // measured on one clock: a moved test clock and the wall clock would disagree by the move.
             submittedAt: Carbon::now()->toImmutable(),
             challenge: $this->challenge,
-        ))->rejected();
+        );
+        $floor = app(BuiltinAbuseGate::class);
 
-        $attachmentPaths = $enabled && $storeIsWorthIt ? $this->storeAttachments() : [];
-        $screenshotPath = $enabled && $storeIsWorthIt ? $this->storeScreenshot() : null;
+        // Every refusal that is certain before the store is asked before the store, and the
+        // honeypot and the time trap are only the first two. A guest on a sign-in-only
+        // installation is refused by handle() whatever they send, and so is a sender whose rate
+        // limit is already spent. Asked after the store, a script that passes the free arms on
+        // purpose could repeat the same queued uploads up to fifty calls a request, each one a
+        // write and a delete per file, on S3 a billed PUT and DELETE, with `/livewire/update`
+        // unthrottled in front of it. WidgetAvailability is the master switch and the sign-in
+        // switch in one question, and limitAlreadySpent() reads the limiter without taking a
+        // token. Neither decides anything here: handle() still runs and reaches the refusal
+        // itself, with its event and its message.
+        $storeIsWorthIt = ! $floor->silentFloor($attempt)->rejected()
+            && app(WidgetAvailability::class)->forThisRequest()
+            && ! $floor->limitAlreadySpent($attempt);
+
+        // Uploads over the caps are refused HERE, because handle() cannot see them without the
+        // store: it reads the stored paths, and storing them is the cost being avoided. The
+        // perimeter in updatedAttachments() keeps a reporter's own uploads within the caps, so
+        // only a request that wrote the property past it reaches this, and it is answered as the
+        // AttachmentValidator would answer it after the store.
+        $capsRefusal = $storeIsWorthIt ? $this->uploadCapsRefusal(app(AttachmentPolicy::class)) : null;
+
+        if ($capsRefusal !== null) {
+            event(new ReportRejected(RejectionReason::Validation, $capsRefusal));
+            $this->fail('files', $capsRefusal, invalid: true);
+
+            return;
+        }
+
+        $attachmentPaths = $storeIsWorthIt ? $this->storeAttachments() : [];
+        $screenshotPath = $storeIsWorthIt ? $this->storeScreenshot() : null;
 
         $result = $submit->handle(new SubmissionInput(
             category: $this->category,
@@ -1253,6 +1304,64 @@ class ReportWidget extends Component
         $stored = $this->screenshot->storeAs($directory.'/screenshots/'.$subdir, 'screenshot.png', ['disk' => $disk]);
 
         return is_string($stored) ? $stored : null;
+    }
+
+    /**
+     * The refusal the AttachmentValidator would reach on the queued uploads by their count or their
+     * total size, or null. Read from the temporary files, so it is answered before anything is
+     * written.
+     */
+    private function uploadCapsRefusal(AttachmentPolicy $policy): ?string
+    {
+        $files = [];
+
+        foreach ($this->attachments as $file) {
+            if ($file instanceof TemporaryUploadedFile) {
+                $files[] = $file;
+            }
+        }
+
+        if (count($files) > $policy->maxFiles()) {
+            return trans_choice('visual-feedback::messages.attachments.too_many', $policy->maxFiles(), ['max' => $policy->maxFiles()]);
+        }
+
+        $total = 0;
+
+        foreach ($files as $file) {
+            $total += $file->getSize();
+        }
+
+        return $total > $policy->maxTotalBytes()
+            ? (string) __('visual-feedback::messages.attachments.total_too_large', ['max' => $policy->megabytesFor($policy->maxTotalBytes())])
+            : null;
+    }
+
+    /**
+     * The queued uploads that pass the perimeter on their own, in the order they came, up to the
+     * count and the total the policy allows.
+     *
+     * @return list<TemporaryUploadedFile>
+     */
+    private function attachmentsWithinThePerimeter(AttachmentPolicy $policy): array
+    {
+        $rules = ['file', 'mimes:'.$policy->ruleExtensions(), 'max:'.$policy->maxFileKilobytes()];
+        $kept = [];
+        $total = 0;
+
+        foreach ($this->attachments as $file) {
+            if (! $file instanceof TemporaryUploadedFile || count($kept) >= $policy->maxFiles()) {
+                continue;
+            }
+
+            $size = $file->getSize();
+
+            if ($total + $size <= $policy->maxTotalBytes() && Validator::make(['file' => $file], ['file' => $rules])->passes()) {
+                $kept[] = $file;
+                $total += $size;
+            }
+        }
+
+        return $kept;
     }
 
     /**
