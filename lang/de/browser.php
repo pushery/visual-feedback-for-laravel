@@ -29,9 +29,14 @@ return [
     'open' => 'Öffnen',
     'delete' => 'Löschen',
     'confirm_delete' => 'Diesen Report und seine Anhänge löschen? Das kannst du nicht rückgängig machen.',
+    'delete_failed' => 'Die Dateien dieses Reports ließen sich nicht löschen, der Report bleibt deshalb erhalten. Versuch es später noch einmal.',
     'detail' => 'Report-Details',
     'untitled' => 'Report ohne Betreff',
     'close' => 'Schließen',
     'attachment_alt' => 'Screenshot zu diesem Report',
+    'pagination' => 'Report-Seiten',
+    'newer' => 'Neuere',
+    'older' => 'Ältere',
+    'page_of' => 'Seite :page von :pages',
 
 ];

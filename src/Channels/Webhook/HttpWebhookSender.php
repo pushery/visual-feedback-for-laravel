@@ -59,13 +59,20 @@ final readonly class HttpWebhookSender
     /**
      * Deliver the signed body. A non-2xx response (or a connect/read timeout) throws, which
      * propagates out of the queued job so the queue retry / terminal-failure path runs.
+     *
+     * `throw()` answers a 4xx or 5xx only. Redirects are refused above, so a 3xx comes back as
+     * the response itself, and the receiver has nothing: only a 2xx counts as delivered.
      */
     public function send(string $url, string $reportId, string $body, string $timestamp): void
     {
-        $this->request($reportId, $body, $timestamp)
+        $response = $this->request($reportId, $body, $timestamp)
             ->withBody($body, 'application/json')
             ->post($url)
             ->throw();
+
+        if (! $response->successful()) {
+            throw new RuntimeException('visual-feedback: the webhook answered HTTP '.$response->status().'. Only a 2xx counts as delivered, and redirects are not followed.');
+        }
     }
 
     /**

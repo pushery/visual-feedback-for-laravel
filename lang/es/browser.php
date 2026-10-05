@@ -29,9 +29,14 @@ return [
     'open' => 'Abrir',
     'delete' => 'Eliminar',
     'confirm_delete' => '¿Eliminar este informe y sus adjuntos? No lo puedes deshacer.',
+    'delete_failed' => 'No se pudieron borrar los archivos de este informe, así que el informe se conserva. Vuelve a intentarlo más tarde.',
     'detail' => 'Detalle del informe',
     'untitled' => 'Informe sin asunto',
     'close' => 'Cerrar',
     'attachment_alt' => 'Captura adjunta a este informe',
+    'pagination' => 'Páginas de informes',
+    'newer' => 'Más recientes',
+    'older' => 'Más antiguos',
+    'page_of' => 'Página :page de :pages',
 
 ];

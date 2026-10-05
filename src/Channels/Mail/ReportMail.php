@@ -4,23 +4,31 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Channels\Mail;
 
+use Illuminate\Container\Container;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Support\Facades\Validator;
+use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Support\CategoryLabels;
+use Pushery\VisualFeedback\Support\HeaderSafeEmail;
 
 /**
  * The admin report mail — hard-won lessons encoded as behavior, not lore:
  *
- *  - `Mail::to()` does NOT survive queue serialization, so the recipient
- *    lives in the ENVELOPE, which does.
+ *  - The mailable is built inside the worker (`SendReportMail`), so a recipient set on the
+ *    request with `Mail::to()` could never reach it: the recipient lives in the envelope, which
+ *    reads it from the config the job carries.
  *  - The envelope is built STRICTLY from config — no in-code fallback address (the drift
  *    being a hardcoded noreply@ that silently shadows the configured one).
  *  - The subject is CRLF-stripped, so a report subject can never inject a mail header.
- *  - Reply-To is the reporter (when `reply_to_reporter`), so a reply reaches the person.
+ *  - Reply-To is the reporter (when `reply_to_reporter`), so a reply reaches the person, and
+ *    only for an address that can head a mail: one without a control character that passes the
+ *    strict RFC reading the guest form applies. Any other address leaves the mail without
+ *    Reply-To and stays in the body.
  *  - The category label is resolved from `CategoryLabels` INSIDE envelope()/content(), which
  *    Laravel runs under the mail's render locale (->locale()) — so it is localized in `mail.locale`,
  *    never the worker's random locale (the label was previously resolved in the wrong locale).
@@ -42,14 +50,39 @@ final class ReportMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $reporterEmail = $this->mail['reply_to_reporter'] ? $this->report->reporter->email : null;
-
         return new Envelope(
             from: new Address((string) $this->mail['from']['address'], $this->mail['from']['name']),
             to: [new Address((string) $this->mail['to'])],
-            replyTo: is_string($reporterEmail) && $reporterEmail !== '' ? [new Address($reporterEmail)] : [],
+            replyTo: $this->reporterReplyTo(),
             subject: $this->subjectLine(),
         );
+    }
+
+    /**
+     * The reporter as the Reply-To address, or none.
+     *
+     * Neither check asks Symfony Mime, because its answer depends on its release: earlier ones
+     * write a control character into the header as given, so a CR LF inside a quoted local part
+     * becomes a header line of its own, and later ones refuse the address and the whole mail
+     * with it. HeaderSafeEmail refuses comments, quoted local parts and folding whitespace, the
+     * forms behind both, and it is the rule a guest's address already passed, so a signed-in
+     * reporter's address from the user model is held to the same one.
+     *
+     * @return list<Address>
+     */
+    private function reporterReplyTo(): array
+    {
+        $email = $this->mail['reply_to_reporter'] ? $this->report->reporter->email : null;
+
+        if (! is_string($email) || $email === '' || preg_match('/[\x00-\x1F\x7F]/', $email) === 1) {
+            return [];
+        }
+
+        if (Validator::make(['email' => $email], ['email' => HeaderSafeEmail::RULES])->fails()) {
+            return [];
+        }
+
+        return [new Address($email)];
     }
 
     public function content(): Content
@@ -77,7 +110,11 @@ final class ReportMail extends Mailable
             return [];
         }
 
-        $disk = is_string($this->mail['disk'] ?? null) ? $this->mail['disk'] : null;
+        // A job queued by an earlier release can carry no disk; it gets the same fallback as
+        // every other reader rather than the application's default disk.
+        $disk = is_string($this->mail['disk'] ?? null) && $this->mail['disk'] !== ''
+            ? $this->mail['disk']
+            : Container::getInstance()->make(AttachmentPolicy::class)->disk();
 
         return array_map(
             static fn (string $path): Attachment => Attachment::fromStorageDisk($disk, $path)->as(basename($path)),

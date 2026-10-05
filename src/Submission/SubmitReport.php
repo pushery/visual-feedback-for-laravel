@@ -8,6 +8,7 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Pushery\VisualFeedback\Abuse\ReportAttempt;
 use Pushery\VisualFeedback\Attachments\AttachmentValidator;
@@ -15,11 +16,14 @@ use Pushery\VisualFeedback\Attachments\ScreenshotValidator;
 use Pushery\VisualFeedback\Channels\ChannelRegistry;
 use Pushery\VisualFeedback\Contracts\AbuseGate;
 use Pushery\VisualFeedback\Data\Report;
+use Pushery\VisualFeedback\Data\Reporter;
 use Pushery\VisualFeedback\Events\RejectionReason;
 use Pushery\VisualFeedback\Events\ReportRejected;
 use Pushery\VisualFeedback\Events\ReportSubmitted;
 use Pushery\VisualFeedback\Events\ReportSubmitting;
 use Pushery\VisualFeedback\Events\ScreenshotAttached;
+use Pushery\VisualFeedback\Support\FieldLabel;
+use Pushery\VisualFeedback\Support\HeaderSafeEmail;
 use Pushery\VisualFeedback\Support\Settings;
 
 /**
@@ -149,17 +153,27 @@ final readonly class SubmitReport
                 : SubmissionResult::silentlyRejected($decision->reason);
         }
 
+        // A screenshot only where screenshots are on. The widget stores none while
+        // `screenshot.strategy` is `off`, and a frontend of the host's own that passes a path
+        // anyway has it dropped here, so the setting holds whatever submits. The file stays where
+        // the caller put it, for the orphan sweep: a path handed in is not one to delete.
+        $screenshotPath = $this->config->get('visual-feedback.screenshot.strategy') === 'off' ? null : $input->screenshotPath;
+
         // 2. Build the report with its stable UUID. The screenshot (if captured) is the
         // first attachment path; user uploads follow.
-        $attachments = $input->screenshotPath !== null
-            ? [$input->screenshotPath, ...$input->attachmentPaths]
+        $attachments = $screenshotPath !== null
+            ? [$screenshotPath, ...$input->attachmentPaths]
             : $input->attachmentPaths;
 
+        // A field the host switched off carries nothing into the report, whatever the caller
+        // passed for it. The widget never sends one, and validate() passes such a field over, so
+        // without this a frontend of the host's own could deliver a value the form never asked
+        // for, unchecked and uncapped.
         $report = Report::forSubmission(
             category: $input->category,
-            subject: $input->subject,
-            message: $input->message,
-            reporter: $input->reporter,
+            subject: $this->modeOf($input, 'subject') === Settings::FIELD_OFF ? null : $this->trimmed($input->subject),
+            message: Str::trim($input->message),
+            reporter: $this->withoutSwitchedOffFields($input),
             context: $input->context,
             attachments: $attachments,
             metadata: $input->metadata,
@@ -202,7 +216,7 @@ final readonly class SubmitReport
         // 4c. Validate the screenshot through the SAME kind of caps — a screenshot on its
         // own path bypasses attachment validation entirely. A valid, present screenshot fires
         // ScreenshotAttached with the report UUID + its stored path.
-        $screenshotErrors = $this->screenshots->validate($input->screenshotPath);
+        $screenshotErrors = $this->screenshots->validate($screenshotPath);
 
         if ($screenshotErrors !== []) {
             $this->events->dispatch(new ReportRejected(RejectionReason::Validation, $screenshotErrors[0]));
@@ -213,8 +227,8 @@ final readonly class SubmitReport
             );
         }
 
-        if ($input->screenshotPath !== null) {
-            $this->events->dispatch(new ScreenshotAttached($report->id, $input->screenshotPath));
+        if ($screenshotPath !== null) {
+            $this->events->dispatch(new ScreenshotAttached($report->id, $screenshotPath));
         }
 
         // 5. Dispatch to the enabled + available delivery channels (each queues its own job).
@@ -227,8 +241,6 @@ final readonly class SubmitReport
 
         return SubmissionResult::accepted($report, handedToAChannel: $handedTo > 0);
     }
-
-    /** The first validation error message, or null when the submission is valid. */
 
     /**
      * Validation messages owned by THIS package, so a rejection reads the same in every locale it
@@ -245,6 +257,10 @@ final readonly class SubmitReport
             'required' => (string) trans('visual-feedback::messages.validation.required'),
             'in' => (string) trans('visual-feedback::messages.validation.in'),
             'email' => (string) trans('visual-feedback::messages.validation.email'),
+            // The two character rules of HeaderSafeEmail refuse an address, so they say what
+            // `email` says.
+            'guest_email.not_regex' => (string) trans('visual-feedback::messages.validation.email'),
+            'guest_email.regex' => (string) trans('visual-feedback::messages.validation.email'),
             // `max`, NOT `max.string`. Laravel looks an inline message up under
             // "{$attribute}.{$rule}", "{$rule}" and "{$attribute}" — nothing else — so
             // `max.string` only ever matches an attribute literally called `max`
@@ -262,13 +278,14 @@ final readonly class SubmitReport
 
     /**
      * `:attribute` in those messages, named the way the reporter sees the field — the widget's own
-     * labels, not the domain keys. Without this the message says "guest_email".
+     * labels, not the domain keys. Without this the message says "guest_email". Each label loses
+     * its "(optional)" note, see FieldLabel.
      *
      * @return array<string, string>
      */
     private function attributeNames(): array
     {
-        return array_map($this->withoutOptionalMarker(...), [
+        return array_map(FieldLabel::withoutOptionalMarker(...), [
             'category' => (string) trans('visual-feedback::messages.widget.category_label'),
             'subject' => (string) trans('visual-feedback::messages.widget.subject_label'),
             'message' => (string) trans('visual-feedback::messages.widget.message_label'),
@@ -278,28 +295,7 @@ final readonly class SubmitReport
         ]);
     }
 
-    /**
-     * A label without the trailing "(optional)" note, for use as a validation attribute name.
-     *
-     * A LABEL and an ATTRIBUTE NAME are two different sentences, and reusing one as the other is
-     * fine right up to the moment a label carries a parenthetical. "Your phone (optional)" reads
-     * correctly beside its input and wrongly inside "… may not be longer than 20 characters" --
-     * the message is already about one field, so restating that it is optional there says nothing
-     * and reads like a mistake.
-     *
-     * This was latent before the subject label gained its note: `phone_label` has carried one for
-     * longer, and nothing showed it because no rule on that field produces a message in the
-     * tested paths. Stripping it here fixes both rather than the one that surfaced.
-     *
-     * Matched on a trailing parenthetical only, so a label whose NAME contains brackets keeps
-     * them, and every locale is covered without listing seven translations of the word -- the
-     * marker is a shape, not a vocabulary.
-     */
-    private function withoutOptionalMarker(string $label): string
-    {
-        return trim((string) preg_replace('/\s*\([^()]*\)\s*$/u', '', $label));
-    }
-
+    /** The first validation failure, its field and message, or null when the submission is valid. */
     private function validate(SubmissionInput $input): ?ValidationFailure
     {
         // What the call site OFFERED, falling back to the configured list. A widget mounted
@@ -331,26 +327,29 @@ final readonly class SubmitReport
         $subjectMax = $this->configInt('visual-feedback.fields.subject.max_length', 150);
         $messageMax = $this->configInt('visual-feedback.fields.message.max_length', 50_000);
 
-        $data = [
-            'category' => $input->category,
-            'subject' => $input->subject,
-            'message' => $input->message,
-        ];
+        $data = ['category' => $input->category];
+        $rules = ['category' => ['required', 'string', Rule::in($categories)]];
 
-        $rules = [
-            'category' => ['required', 'string', Rule::in($categories)],
-            'subject' => [$this->requiredness($input, 'subject'), 'string', "max:{$subjectMax}"],
-            'message' => ['required', 'string', "max:{$messageMax}"],
-        ];
-
-        // Guest identity fields, each governed by its own `fields.<f>.mode`. An authenticated
-        // reporter's identity comes from the guard, so none of this applies to them.
+        // A field whose mode is `off` is not validated, and handle() does not carry its value
+        // (see withoutSwitchedOffFields()): the widget already drops it, and dropping it there too
+        // means a caller that reaches this pipeline directly cannot smuggle in a value for a field
+        // the host switched off. Validating it instead would be the wrong shape — `nullable`
+        // accepts the smuggled value, `required` rejects a form that never showed the input.
         //
-        // A field whose mode is `off` is not validated AND its value is not carried: the widget
-        // already drops it, and doing it here too means a caller that reaches this pipeline
-        // directly cannot smuggle in a value for a field the host switched off. Validating it
-        // instead would be the wrong shape — `nullable` accepts the smuggled value, `required`
-        // rejects a form that never showed the input.
+        // The order of the rules is the order the first failure is named in, so the subject keeps
+        // its place between the category and the message.
+        //
+        // The rules judge the trimmed text, the same text the report carries (see trimmed()).
+        if ($this->modeOf($input, 'subject') !== Settings::FIELD_OFF) {
+            $data['subject'] = $this->trimmed($input->subject);
+            $rules['subject'] = [$this->requiredness($input, 'subject'), 'string', "max:{$subjectMax}"];
+        }
+
+        $data['message'] = Str::trim($input->message);
+        $rules['message'] = ['required', 'string', "max:{$messageMax}"];
+
+        // Guest identity fields, each governed by its own `fields.<f>.mode`, by the same rule. An
+        // authenticated reporter's identity comes from the guard, so none of this applies to them.
         if ($input->reporter->isGuest) {
             $lengths = [
                 'name' => $this->configInt('visual-feedback.fields.name.max_length', 150),
@@ -359,9 +358,9 @@ final readonly class SubmitReport
             ];
 
             $given = [
-                'name' => $input->reporter->name,
-                'email' => $input->reporter->email,
-                'phone' => $input->reporter->phone,
+                'name' => $this->trimmed($input->reporter->name),
+                'email' => $this->trimmed($input->reporter->email),
+                'phone' => $this->trimmed($input->reporter->phone),
             ];
 
             foreach ($lengths as $field => $max) {
@@ -369,11 +368,13 @@ final readonly class SubmitReport
                     continue;
                 }
 
+                // The address becomes the report mail's Reply-To header, so it is held to the
+                // rules for an address in a header, see HeaderSafeEmail.
                 $data["guest_{$field}"] = $given[$field];
                 $rules["guest_{$field}"] = array_values(array_filter([
                     $this->requiredness($input, $field),
                     'string',
-                    $field === 'email' ? 'email' : null,
+                    ...($field === 'email' ? HeaderSafeEmail::RULES : []),
                     "max:{$max}",
                 ]));
             }
@@ -393,6 +394,44 @@ final readonly class SubmitReport
         $field = (string) array_key_first($errors);
 
         return new ValidationFailure($field, (string) ($errors[$field][0] ?? ''));
+    }
+
+    /**
+     * The reporter as submitted, less the guest fields the host switched off.
+     *
+     * A signed-in reporter's identity comes from the guard rather than from the form, so it is
+     * returned as it is.
+     */
+    private function withoutSwitchedOffFields(SubmissionInput $input): Reporter
+    {
+        $reporter = $input->reporter;
+
+        if (! $reporter->isGuest) {
+            return $reporter;
+        }
+
+        $kept = fn (string $field, ?string $value): ?string => $this->modeOf($input, $field) === Settings::FIELD_OFF ? null : $this->trimmed($value);
+
+        return Reporter::guest(
+            $kept('name', $reporter->name),
+            $kept('email', $reporter->email),
+            $kept('phone', $reporter->phone),
+        );
+    }
+
+    /**
+     * A free-text field as Laravel's TrimStrings middleware hands a form field over.
+     *
+     * Livewire switches that middleware off for its own requests, and the `required` rule trims
+     * with PHP's trim(), which knows only ASCII whitespace. A message of nothing but U+3000, the
+     * full-width space an IME types for each press of the space bar, or of U+00A0 or U+200B, passed
+     * as written, and an empty report was mailed and stored. Str::trim() removes Unicode whitespace
+     * and the zero-width marks as well. Every adapter reaches this class, so the text the rules
+     * judge and the text the report carries are trimmed here.
+     */
+    private function trimmed(?string $value): ?string
+    {
+        return $value === null ? null : Str::trim($value);
     }
 
     /** `required` or `nullable` for one field, from the single `fields.<f>.mode` vocabulary. */

@@ -10,6 +10,7 @@ use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportWebhook;
+use Pushery\VisualFeedback\Support\EnvFlag;
 
 /**
  * The webhook delivery channel. It is available when EITHER the
@@ -89,7 +90,7 @@ final readonly class WebhookChannel implements ReportChannel
 
     private function includeReporter(): bool
     {
-        return (bool) $this->config->get('visual-feedback.webhook.include_reporter', true);
+        return EnvFlag::boolean($this->config->get('visual-feedback.webhook.include_reporter'), true);
     }
 
     private function fallbackUrl(): ?string

@@ -29,9 +29,14 @@ return [
     'open' => 'Open',
     'delete' => 'Delete',
     'confirm_delete' => 'Delete this report and its attachments? You cannot undo it.',
+    'delete_failed' => 'The files of this report could not be deleted, so the report is kept. Try again later.',
     'detail' => 'Report detail',
     'untitled' => 'Untitled report',
     'close' => 'Close',
     'attachment_alt' => 'Screenshot attached to this report',
+    'pagination' => 'Report pages',
+    'newer' => 'Newer',
+    'older' => 'Older',
+    'page_of' => 'Page :page of :pages',
 
 ];

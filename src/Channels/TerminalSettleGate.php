@@ -26,11 +26,10 @@ use Illuminate\Contracts\Cache\Repository as Cache;
  * doing anything. That makes the second call structurally inert no matter which caller makes it,
  * rather than repairing the one path that is known to duplicate today.
  *
- * It is a cache `add()` — one key, one atomic write, no read-modify-write — deliberately not the
- * ReceiptStore's status map, which is a get-then-put over a single key holding EVERY channel of a
- * report and therefore loses an update when two workers settle at the same instant. Making
- * cleanup correctness depend on that map would trade a sync-queue defect for a real-worker one.
- * The TTL matches the refcount's: comfortably past the longest queue retry horizon.
+ * It is a cache `add()` — one key, one atomic write, no read-modify-write — and deliberately not a
+ * ReceiptStore read: a receipt says which status a channel has, and writing the same status a
+ * second time looks exactly like writing it once, so no receipt can tell the first settle from
+ * the second. The TTL matches the refcount's: comfortably past the longest queue retry horizon.
  */
 final readonly class TerminalSettleGate
 {
@@ -43,6 +42,18 @@ final readonly class TerminalSettleGate
     public function claim(string $reportId, string $channel): bool
     {
         return $this->cache->add($this->key($reportId, $channel), true, self::TTL_SECONDS);
+    }
+
+    /**
+     * Hand a claim back, so the next terminal settle of the pair counts as the first again.
+     *
+     * Only for a settle that failed before it wrote anything: the tracker hands the claim back
+     * when the receipt itself could not be written, never after the event or the refcount step,
+     * which would then run twice.
+     */
+    public function release(string $reportId, string $channel): void
+    {
+        $this->cache->forget($this->key($reportId, $channel));
     }
 
     private function key(string $reportId, string $channel): string

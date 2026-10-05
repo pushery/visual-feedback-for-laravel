@@ -22,11 +22,9 @@ trait ResolvesReportStorage
         return is_string($table) && $table !== '' ? $table : 'visual_feedback_reports';
     }
 
-    private function attachmentsDisk(Config $config): ?string
+    private function attachmentsDisk(Config $config): string
     {
-        $disk = $config->get('visual-feedback.attachments.disk');
-
-        return is_string($disk) && $disk !== '' ? $disk : null;
+        return new AttachmentPolicy($config)->disk();
     }
 
     /** The package's own attachments directory — the ONLY tree the orphan sweep is allowed to touch. */

@@ -24,7 +24,8 @@
          The move was forced: an object literal with method shorthand, `const`, `if`, `return`,
          default parameters, arrow functions and bare `document`/`window` is outside the CSP
          grammar on six independent counts, and a rejected `x-data` leaves the element with an
-         EMPTY scope — every directive beneath it then silently does nothing. --}}
+         empty scope — every directive beneath it then does nothing, with only the browser console
+         to show for it. --}}
     x-data="visualFeedbackWidget()"
     {{-- Single open handler for ALL three trigger paths (built-in FAB, standalone
          <x-visual-feedback::fab> / <x-visual-feedback::trigger>, and a host's own
@@ -104,7 +105,7 @@
                      opened. Focusing the heading announces the dialog by name first. Modal only:
                      in inline mode the widget is part of the page and must never steal focus on
                      load. tabindex="-1" makes the heading focusable without adding a tab stop. --}}
-                <h2 id="visual-feedback-heading" tabindex="-1" @if ($mode === 'modal') autofocus @endif>
+                <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" @if ($mode === 'modal') autofocus @endif>
                     {{ __('visual-feedback::messages.widget.heading') }}
                 </h2>
 
@@ -140,9 +141,14 @@
                      wide by specification. Without it the widget overflows by 64px, the PAGE does
                      not scroll, and the right-hand part of a challenge a reporter has to solve is
                      simply unreachable. The style is inline rather than in the package stylesheet
-                     because the WireKit tree does not load that sheet. --}}
+                     because the WireKit tree does not load that sheet.
+
+                     `x-init` hands the region to the widget, which marks it while it takes no
+                     height, as with an invisible provider, so it costs the form no step. The
+                     region starts this itself because the WireKit tree renders it in a teleported
+                     modal, outside the widget's root element. --}}
                 @if ($challengeView)
-                    <div class="visual-feedback-challenge" style="overflow-x:auto" wire:ignore>
+                    <div class="visual-feedback-challenge" style="overflow-x:auto" wire:ignore x-init="vfWatchChallenge($el)">
                         @includeIf($challengeView)
                     </div>
                 @endif
@@ -152,28 +158,28 @@
                 @if ($showGuestFields)
                     @if ($showName)
                         <label for="visual-feedback-name">
-                            {{ __('visual-feedback::messages.widget.name_label') }}
+                            {{ $fieldLabels['name'] }}@if (in_array('name', $requiredFields, true))<span class="visual-feedback-required-mark" aria-hidden="true">*</span>@endif
                         </label>
                         <input id="visual-feedback-name" @if ($vfInvalidField === 'name') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="guestName" autocomplete="name" @required(in_array('name', $requiredFields, true))>
                     @endif
 
                     @if ($showEmail)
                         <label for="visual-feedback-email">
-                            {{ __('visual-feedback::messages.widget.email_label') }}
+                            {{ $fieldLabels['email'] }}@if (in_array('email', $requiredFields, true))<span class="visual-feedback-required-mark" aria-hidden="true">*</span>@endif
                         </label>
                         <input id="visual-feedback-email" @if ($vfInvalidField === 'email') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="email" wire:model="guestEmail" autocomplete="email" @required(in_array('email', $requiredFields, true))>
                     @endif
 
                     @if ($showPhone)
                         <label for="visual-feedback-phone">
-                            {{ __('visual-feedback::messages.widget.phone_label') }}
+                            {{ $fieldLabels['phone'] }}@if (in_array('phone', $requiredFields, true))<span class="visual-feedback-required-mark" aria-hidden="true">*</span>@endif
                         </label>
                         <input id="visual-feedback-phone" @if ($vfInvalidField === 'phone') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="tel" wire:model="guestPhone" autocomplete="tel" @required(in_array('phone', $requiredFields, true))>
                     @endif
                 @endif
 
                 <label for="visual-feedback-category">
-                    {{ __('visual-feedback::messages.widget.category_label') }}
+                    {{ __('visual-feedback::messages.widget.category_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                 </label>
                 <select id="visual-feedback-category" required @if ($vfInvalidField === 'category') aria-invalid="true" aria-describedby="visual-feedback-error" @endif wire:model="category">
                     @foreach ($categoryOptions as $key => $label)
@@ -183,7 +189,7 @@
 
                 @if ($showSubject)
                     <label for="visual-feedback-subject">
-                        {{ __('visual-feedback::messages.widget.subject_label') }}
+                        {{ $fieldLabels['subject'] }}@if (in_array('subject', $requiredFields, true))<span class="visual-feedback-required-mark" aria-hidden="true">*</span>@endif
                     </label>
                     <input id="visual-feedback-subject" @if ($vfInvalidField === 'subject') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="text" wire:model="subject" @required(in_array('subject', $requiredFields, true))>
                 @endif
@@ -197,7 +203,7 @@
                      CSP evaluator cannot resolve. --}}
                 <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
                     <label for="visual-feedback-message">
-                        {{ __('visual-feedback::messages.widget.message_label') }}
+                        {{ __('visual-feedback::messages.widget.message_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                     </label>
                     {{-- `required` states what the server already enforces (SubmitReport's rules),
                          which until now the control never said: the reporter learned it from the
@@ -221,7 +227,11 @@
                          element that appears in the same tick as its text can have that first
                          change swallowed, which is why the throttle is on the CONTENT. --}}
                     <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
-                    <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"></span>
+                    {{-- The inline style is the same concealment as the stylesheet rule, for a host
+                         that has not included the stylesheet: without it this region renders as a
+                         second visible counter. The WireKit tree does the same. --}}
+                    <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"
+                        style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);"></span>
                 </div>
 
                 @if ($screenshotEnabled)
@@ -235,16 +245,17 @@
                          its successor via x-ref, so focus lands there instead of on <body>; the
                          transient states (capturing, uploading) name nothing and are simply
                          skipped, and the next terminal state picks focus back up. --}}
-                    {{-- No arguments, and that is not a simplification for its own sake. The
-                         component already merges the screenshot defaults out of the JSON config
-                         island, so passing them again through `@js()` was redundant — and
-                         actively harmful: `@js()` renders an ARRAY as `JSON.parse('…')`, and
-                         `JSON` is an identifier the CSP evaluator cannot resolve. The audit
-                         substitutes `@js(…)` away before parsing, so it would have called that
-                         green. The uploader seam and the stage callback moved into the
-                         component's own init(), where they can be read and tested. --}}
+                    {{-- No arguments: `@js()` renders an array as `JSON.parse('…')`, and `JSON` is
+                         an identifier the CSP evaluator cannot resolve. The audit substitutes
+                         `@js(…)` away before parsing, so it would have called that green. The
+                         settings ride on the element instead, as data the evaluator never reads,
+                         and the component's init() takes them from its own element: the first
+                         element on the page with a config attribute could be one the page's
+                         users wrote. The uploader seam and the stage callback live in init() as
+                         well, where they can be read and tested. --}}
                     <div class="visual-feedback-screenshot"
-                        x-data="visualFeedbackCapture()">
+                        x-data="visualFeedbackCapture()"
+                        data-visual-feedback-capture="{{ json_encode($screenshotCaptureConfig, JSON_THROW_ON_ERROR) }}">
                         <button type="button" class="visual-feedback-capture"
                             x-ref="idle"
                             x-show="status === 'idle'"
@@ -278,7 +289,7 @@
                         </p>
 
                         {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
-                        <div x-show="status === 'captured'">
+                        <div class="visual-feedback-captured-pending" x-show="status === 'captured'">
                             {{-- `x-if`, NOT the `x-show` on the container, and the difference is a request per page
                                  view. `x-show` sets `display:none` and leaves the element in the DOM, so before the
                                  first capture every page carrying the widget held an image element whose `src` was empty.
@@ -354,19 +365,20 @@
                         {{ __('visual-feedback::messages.widget.attachments_label') }}
                     </label>
                     <input
-                        id="visual-feedback-files" @if ($vfInvalidField === 'files') aria-invalid="true" aria-describedby="visual-feedback-error" @endif
+                        id="visual-feedback-files" @if ($vfInvalidField === 'files') aria-invalid="true" aria-describedby="visual-feedback-error visual-feedback-files-limit" @else aria-describedby="visual-feedback-files-limit" @endif
                         class="visual-feedback-file-input"
                         type="file"
                         multiple
                         accept="{{ $acceptAttribute }}"
-                        aria-describedby="visual-feedback-files-limit"
                         wire:model="attachments"
                     >
 
                     {{-- The caps in words, BEFORE the reporter picks. They were server-side only:
                          pick five files where four are allowed and the rejection was the first you
                          heard of it. `aria-describedby` rather than loose text, so a
-                         screen reader reads the limit as part of the field. --}}
+                         screen reader reads the limit as part of the field. After a files error
+                         the input names the error and this hint in one attribute: a second
+                         `aria-describedby` is dropped by the parser, and the hint went with it. --}}
                     <p id="visual-feedback-files-limit" class="visual-feedback-hint">{{ $attachmentLimit }}</p>
 
                     {{-- Real-time perimeter errors (invalid type / too large / too many).
@@ -464,6 +476,7 @@
                         <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">
                             {{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}
                         </a>
+                        <span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                     </label>
                 @endif
 

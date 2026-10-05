@@ -1,8 +1,386 @@
 # Changelog
 
-All notable changes to `pushery/visual-feedback-for-laravel` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to `pushery/visual-feedback-for-laravel` are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), with Fixed and Security ahead of Deprecated and Removed from 0.19.0 on, and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
+
+## [0.19.0] - 2026-10-05
+
+### ✨ Added
+
+- **`visual-feedback:forget` erases a signed-in member by id.** It picked the rows by address alone, and addresses move between accounts: erasing a member who had changed address left the reports under the old one, and erasing a member who took over a reused address took another account's signed-in reports with it. `visual-feedback:forget --reporter=<id>` erases every report of the signed-in member with that id, under any address, and `--guest-email=<address>` adds the guest reports sent under an address. `visual-feedback:forget <address> --guests-only` erases only the guest reports under an address. A delivery still in the queue for one of the erased reports is withheld, as before. `visual-feedback:forget <address>` without a flag works as it did.
+
+  **Upgrade:** if you store reports in the database, publish the `visual-feedback-migrations` tag again and run `php artisan migrate`. A second migration adds an index on `reporter_id`, so the erasure by id does not read the whole table; the migration you published before is left as it is. If you erase members with a query of your own because the command could not, you can replace it with `--reporter`.
+
+- **The widget's script and style tags carry a CSP nonce.** Under a policy that admits scripts and styles by nonce, as `script-src 'nonce-…' 'strict-dynamic'` does, both bundles and the stylesheet were refused: the widget rendered unstyled and did nothing, and the field that catches bots was no longer hidden, so a reporter could fill it in and be thanked for a report that was discarded. The tags now carry the nonce you gave `Vite::useCspNonce()`, the one Livewire uses for its own tags, or one you pass with `<x-visual-feedback::scripts :nonce="$nonce" />` and `@include('visual-feedback::style', ['nonce' => $nonce])`. The renderer the DOM stage loads at capture time carries it too, and so do the style elements the capture writes into its copy of the page.
+
+  **Upgrade:** nothing to do, unless you serve the published assets or published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force` and `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+### 🔧 Changed
+
+- **The widget's Livewire class says that it is not an extension point.** `Pushery\VisualFeedback\Livewire\ReportWidget` is not `final`, and nothing said whether you may extend it. It stays open because the package's own browser tests extend it, but nothing in it is held stable for a subclass across releases. The class and the integration contract say so now. To change what the widget shows, publish its views; to act on a report, use the channels and events.
+
+  **Upgrade:** nothing to do, unless you extended the class. Move that code into published views or a listener.
+
+- **The WireKit form fills one button per state: the main action.** Every button in the form was the kit's filled primary button except "Done", so after a screenshot was taken three filled buttons stood side by side. Now only submitting the report, and "Report another" after it, are filled. Capturing, attaching and retaking a screenshot are the kit's `soft` primary button, and discarding it and "Done" its `soft` neutral one.
+
+  **Upgrade:** nothing to do, unless you published the WireKit views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`, after saving any edits of your own.
+
+- **The WireKit form links the privacy notice from the acknowledgment sentence, as the plain form does.** The checkbox read "I have read the privacy notice." as plain text, with a separate "Read the privacy notice" link underneath. The sentence is now the link, opening the notice in a new tab, and the separate line is gone, along with its translation key `widget.privacy_notice_link`. A click on the link does not tick the box.
+
+  **Upgrade:** nothing to do, unless you published the WireKit views or the translations: re-publish the views with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`, after saving any edits of your own. A published translation keeps the unused key, which does no harm.
+
+- **The Composer manifest names its publisher.** `composer.json` carries an `authors` entry with the publisher's name and homepage, so Packagist and `composer show` say who publishes the package.
+
+- **The DOM stage captures with html2canvas-pro 2.5.0, up from 2.4.1.** According to its release notes, the renderer this package bundles adds conic and repeating radial gradients, mask images, backdrop filters, text clipped to its background, `box-reflect`, `text-emphasis`, `image-set()` and border-image outsets, and fixes shadows, filters, opacity layers, transforms, letter-spaced CJK text and quoted font names. Measured here in Blink and WebKit: an element masked to transparent now comes back as what is behind it, as on the live page, and `backdrop-filter` is still left out of a capture. The integration contract says so, and it no longer promises that `filter: blur()` is dropped: whether a blur survives depends on the engine, so mark a region you need hidden instead of blurring it. Tiled radial gradients keep this package's own fix, and inset shadows on rounded elements are still left out of a capture. The renderer is about 276 KB, up from 246 KB, and is still fetched only when a screenshot is taken.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **The WireKit tree needs WireKit 2.51 or newer.** The report browser now pages its list with WireKit's own pager, which turns pages inside a Livewire component from 2.51 on. With `ui.variant = auto` and an older WireKit installed, the widget and the browser use the plain tree and the log says why, as they already did below 2.50.
+
+  **Upgrade:** to keep the WireKit tree, update `pushery/wirekit` to 2.51 or later. A forced `wirekit` or a published WireKit tree is not checked: update WireKit before you deploy.
+
+### ⚡ Performance
+
+- **A guest's page no longer reads the published legal-consent document on every render.** With `privacy.source` set to `legal-consent`, the widget read the whole document with its text from the database each time it rendered, on every page that carries it and again on every round trip, and logged a notice each time when nothing was published for the guest's locale. The acknowledgment sentence is now read once a minute per tenant, document key and locale and kept in the default cache store, a refusal included, so its log line comes once a minute too. A version you publish reaches the checkbox within that minute.
+
+  **Upgrade:** nothing to do.
+
+- **Checking a submit's files asks the disk fewer questions.** Each stored attachment and the screenshot cost three requests to the attachments disk while the reporter waited: whether the file was there, its size, and its whole content, even for a file its size had already refused. On a remote disk such as S3 the last one downloads the file again. The size now also answers whether the file is there, and a file over its cap is refused without being read, so a file costs one request when it is refused and two when it is accepted. Such a file is refused for its size alone, no longer also for its type, and a file the disk cannot report a size for is refused the way a missing one is, instead of failing the submit with a server error.
+
+  **Upgrade:** nothing to do.
+
+- **The report browser asks once per request whether its table exists.** Every filter change, page, open and delete renders the browser, and each render asked the database catalog four times, five with a report open, and a delete once more. On a serverless database each of those is a network round trip. It asks once per request now.
+
+  **Upgrade:** nothing to do. Views you published call the same method and ask once as well.
+
+- **Filtering reports by category uses an index.** The report browser and the listing recipe in the documentation filter on `category`, and the column had no index, so the browser's count of one category's reports and the newest reports of a rare category each read the whole table. A third optional migration adds the index. Measured on PostgreSQL with 200 000 reports, the filtered count went from 7.4 ms to 1.9 ms, and the first page of a rare category from 4.1 ms to 0.2 ms. `mode` stays without an index: it holds two or three values, its filtered page already walks the `created_at` index, and an index of its own saved about 4 ms on the count.
+
+  **Upgrade:** if you run the database channel, publish the migrations again and migrate: `php artisan vendor:publish --tag=visual-feedback-migrations`, then `php artisan migrate`. The migrations you already have are left as they are, and only the new one runs.
+
+### 🐛 Fixed
+
+- **A tiled radial gradient comes back as tiles in a DOM-stage screenshot.** The renderer paints a radial gradient once, at its first tile, in 2.4.1 and 2.5.0 alike, so a dot grid made of a `radial-gradient` with a small `background-size` came back as a single dot. The bundled renderer is patched at build time to tile it as the browser does, honoring `background-repeat`, and a color stop given in pixels now lands at its distance from the center rather than at half of it.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **The WireKit report browser keeps its headings in order.** Its two empty states, no reports table and nothing to show, were titled `h3` directly under the page's `h1`, so a screen reader moving by heading announced a section that is not there. They are `h2` now. The detail pane names the open report with an `h2` as well, as the plain browser always did; it was no heading at all.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **The report browser names its page.** Routed as a full page with `Route::livewire(...)`, it handed your layout no title, so the tab and the history showed only your application's name. It hands over the title of its heading now, as `$title`. Embedded in a view of your own, the title stays your layout's to set.
+
+  **Upgrade:** nothing to do.
+
+- **Every optional field says so in its label.** Name and email were optional by default and carried no note, while the subject and the phone number said "(optional)", so a reporter had to guess which fields could stay empty. All four carry the note now, in every shipped locale. A field your configuration makes `required` shows the star in place of the note; a required subject or phone number used to show both.
+
+  **Upgrade:** nothing to do, unless you published the language files or the views. Add the note to `name_label` and `email_label` in your published `messages.php`, and re-publish the views you published, `php artisan vendor:publish --tag=visual-feedback-views --force` or `--tag=visual-feedback-wirekit --force`, after saving any edits of your own: they take the four labels from the component now.
+
+- **The character counter keeps counting on a regional locale.** Laravel names a regional locale with an underscore, such as `pt_BR`, and the browser's number formatting reads only `pt-BR`. On such a locale the counter under the message field stopped at its first value, in both view trees, and logged an error on every pause in typing. The widget now hands the counter the hyphenated form, and the counter falls back to the browser's default format for a tag it cannot read.
+
+  **Upgrade:** re-publish the assets with `php artisan vendor:publish --tag=visual-feedback-assets --force` if you serve a published copy of the bundles.
+
+- **A capture that is neither attached nor discarded carries its warning border, in both view trees.** 0.11.0 announced the border, and it showed in neither tree: the rule sat in the plain tree's stylesheet while only the WireKit markup carried its class. The plain tree now marks the block too, in a new `--vf-warning` tone with a value for each color scheme, and the WireKit tree draws it in WireKit's warning text tone.
+
+- **Every required field carries the star the legend explains, in the plain tree too.** The legend under the form explains a red star, and the plain tree put that star on no field. The labels of the required fields carry it now, the guest fields and the subject only while they are required. In the WireKit tree the legend's own star takes the danger tone of the stars WireKit puts on its labels, and the legend is muted like the form's other notes.
+
+  **Upgrade:** nothing to do unless you published the views. A published copy keeps the old markup and stylesheet: re-publish with `php artisan vendor:publish --tag=visual-feedback-views --force` (or `--tag=visual-feedback-wirekit`), after saving any edits of your own.
+
+- **A config file published before 0.9.0 decides the form fields again.** Since 0.15.0 the package fills in the keys a published file lacks, and that reached `fields.<field>.mode`, which is read before the older `fields.<field>.enabled` and `guests.require_<field>`. A file that switched the subject off showed it again, one that switched the phone on hid it, and a required name and email became optional. A field your file describes only in those older keys follows them again.
+
+  **Upgrade:** nothing to do. To move to the current keys, give each field a `mode` in your published file.
+
+- **A webhook answered with a redirect no longer counts as delivered.** The built-in sender does not follow redirects, so a `301`, `302`, `307` or `308` from the receiving end is the whole answer, and the receiver has nothing. The report was still recorded as delivered and its attachments released. Only a `2xx` answer counts now; anything else fails the delivery, and the queue retries it.
+
+  **Upgrade:** check `VISUAL_FEEDBACK_WEBHOOK_URL`. A URL that redirects, such as `http://` to `https://`, has never delivered anything; set the URL it redirects to.
+
+- **`forget`, `prune` and `sweep-orphans` no longer report a deletion that did not happen.** A disk that is not configured to throw answers a failed delete with `false`, and Laravel's default for a disk is not to throw. The three commands deleted the record anyway, the only reference to the files, counted the report as done and ended with exit code 0: `visual-feedback:forget` said "erased" over a screenshot still on the disk. A report whose files could not be deleted now keeps its record for the next run, the command says how many, and it ends with exit code 1, which a scheduler's failure hook sees. Deleting from the report browser keeps such a report too and says so on the page.
+
+  **Upgrade:** nothing to do. If you published the report browser views, re-publish them to get the new notice.
+
+- **An empty `VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT=` keeps the transport check on, and an empty `VISUAL_FEEDBACK_SCREENSHOT_SCALE=` keeps the scale at 2.** `env()` hands over a set but empty variable as an empty string, which the configuration read as false for the check and kept as the scale itself. An empty value now means no value, and only an explicit `false` switches the check off.
+
+  **Upgrade:** nothing to do unless you published the configuration. A published file keeps its own reading of the two variables: re-publish it, or copy the two lines from the package's `config/visual-feedback.php`.
+
+- **The 0.16.0 upgrade note no longer overwrites your configuration.** It told you to re-publish the bundles under the umbrella tag `visual-feedback` with `--force`. That tag also publishes the configuration, the translations and the views, and `--force` replaced your published copies of all three: a `mail.allowed_recipients` list went back to empty, and a widget mounted with one of those recipients then failed to render. The note now names `--tag=visual-feedback-assets`, the command `php artisan about` and the package's log have always named.
+
+  **Upgrade:** if you followed the old note, restore `config/visual-feedback.php`, `lang/vendor/visual-feedback/` and `resources/views/vendor/visual-feedback/` from version control.
+
+- **A screenshot taken with the feedback dialog open shows the part of the page the reader saw.** A dialog that keeps the page from scrolling behind it, as WireKit's modal does, pins the body at `position: fixed` and a negative `top`, which leaves the page's scroll position at 0 for as long as it is open, and the DOM capture runs exactly then. The capture now undoes that lock in its copy of the page and crops at the offset the lock pinned it by. The live page keeps its lock.
+
+- **A screen share that delivers one flat color falls back to the DOM renderer.** A frame that is one color, black most often, is a stream that carried no picture: a protected surface, a share the system blocked, a headless browser. It used to be attached as the screenshot. Under `screenshot.strategy` set to `auto` the capture now falls back to the DOM renderer; set to `native`, it fails as for a blank frame.
+
+- **An invisible challenge provider no longer adds a gap above the first field of the WireKit form.** The form spaces its children by a fixed step and leaves out the honeypot and an empty challenge slot. A provider that renders nothing visible, as Turnstile does in managed mode, fills the slot with elements that take no room, so the slot was no longer empty and the first field sat twice as far below the header. The slot now measures itself, in the plain form and in the WireKit modal alike, and is marked while it has no height, so the step leaves it out until the provider shows something.
+
+  **Upgrade:** nothing to do, unless you serve the published assets or published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force` and `php artisan vendor:publish --tag=visual-feedback-views --force` (or `--tag=visual-feedback-wirekit`), after saving any edits of your own.
+
+- **An inset shadow on a rounded element no longer comes back as a band in a DOM-stage screenshot.** The renderer paints an `inset` box-shadow on an element with a `border-radius` as a band as wide as the radius, on all four sides, so a rounded input with Tailwind's `ring-1 ring-inset` or a card with an inner highlight showed a frame the page does not have. The capture now leaves the inset shadows of a rounded element out and keeps its outer ones. The integration contract said such rings were reproduced; it now describes this.
+
+  **Upgrade:** nothing to do.
+
+- **The WireKit report browser keeps the line breaks of a report's message.** It showed the message through the kit's text component, which collapses white space, so a report written as numbered steps read as one paragraph. The plain tree kept them. Both trees now give the message the same class and the stylesheet keeps its line breaks in both.
+
+  **Upgrade:** nothing to do, unless you published the WireKit views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`, after saving any edits of your own.
+
+- **The WireKit trigger and floating button keep the attributes you pass them.** `<x-visual-feedback::trigger>` and `<x-visual-feedback::fab>` dropped every attribute in the WireKit tree, the documented `class` among them, while the plain tree passed them on. Because `ui.variant = auto` switches to the WireKit tree as soon as WireKit is installed, a `class="md:hidden"` disappeared with the installation of another package. A class, an id, a `data-*` or test hook and the kit button's own props, such as `size`, now reach the button in both trees.
+
+  **Upgrade:** nothing to do, unless you published the WireKit views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`, after saving any edits of your own.
+
+- **The configuration page no longer promises an off switch for the two per-sender rate limits.** Its table said that `0` switches `VISUAL_FEEDBACK_ABUSE_RATE_LIMIT` and `VISUAL_FEEDBACK_ABUSE_GUEST_RATE_LIMIT` off. Since 0.18.1 the configuration and the abuse protection page say what the package does: a per-sender limit cannot be switched off, and anything below `1` keeps the shipped 30 and 5. The table now says the same. Only `VISUAL_FEEDBACK_ABUSE_GLOBAL_RATE_LIMIT` and the time trap read `0` as off.
+
+- **Every part of the package agrees on the attachments disk when `VISUAL_FEEDBACK_ATTACHMENTS_DISK` is empty or unreadable.** It had four fallbacks that disagreed. With an empty value the widget stored attachments on your application's default disk while the validators looked for them on `local`, so every report with an attachment or a screenshot was refused. With a value that is not a string, the files went to `local` while the mail, the delivery cleanup, `prune`, `forget` and the orphan sweep worked on the default disk: the mail attached from the wrong disk, and an erasure reported done over files it never reached. Every reader now asks one place, which falls back to `local`, the documented private default, and never to the application's default disk.
+
+  **Upgrade:** nothing to do with the shipped configuration. If your environment sets the variable empty, the attachments now go to `local`; set it to the disk you mean.
+
+- **The retention window collects reports again on an installation with the database and the webhook channel.** A stored report recorded each delivery as it stood when the row was written, and with a real queue the webhook job runs after that, so the row said the webhook was pending for good. With `retention.prune_delivered_only` on, the default, `visual-feedback:prune` kept every such report. The stored delivery map is now brought up to date whenever a channel finishes.
+
+  **Upgrade:** reports stored before this release keep the map they were written with. If old reports with a delivery that long since landed should go, run `visual-feedback:prune` once with `retention.prune_delivered_only` set to `false` in your configuration.
+
+- **The report mail renders in the configured application locale when `mail.locale` is empty.** The mail job carried no locale, so it rendered in whatever locale was active where it ran: on the `sync` queue connection the language of the reporter's page, in a worker the one a previous job left behind. The package now reads `app.locale` when it registers, before a request or a job can change it, and the job carries that value. A reporter language that names no locale the package ships falls back to the same value.
+
+- **The Boost skill and the installation page state the size of the two bundles every visitor loads as the ceiling they are held to.** They said ~4 KB and ~16 KB, figures both bundles had outgrown; they now say under 12 KB and under 40 KB. The renderer's ~246 KB was right and is unchanged.
+
+  **Upgrade:** nothing to do.
+
+- **Correction to the entries for 0.4.0, 0.5.1, 0.5.3 and 0.8.0: an expression Alpine refuses is not silent.** They said such a failure throws nothing and logs nothing. The dead control is as described, but Alpine and Livewire log an `Alpine Expression Error` or `Livewire Expression Error` warning in the browser console, and Alpine rethrows the error asynchronously, where an error tracker can collect it. The console messages of both bundles, the log message for an unpublished widget bundle, the Boost skill and the documentation now say so.
+
+  **Upgrade:** nothing to do. If you match the package's log by its text, the error for an unpublished widget bundle now ends with "the browser reports it only in its console".
+
+- **Correction to the upgrade note of 0.15.0: a cached config is merged.** It said a cached config still merges nothing at all. `config:cache` builds the configuration in a fresh application, where the package merges its shipped settings under a published file, and caches that result. What a cached install can lack is a setting added by an upgrade made after it was cached, until `config:cache` runs again.
+
+  **Upgrade:** nothing to do. If you cache your config, the settings 0.15.0 began merging under a published file have applied since your first `config:cache` after that upgrade.
+
+- **Four statements in the documentation are corrected or added.** Under the WireKit tree the stylesheet include renders a smaller sheet, not nothing, with the layout design tokens do not cover, such as the spacing between field groups, the preview and the honeypot's concealment rule; without the include, the scripts component emits it late in the body and logs a warning. On the WireKit trigger a slot is icon markup and the name stays `label`. The WireKit tree supports the browsers WireKit supports, Chrome and Edge 111, Safari 16.4 and Firefox 128 at WireKit 2.63. And the schedule examples run `prune` and `sweep-orphans` with `withoutOverlapping()` and `onOneServer()`.
+
+  **Upgrade:** if your scheduler runs on more than one application server, add `->withoutOverlapping()->onOneServer()` to both housekeeping entries.
+
+- **The `ReportSubmitted` event says when it fires.** Its docblock said it fires before the report is handed to any channel. It fires after: each channel has queued its job by then, and under a sync queue the deliveries have finished. The hook before the channels is `ReportSubmitting`, where a synchronous listener can still reject the report.
+
+  **Upgrade:** nothing to do, unless a listener of yours relies on running before the report mail goes out. Move that one to `ReportSubmitting`.
+
+- **Correction to the entries for 0.6.0, 0.7.0 and 0.8.0: two defaults were Laravel's in name only.** `Referrer-Policy: strict-origin-when-cross-origin` is the browsers' default, not Laravel's: the framework sets no such header. And Laravel's own `config/mail.php` falls back to `Example` for the sender name; it is a new application's `.env.example` that sets `MAIL_FROM_NAME="${APP_NAME}"`. What this package does is unchanged: the referrer is cut to its origin whatever the policy, and the report mail's sender name falls back to the application name.
+
+  **Upgrade:** nothing to do.
+
+- **The configuration's abuse block no longer says the two failure modes ship different defaults.** Its header said the builtin floor's `on_error` and an added driver's have "a different default". Both ship `open`: a check that errors lets the submission through. They differ only in what a key that is missing from the configuration altogether reads as, closed for the floor and open for an added driver, and since 0.15.0 that happens only with a config cached before an upgrade.
+
+  **Upgrade:** nothing to do. If you read the old header as the floor failing closed and want that, set `VISUAL_FEEDBACK_ABUSE_ON_ERROR=closed`.
+
+- **Correction to the upgrade notes of 0.6.0 and 0.8.0: the `?id=` token on a bundle's script tag is not the package version.** 0.6.0 advised reading the version from it. Since 0.8.0 it is a content hash of the served file whenever the bundles are published, and the version only when they are not, so 0.8.0's "nothing to do" was wrong for anyone who followed that advice.
+
+  **Upgrade:** if you read the version from `?id=`, read it on the server instead, with `Composer\InstalledVersions::getPrettyVersion('pushery/visual-feedback-for-laravel')`.
+
+- **A switch missing from a cached config reads as the shipped default.** A config cached before an upgrade can lack a switch altogether. A missing `retention.prune_delivered_only` let the prune delete reports that never reached anyone, and a missing `channels.mail.enabled` switched the mail channel off; both ship on and read as on now. A missing `mail.reply_to_reporter` still sets no Reply-To, deliberately, so that a reporter's address never heads a mail nobody opted into.
+
+  **Upgrade:** nothing to do. Running `php artisan config:cache` after an upgrade remains the way to give a cached install every new setting.
+
+- **The report browser no longer pushes a phone screen sideways.** In the framework-free tree its table took the width its columns needed, and on a narrow screen that was wider than the page, so the whole page scrolled sideways instead of the table. The table now scrolls inside its own frame, as the WireKit tree's table already did, and the visually hidden heading of its actions column stays inside that frame in both trees: it is positioned absolutely, and outside the frame it widened the page by itself, in the WireKit tree with WireKit releases before 2.51.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **A reporter is told when a gate set to fail closed is down.** With `abuse.drivers.<name>.on_error` set to `closed`, a submission is refused while that gate is not answering, and the refusal was a silent one: the reporter saw the success screen for a report that had been discarded, and had no reason to send it again. The refusal is now shown, with the line that asks the reporter to try again, and it still carries `RejectionReason::GateUnavailable` for your listeners.
+
+  **Upgrade:** nothing to do.
+
+- **A mailer whose transport is `null` is no longer skipped as one that drops mail.** Laravel registers no transport by that name, so such a mailer throws when a report is sent, the job retries and the receipt settles `failed`, which is an honest failure with a trail. The mail channel counted `null` among the transports that accept a message and drop it, and skipped itself instead, hiding that trail. `log` and `array` are still skipped. The 0.8.0 notes made the same claim about `MAIL_MAILER=null`, and it was wrong there too: Laravel reads that value as no mailer at all, and a report sent through it fails the same way rather than stopping with a log line.
+
+  **Upgrade:** nothing to do. If you registered a transport named `null` yourself with `Mail::extend()`, the channel now hands reports to it like to any other transport.
+
+- **The plain widget's file field keeps its limit hint after an error.** A files error gave the input a second `aria-describedby`, and a parser keeps only the first, so a screen reader stopped reading the size and count limits at the moment they mattered. The input now names the error and the hint in one attribute. The plain tree's off-screen region that announces the character count also carries the inline concealment the WireKit tree already had, so a layout without the stylesheet no longer shows the count twice.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **A long file name in a non-Latin script attaches.** The widget kept an attachment's name to 200 characters, but a filesystem counts a name in bytes, 255 at most, and one hundred Japanese characters are 300 bytes. Such a file failed to store, and the reporter read that it could not be found. The name is now capped at 200 bytes and cut between two characters, never inside one.
+
+  **Upgrade:** nothing to do.
+
+- **A listener that throws no longer sends a delivered report a second time.** A listener on `ReportDelivered` or `ReportDeliveryFailed` that threw, and a disk that refused the attachment cleanup, failed the channel's job after the mail was sent or the webhook posted. The retry sent the mail or posted the webhook again and then settled nothing, so the attachments of a report that only went to mail and webhooks stayed on the disk until the orphan sweep. Such an exception now goes to your exception handler, and the delivery is recorded and its attachments released as usual. A receipt that cannot be written still fails the job, and the retry now settles it in full.
+
+  **Upgrade:** nothing to do. A listener of yours on either event is no longer retried with the delivery job: queue it (`ShouldQueue`) if it calls a service that can be down.
+
+- **A delivery receipt no longer goes missing when two writers meet.** The receipts of a report sat in one cache entry that every write read and put back whole. A worker settling the webhook while another settled the mail could put back a map without the other's result, and so could the request recording `pending` for its next channel while a worker settled the previous one. The lost channel then read as `pending`, which `retention.prune_delivered_only` holds back, or was missing altogether. Each channel's status is now a cache entry of its own, and the channels of a report are listed in entries a writer only ever adds to.
+
+  **Upgrade:** nothing to do. Receipts recorded before the update are still read.
+
+- **A WireKit too old for the WireKit tree is reported once a day, not on every request.** With `ui.variant` at `auto` and a WireKit below 2.50.0 installed, the package logged why it serves the plain tree each time the application booted, and under PHP-FPM that is every request, every artisan call and every scheduler tick. The line is now written once a day per installed WireKit version, and still when the cache cannot be reached at boot.
+
+  **Upgrade:** nothing to do.
+
+- **A screenshot can be retaken after the renderer failed to load once.** The DOM capture loads its renderer the first time it runs, and a load that failed, a dropped connection or a blip on the CDN, stayed remembered: every later capture, a retake included, failed at once without fetching again until the page reloaded, and since the bundle survives `wire:navigate`, that could be the whole visit. A failed load is now forgotten, and the next capture fetches the renderer again; a load that worked is still kept.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **Deleting a report in the browser removes the directories its files leave empty.** Every attachment and every screenshot is stored in a directory of its own, and the browser's delete removed the files but not those directories, which then stayed on the disk for good: nothing names them once the report is gone, and `visual-feedback:sweep-orphans` only removes files. `visual-feedback:prune` and `visual-feedback:forget` already removed them; the browser does it the same way now.
+
+  **Upgrade:** nothing to do. Empty directories left by earlier deletes stay where they are; removing empty directories under the attachments directory is safe.
+
+- **The stylesheet check and the published-bundle check answer per request or queued job, also in a long-running process.** Both were bound as singletons and kept their first answer for the life of the process. In a queue worker that renders the widget into several documents, a document without `@include('visual-feedback::style')` got neither the stylesheet nor the warning once an earlier one had included it, and a re-published asset bundle was not measured again. Both are bound `scoped` now, which the queue worker resets between two jobs and Octane between two requests.
+
+  **Upgrade:** nothing to do.
+
+- **`Event::fake()` and `Log::spy()` in your tests see the failure of a delivery channel.** When a channel throws while it delivers, `ReportDeliveryFailed` is fired and the failure is logged. The channel registry held the event dispatcher and the logger it was built with during boot, so a fake or a spy taken in a test after boot saw neither, and your real listeners ran instead. The registry is no longer built at boot at all: a request or a command that delivers no report creates none of the delivery machinery.
+
+  **Upgrade:** nothing to do.
+
+- **Under Octane, a configuration value set for one request reaches the widget.** Octane gives every request its own copy of the configuration, so a value a middleware or a tenant bootstrap sets applies to that request alone. The package's settings and its channel registry kept reading the copy that existed when they were first built, at boot, so such a value went unseen: switching the widget or a delivery channel off for one tenant had no effect. Both read the configuration of the request being served now.
+
+  **Upgrade:** nothing to do.
+
+- **The report browser's WireKit tree pages with WireKit's pager.** It printed Livewire's Tailwind pager, whose palette classes and `dark:` variants ignore the kit's design tokens, under a list drawn entirely from kit components. It uses `<x-wirekit::pagination>` now and still turns pages without reloading, so the filters stay as they are.
+
+  **Upgrade:** nothing to do.
+
+- **The report browser's WireKit tree spaces its sections, its filter fields and the parts of an open report.** WireKit's components carry no outer margin, so the filters, the list and the open report sat flush against each other, and so did the fields inside the filter card and the data, message and attachments of a report. Each group stands in a `<x-wirekit::stack>` now.
+
+  **Upgrade:** nothing to do.
+
+- **A screenshot over `screenshot.max_bytes` is scaled down in the browser instead of being refused after the upload.** The browser was never told the cap, so a capture over it was uploaded, refused, and could only be taken again at the same size: on a large, image-heavy page a reporter could not attach a screenshot at all. The cap now reaches the capture, and a capture over it is scaled down, in up to four passes, before the preview shows it.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **`visual-feedback:prune` refuses a retention window under one day instead of deleting every report.** `retention.reports_days` had no lower bound: `0`, a negative number or a fraction under one put the cutoff at or after the moment of the run, so a scheduled prune deleted every stored report and its attachments. Such a value is now refused: the command names it, deletes nothing and exits with a failure. One day is the smallest window.
+
+  **Upgrade:** nothing to do. If `VISUAL_FEEDBACK_RETENTION_DAYS` is `0` or lower, the scheduled prune now fails instead of emptying the table: set it to one day or more, or unset it to keep reports forever.
+
+- **A signed-in reporter's name and email reach the report even when the user model hides them.** The default reporter resolver read both through the user's `toArray()`, which honors `$hidden` and `$visible`: a user model that keeps `email` out of its JSON responses produced reports without a reply address and without a stored address, and `visual-feedback:forget` could not find them by address. It also computed every `$appends` accessor and serialized the loaded relations on each page that renders the widget. The resolver now reads the two attributes from the user itself, and leaves the model as it was. A `GenericUser`, which Laravel's `database` user provider returns, now resolves its name and email as well, and a cast value that converts to a string is used as that string.
+
+  **Upgrade:** nothing to do. Reports from signed-in members now carry the name and email your user model holds, also where the model hides them from serialization or the guard returns a `GenericUser`. If your privacy notice relied on their absence, update it, or bind your own `ResolvesReporter` to record less.
+
+- **A message of nothing but Unicode whitespace is refused as empty.** Livewire switches Laravel's `TrimStrings` middleware off for its own requests, and the `required` rule trims only ASCII whitespace, so a message of nothing but the full-width space an IME types (U+3000), no-break spaces (U+00A0) or zero-width spaces (U+200B) was accepted, mailed and stored as a report without content, and the reporter was told it was sent. The submission pipeline now trims every free-text field itself before it is validated, the way `TrimStrings` trims a form: such a message is refused as missing, and so is a required subject or guest name of nothing but spaces. A field with real text keeps it and loses only the whitespace around it, and a guest address pasted with a no-break space around it is accepted and stored without it.
+
+  **Upgrade:** nothing to do. The subject, message and guest fields of new reports no longer carry leading or trailing whitespace.
+
+- **A context provider that returns something other than a `ReportContextEntry` no longer costs the report.** `ReportContextProvider::entries()` promises a list of entries, but PHP checks only that the answer is an array, so an entry written as an array with a `label` and a `value` passed the registry and then failed every channel: the stored row, the webhook payload and the mail view each broke on it, and the report was lost instead of its context. Such an entry is now skipped with a warning that names the provider, how many entries it skipped and of which type, and the provider's real entries are kept.
+
+  **Upgrade:** nothing to do. If your log shows the new warning, return `ReportContextEntry` objects from that provider.
+
+- **A field mode the package cannot read shows the field instead of removing it, the phone field included.** `fields.<field>.mode` falls back to something when its value is none of `off`, `optional` and `required`, and the fallback was the field's default. For the phone field that default is `off`, so a host who wrote `VISUAL_FEEDBACK_FIELD_PHONE_MODE=reqired` or `=true` got no phone input and no sign of why. A value somebody wrote that is none of the three words now shows the field as `optional`, for every field; only a mode nobody set, null or blank, takes the default. `true` and `false` are read as `optional` and `off`, the way the widget's `fields` prop and the retired switches read them.
+
+  **Upgrade:** check your field modes if one of them is `false`: such a field is now switched off, where every field but the phone field used to show it as optional.
+
+- **Removing an attachment on an expired session no longer leaves an unhandled rejection in the browser.** The remove button's server call was the one widget call whose failure nobody held: when the round trip failed, a session past its lifetime answering 419 for instance, the browser reported an unhandled promise rejection, one error report per occurrence in every application that forwards browser errors. The call now settles its failure the way opening and resetting the form do. The file stays in the list, as the server did not remove it.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **A sent screenshot no longer stays in the browser's memory for the rest of the session.** The preview of a capture is an object URL over the PNG, an image of the page, and only discarding or retaking a capture released it. An attached capture stays in the preview, so after a report was sent the image outlived the form, and on a site using `wire:navigate`, where the page never unloads, every sent report kept one more. The capture component now releases its preview when it leaves the page.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **The widget's heading reads as a heading in a Tailwind host.** It was a bare `<h2>` with no rule of its own in both view trees, and Tailwind's preflight gives every heading the size and weight of the text around it: in the plain tree the heading was lighter than the bold field labels below it, and in the WireKit tree's inline card it looked like card text. The plain tree now styles it, and the WireKit tree renders it through the kit's `heading` component, as its report browser already does. The modal header of the WireKit tree styled it already and is unchanged.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, or with `--tag=visual-feedback-wirekit` if you published the WireKit tree over them.
+
+- **The plain tree's corner radii follow its custom properties, in the widget and the report browser alike.** The widget rounded its fields, buttons, status boxes and previews with a fixed 6px, while the report browser rounded the same kinds of controls with `--vf-radius`, 10px. So the two surfaces did not match, and overriding `--vf-radius` reached the dialog frame and the report browser but not one widget field or button. A second property, `--vf-radius-control` (6px), now rounds everything inside a panel in both surfaces, and `--vf-radius` the panels themselves: the widget's dialog and the report browser's detail pane. The report browser's fields, buttons, error box and preview move from 10px to 6px with it.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`. If you overrode `--vf-radius` to round the controls, set `--vf-radius-control` as well.
+
+- **The report browser's pager names its directions after time.** The list runs newest first, so its "Next" button led to older reports and "Previous" to newer ones. Both view trees now say *Newer* and *Older*, in all seven languages. The plain tree has a pager of its own for it, styled like the rest of the browser, with the two directions and the page position between them; it used to print Livewire's Tailwind pager, which a host without Tailwind saw unstyled, with numbered page links.
+
+  **Upgrade:** nothing to do, unless you published the views or the language files: re-publish the views with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own, and add `pagination`, `newer`, `older` and `page_of` to your published `browser.php`.
+
+### 🔒 Security
+
+- **A guest's email address can no longer carry a line break into the report mail.** Laravel's `email` rule accepts a comment, a quoted local part and folding whitespace with only a warning, and the address becomes the mail's Reply-To header. With symfony/mime 7.4.0, which the supported version range still allows, a line break inside quotes ended the Reply-To header and started a header of the guest's choosing. Newer releases refuse such an address instead, and the mail failed after the reporter had been told the report went through. The guest email is now refused when it carries whitespace, a quote, a parenthesis, a backslash or a bracket, the forms that let a line break into a header, and the mail leaves out Reply-To for any address that carries a control character or fails that same check, a signed-in reporter's included. The address still appears in the mail body.
+
+  **Upgrade:** nothing to do. A guest address with a comment, quotes or folding whitespace is refused with the email validation message, and so is a local part longer than the 64 characters the standard allows.
+
+- **A reporter's browser language can no longer point the translator at a file.** With `mail.locale` set to `reporter`, the language the browser reported went to the translator unchecked, and the translator turns a locale into a directory and a file name and loads what it finds there. A relative path sent as the language made the submit request load a `messages.php` from outside the lang directory. Only a language tag such as `de` or `pt-BR` is considered now; anything else renders in the application's locale.
+
+  **Upgrade:** nothing to do.
+
+- **A link or an image in the browser's metadata no longer reaches the report mail.** The technical details table and the context list escaped only the column separator, so a page title, a platform string or a context value written as Markdown arrived in the maintainer's mail as a live link or a remote image, a tracking pixel included. Brackets and backslashes are escaped there now. A user agent and an ordinary URL read exactly as before, in the HTML part and in the plain-text part.
+
+  **Upgrade:** nothing to do. A published mail template gets the fix as well, because the escaping lives in the package's `MailCell` class rather than in the template.
+
+- **A failure message no longer carries a webhook URL's path or the reporter's words.** `ReportDeliveryFailed::$message`, the package's own log lines and what a delivery job throws carried the failure's text unchanged. A connection error names the URL it called, and the path of a Slack, Zapier or n8n webhook is its credential; a database error names its statement with the report's values filled in; an HTTP error response carries its body. The queue worker reports what a job throws to your error tracker and keeps it in the failed jobs, so all three ended up there too. A database error now keeps its SQLSTATE, driver code and connection, an HTTP error its status, and a URL its scheme, host and port. `$exceptionClass` stays the original class, and a job throws `Pushery\VisualFeedback\Support\RedactedFailure` in place of a failure whose text had to change.
+
+  **Upgrade:** a listener or an error-tracker rule that matched on the exception class a delivery job throws sees `RedactedFailure` for those three kinds of failure; its `originalClass` property names the one it stands in for. `ReportDeliveryFailed::$exceptionClass` is unchanged. The package suggests `ext-pdo`, which the database case reads from; without it that case cannot occur.
+
+- **HTML that a page lets its users write can no longer change the screenshot settings.** The capture took its settings from the first element on the page that carried `data-visual-feedback-config`, whatever element that was, and passed every key in it to the renderer. A comment field that keeps `data-*` attributes, as DOMPurify does by default, could switch the redaction to an attribute nothing carries, or send the page's images through a proxy of its own. The widget now renders its settings onto its own capture element. The config island counts only as the package renders it, a JSON script, and the last one on the page. From both, only the keys the server renders are taken: `html2canvasOptions`, `useCORS` and `onclone` are options for code of your own.
+
+  **Upgrade:** if you published the widget views, re-publish them, or add `data-visual-feedback-capture="{{ json_encode($screenshotCaptureConfig, JSON_THROW_ON_ERROR) }}"` to the element that carries `x-data="visualFeedbackCapture()"`. A published view without it keeps working from the config island.
+
+- **The redaction attribute blacks out what the DOM capture stage used to leave visible.** Placed directly on an image, a canvas, an inline SVG or a video, the attribute only painted a black background, and the element drew its content over it; a video was not even found, because the renderer rebuilds it without its attributes. A checkbox or radio kept its state. A child of a marked region with a `z-index` of its own, as `relative z-10` gives one, painted over the black overlay. A marked custom element lost the attribute when it was flattened for the capture, and a marked iframe kept its placeholder with the host name. Each of these is black now: a self-painting element is swapped for a black block of its size on the page for the length of the capture, the overlay sits on top of everything in the region, and the flattened element and the iframe placeholder carry the attribute.
+
+  **Upgrade:** nothing to do. During a DOM-stage capture a marked image or video shows as a black block for a moment, the way an iframe already shows its placeholder.
+
+- **The reported page address no longer carries a password reset token or anything else that is a credential.** `url` went to the mail, the stored report and the webhook as the browser's whole address. Filed from a password reset page, that was a working reset link for anybody who read the report; a signed URL carried its signature, and a fragment carried what an implicit OAuth flow or a magic link put there. The fragment no longer leaves the browser. The stored `url` keeps its path, drops its query and any user info, and stores `{token}` in place of each token segment of the routes in the new `metadata.url_token_paths`, which covers Laravel's, Laravel UI's and Jetstream's token routes and pushery's magic links by default.
+
+  **Upgrade:** the stored `url` no longer has a query. To keep it, set `metadata.url_query` to `true`. To mask the token routes of your own application, add them to `metadata.url_token_paths`, starting from `MetadataSanitizer::TOKEN_PATHS`.
+
+- **IPv4 guests behind a dual-stack listener no longer share one rate-limit bucket.** Such a listener reports an IPv4 client as `::ffff:a.b.c.d`. The guest limit truncates an IPv6 address to its `/64`, and for every address in that notation the `/64` is `::/64`, so one guest reaching `abuse.guest_rate_limit` refused every other IPv4 guest. A mapped address is now keyed on its IPv4 form, the same key the plain address gets.
+
+  **Upgrade:** nothing to do.
+
+- **A screenshot is stored only where the widget offers one.** The screenshot is an upload property of the widget, so a client could fill it through Livewire's upload API whatever the page showed. With `screenshot.strategy` set to `off`, `withScreenshot` set to `false`, or an inline widget at its default, the server still stored such an upload and attached it to the mail, the stored report and the webhook. It is now deleted from Livewire's temporary storage as it arrives, and `SubmitReport` drops a screenshot path that a frontend of your own passes while the strategy is `off`.
+
+  **Upgrade:** nothing to do.
+
+- **`visual-feedback:forget` stops the deliveries still on their way, and a failed delivery no longer keeps a readable copy.** Every delivery job carries the whole report. A job still waiting in the queue, backing off after a failed attempt, or retried later from the failed jobs stored, mailed or posted the report again after the command had reported the erasure, and a job that failed for good kept the report in the failed jobs in plain text. The command now records the address as erased, with or without the reports table, and each delivery job withholds a report submitted before that, its files included. The record is a SHA-256 of the address in the default cache store, kept for `retention.reports_days`. The jobs are queued encrypted, and the output names every copy the command cannot reach: the inbox, the failed jobs, and the webhooks platform's delivery log when the platform is installed. A withheld delivery fires `ReportDeliveryFailed` with `Pushery\VisualFeedback\Privacy\ReporterWasErased` as its `exceptionClass`.
+
+  **Upgrade:** the jobs are encrypted with `APP_KEY`, so the processes that queue them and the workers that run them need the same key. Jobs queued by an earlier release still run. A job that failed before this release keeps its report in plain text; if it belongs to someone who asked for erasure, remove it with `php artisan queue:forget`.
+
+- **A switch in a config published before 0.7.0 reads `off` as off.** Such a file still holds `env('…', true)` for its switches, and the package read the word it handed over with a cast, so `off`, `no` and `false` counted as on. `VISUAL_FEEDBACK_WEBHOOK_INCLUDE_REPORTER=off` still sent the reporter's name, email and id to the webhook, a channel switched off with a word kept delivering, and `VISUAL_FEEDBACK_ENABLED=off` left the widget on. Every boolean switch is now read the way the shipped config parses it.
+
+  **Upgrade:** nothing to do. A switch you set to `off`, `no` or `false` in a config published before 0.7.0 is off from this release on, as you set it.
+
+- **A DOM-stage screenshot shows every image with the source the reader saw, even when a dialog holds an image before it.** The capture matched the images on the page to the renderer's copy of the page by their order, but it leaves every dialog out of that copy, open or closed. From the first image the copy did not have, every image took the source of an image before it on the page, so a picture from a closed dialog, such as an avatar or a document preview the reader never opened, could stand in the screenshot where the visible image was. Each image now carries its own source into the copy.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`. While a DOM-stage capture runs, each image on the page carries a `data-visual-feedback-current-src` attribute, which is removed when the capture ends.
+
+- **The report mail marks the capture method as the browser's word.** A report with a screenshot carries `capture_method`, `native` or `dom`, in its technical details, and the documentation called it the way to tell an exact picture from a reconstruction. The value comes from the reporter's browser, though, and the server cannot check it against the file, so an edited image could arrive labeled `native`. The mail now shows the value followed by "(reported by the browser)", and the documentation calls it a hint rather than proof. The stored value is unchanged.
+
+  **Upgrade:** nothing to do, unless you published the views or the language files: re-publish the views with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own, and add `mail.reported_by_the_browser` to your published `messages.php`.
+
+- **A field you switched off no longer carries a value into the report.** A field whose mode is `off` was only spared its validation. A value passed for it anyway, by a frontend of your own that calls the submission pipeline or by a browser writing the widget's subject, still reached the mail, the database row and the webhook, unchecked and without its length cap. The guest's name, email and phone and the subject are now dropped before the report is built when their mode is `off`, and an `off` subject is no longer refused for its length. A signed-in reporter's name and address come from the guard and stay as they are.
+
+  **Upgrade:** nothing to do. A frontend of your own that passes values for fields you switched off no longer gets them delivered.
+
+- **A widget whose seal was broken no longer falls back to the configuration.** The widget seals the props its tag was given, the category list, the field modes, the context and the capture switch, and restores them on every request. A request that broke the seal on purpose made the widget fall back to the configuration: every configured category, the configured field modes, and the capture back on where the page had switched it off. The capture is now switched off instead, the broken seal stays broken, and the widget refuses to send, asking the reporter to copy their message and reload the page. Rotating `APP_KEY` breaks the seal of every page open at the time, and those pages ask for the same reload.
+
+  **Upgrade:** nothing to do, unless you published the language files: add `validation.form_expired` to your published `messages.php`.
+
+- **The orphan sweep can no longer be pointed at the root of the attachment disk.** An attachment directory that is empty or `/` falls back to `visual-feedback`, but `.`, `./` and `x/..` passed that check, and the filesystem reads each of them as the root of the disk. `visual-feedback:sweep-orphans` then listed the whole disk and deleted every file older than its minimum age that no report referenced: on the shipped `local` disk, the rest of the application's files under `storage/app`. The directory is now read the way the filesystem reads a path, and a value that names the root or climbs above it falls back to `visual-feedback`.
+
+  **Upgrade:** nothing to do, unless you set `VISUAL_FEEDBACK_ATTACHMENTS_DIR` to such a value. New attachments then go under `visual-feedback`. The files of earlier reports stay where they were stored and are still deleted with their reports; the orphan sweep looks only under `visual-feedback` from now on.
+
+- **An erasure by address no longer takes another address's reports on MySQL.** `visual-feedback:forget` matched `reporter_email` with the column's collation, and MySQL's default collations ignore accents and spelled-out letters as well as case: `forget jose@example.com` also erased the reports of `josé@example.com`, `forget strasse@example.com` those of `straße@example.com`, and both counted them as erased. The command, with `--guests-only` and `--guest-email` alike, now erases a report only when its address equals the requested one up to case. MySQL still ignores case, and PostgreSQL and SQLite still match exactly.
+
+  **Upgrade:** nothing to do. On MySQL, an erasure by address run before this release may have taken reports of an address that differs from the requested one in an accent or a spelled-out letter, and its count included them.
+
+- **The report browser's helpers no longer answer a call from the page.** Livewire lets a client call any public method of a component by name and skip the render, and the render is where the browser checked your gate. Six helpers were public: whether the reports table exists, the categories and modes in it, an attachment's URL on the attachments disk, the attachment list of a report and whether a file can be shown inline. An admin whose access you revoked could keep calling them from a page left open and read their answers. They are private now, and closing the detail pane and clearing the filters check the gate too, as every other action does.
+
+  **Upgrade:** nothing to do. Views you published keep working: Livewire renders a component's view bound to the component, so a published view may still call these helpers. Code of your own that calls one of them on the component has to read the view data `render()` passes instead.
+
+- **A client can no longer fill your log with the widget's tampering warning.** Each request that tried to change a sealed mount prop wrote its own warning line, and one request can carry two hundred widgets with six sealed props each, sent as often as the client likes. The warning is now written at most once a minute per prop, for the whole application, still naming the widget and the prop and never the value.
+
+  **Upgrade:** nothing to do. The line is throttled through your default cache store; while the store cannot be reached, the line comes once per request and prop.
+
+### 🗑️ Removed
+
+- **`Settings::maxFiles()` is gone.** Nothing in the package called it: the attachment count is enforced by `AttachmentPolicy::maxFiles()`, which reads `0` as no attachments at all, where the removed method read it as five.
+
+  **Upgrade:** if you called `Settings::maxFiles()`, call `AttachmentPolicy::maxFiles()` instead, and note that it honors `0`.
+
+### 📚 Documentation
+
+- **The Boost skill speaks only to the application that loads it.** Three of its sentences were addressed to the skill's author, about what to keep out of it. They are gone, and the link to the full reference now opens the skill.
+
+- **The CSP section of the integration contract names three script paths where it said two.** The list names the widget bundle, the capture bundle and the renderer the DOM stage loads at the moment of capture, and the sentence below it said `script-src` needs nothing beyond "the two bundle paths". A reader who followed the sentence left the renderer out and found out only when a reporter pressed capture.
+
+  **Upgrade:** nothing to do, unless your policy lists the widget's scripts by path: add `visual-feedback-renderer.iife.js` if it is missing.
+
+- **The integration contract says that the DOM stage reproduces `filter: blur()`, in Blink and WebKit.** It listed the blur as not measured; the bundled renderer draws it in both engines. A blur is still not a redaction: blurred text can be read back out of an image, and the renderer before this one returned it sharp.
+
+  **Upgrade:** nothing to do.
+
+- **The Packagist page links the security policy.** `composer.json` names it under `support.security`, next to the issues, the source and the documentation, so a reader who found a vulnerability sees where to report it privately.
+
+  **Upgrade:** nothing to do.
+
+- **The migration and the configuration say how wide the reporter's name and email columns are.** The migration's comment said every column carried an explicit width, but `reporter_name` and `reporter_email` take your application's default string length, 255 unless `Schema::defaultStringLength()` lowers it. An application that sets 191 there gets 191-wide columns while the email field accepts 254 characters, and a longer guest address then fails the database write while the reporter is told the report was sent. The migration, the configuration file and the configuration page now name both columns. The migration itself is unchanged.
+
+  **Upgrade:** nothing to do, unless your application calls `Schema::defaultStringLength(191)` and you run the database channel: set `VISUAL_FEEDBACK_FIELD_EMAIL_MAX_LENGTH=191`, or widen `reporter_email` to 254.
 
 ## [0.18.1] - 2026-10-02
 
@@ -70,7 +448,7 @@ Every entry that changes what a consuming application has to do carries an **Upg
 
 - **A capture under `Permissions-Policy: camera=()` no longer writes a policy violation to the console.** The native stage read its frame through `ImageCapture` where the browser had it, and Chrome ties `ImageCapture` to the `camera` feature even on a screen track, so a host that withholds the camera saw a violation on every capture. The capture itself worked, through the `<video>` path the stage already had. That path is now taken whenever the policy withholds `camera`, and the integration contract says which features the capture uses: `display-capture` only.
 
-  **Upgrade:** re-publish the bundles with `php artisan vendor:publish --tag="visual-feedback" --force`. Until you do, the published capture bundle is the earlier one, and the publish check reports it as `stale`.
+  **Upgrade:** re-publish the bundles with `php artisan vendor:publish --tag=visual-feedback-assets --force`. Until you do, the published capture bundle is the earlier one, and the publish check reports it as `stale`.
 
 ## [0.15.0] - 2026-09-19
 
@@ -733,7 +1111,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.16.0...v0.17.0

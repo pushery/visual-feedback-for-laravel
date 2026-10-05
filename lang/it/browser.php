@@ -29,9 +29,14 @@ return [
     'open' => 'Apri',
     'delete' => 'Elimina',
     'confirm_delete' => 'Eliminare questa segnalazione e i suoi allegati? Non puoi annullare l\'operazione.',
+    'delete_failed' => 'Non è stato possibile eliminare i file di questa segnalazione, quindi la segnalazione resta. Riprova più tardi.',
     'detail' => 'Dettaglio della segnalazione',
     'untitled' => 'Segnalazione senza oggetto',
     'close' => 'Chiudi',
     'attachment_alt' => 'Screenshot allegato a questa segnalazione',
+    'pagination' => 'Pagine delle segnalazioni',
+    'newer' => 'Più recenti',
+    'older' => 'Meno recenti',
+    'page_of' => 'Pagina :page di :pages',
 
 ];

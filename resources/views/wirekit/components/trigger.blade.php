@@ -12,8 +12,10 @@
      is documented in the shipped config as "the widget renders nothing"; this is part of what
      makes that sentence true. --}}
 @if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
+{{-- The host's attributes go on to the kit's button, as the plain tree passes them to its own:
+     a class, an id, a test hook, and the kit's props such as `intent` or `size`. --}}
 <x-wirekit::button
-    class="visual-feedback-trigger"
+    {{ $attributes->class('visual-feedback-trigger') }}
     aria-haspopup="dialog"
     x-data
     x-on:click="$dispatch('visual-feedback:open')"

@@ -35,6 +35,7 @@ use Pushery\VisualFeedback\Livewire\ReportBrowser;
 use Pushery\VisualFeedback\Livewire\ReportWidget;
 use Pushery\VisualFeedback\Reporter\GuardReporterResolver;
 use Pushery\VisualFeedback\Support\CategoryLabels;
+use Pushery\VisualFeedback\Support\ConfiguredLocale;
 use Pushery\VisualFeedback\Support\PublishedBundle;
 use Pushery\VisualFeedback\Support\Settings;
 use Pushery\VisualFeedback\Support\StylesheetPresence;
@@ -44,12 +45,13 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     /**
      * The oldest WireKit release the WireKit tree is served against.
      *
-     * 2.50 is the release whose modal panel is a column, so the report dialog keeps its header and
-     * its close button in reach when it is taller than the screen; from 2.49 the kit also sets its
-     * floating trigger the same distance from both edges. Below it, `auto` serves the plain tree,
-     * which has neither defect, rather than a tree that shows them.
+     * 2.51 is the release whose pager turns pages inside a Livewire component, which the report
+     * browser's list uses. 2.50 made the modal panel a column, so the report dialog keeps its
+     * header and its close button in reach when it is taller than the screen; from 2.49 the kit
+     * also sets its floating trigger the same distance from both edges. Below the floor, `auto`
+     * serves the plain tree, which has none of these defects, rather than a tree that shows them.
      */
-    public const string WIREKIT_MINIMUM = '2.50.0';
+    public const string WIREKIT_MINIMUM = '2.51.0';
 
     /**
      * Whether an installed WireKit is new enough for the tree this package ships.
@@ -141,17 +143,22 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     #[Override]
     public function register(): void
     {
+        $published = $this->app->make(ConfigRepository::class)->get('visual-feedback');
         $this->mergeConfigRecursivelyFrom(__DIR__.'/../config/visual-feedback.php', 'visual-feedback');
+        $this->honorTheOlderFieldKeys(is_array($published) ? $published : []);
 
         $this->app->singleton(Settings::class);
-        // Singleton so the memoized measurement happens once per request: two
-        // <x-visual-feedback::scripts /> tags on one page would otherwise hash the same
-        // two files twice.
-        $this->app->singleton(PublishedBundle::class);
-        // Singleton for the same reason, and one more: it is a per-REQUEST observation about the
+        // Read now, before a request or a job can move it: App::setLocale() rewrites `app.locale`.
+        $this->app->instance(ConfiguredLocale::class, ConfiguredLocale::from($this->app->make(ConfigRepository::class)->get('app.locale')));
+        // Scoped, so the memoized measurement happens once per request or queued job: two
+        // <x-visual-feedback::scripts /> tags on one page would otherwise hash the same two files
+        // twice, and a long-running worker would keep the answer from before a re-publish.
+        $this->app->scoped(PublishedBundle::class);
+        // Scoped for the same lifecycle, and one more reason: it is an observation about the
         // document being rendered. The stylesheet partial writes it, the scripts tag reads it,
-        // and they are two templates that never see each other.
-        $this->app->singleton(StylesheetPresence::class);
+        // and they are two templates that never see each other. The class says why a plain
+        // singleton would carry one document's answer into the next.
+        $this->app->scoped(StylesheetPresence::class);
         $this->app->singleton(CategoryLabels::class);
         $this->app->singleton(ContextRegistry::class);
         $this->app->bind(ResolvesReporter::class, GuardReporterResolver::class);
@@ -177,8 +184,9 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         ));
 
         // The delivery-channel registry + its public manager (the VisualFeedback facade target).
-        // The built-in channels register their own factories here; custom channels
-        // register via VisualFeedback::extend(). Singletons so extend() persists for the request.
+        // The built-in channels register their own factories in boot(); custom channels register
+        // via VisualFeedback::extend(). Singletons, so a host's extend() at boot holds for every
+        // request after it.
         $this->app->singleton(ChannelRegistry::class);
         $this->app->singleton(VisualFeedback::class);
         // Cache-backed per-report delivery receipts — present even for a mail-only, DB-less consumer.
@@ -201,7 +209,10 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // A host's published copy in resources/views/vendor still wins over both — Laravel puts
         // it ahead of any package path — so publishing remains the way to actually EDIT the
         // templates, and this key is the way to CHOOSE between them without maintaining a copy.
-        $this->loadViewsFrom(self::viewPaths(app(Settings::class)), 'visual-feedback');
+        //
+        // A Settings of its own rather than the container's singleton, so the boot resolves nothing
+        // of the package's that a request would then inherit.
+        $this->loadViewsFrom(self::viewPaths(new Settings), 'visual-feedback');
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);
 
@@ -214,14 +225,20 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // The optional Matomo bridge — a no-op without the package (the listener's bridge guards it).
         Event::listen(ReportSubmitted::class, TrackReportSubmission::class);
 
-        // Register the built-in delivery channels as lazy factories. Each is instantiated only
-        // when its config key is enabled + available (ChannelRegistry), so an unused channel
-        // costs nothing (a disabled channel's factory never runs; an enabled-but-unavailable
-        // one — no mail recipient, no reports table, no webhook target — is dropped).
-        $registry = $this->app->make(ChannelRegistry::class);
-        $registry->register('mail', fn (): ReportChannel => $this->app->make(MailChannel::class));
-        $registry->register('database', fn (): ReportChannel => $this->app->make(DatabaseChannel::class));
-        $registry->register('webhook', fn (): ReportChannel => $this->app->make(WebhookChannel::class));
+        // The built-in delivery channels, as lazy factories. Each is instantiated only when its
+        // config key is enabled + available (ChannelRegistry), so an unused channel costs nothing
+        // (a disabled channel's factory never runs; an enabled-but-unavailable one, with no mail
+        // recipient, no reports table or no webhook target, is dropped).
+        //
+        // Registered when the registry is first resolved, at a submit or at a host's extend(),
+        // rather than by resolving it here: nothing of the delivery graph is built on a boot that
+        // delivers nothing. Each factory builds its channel in the container of the request it
+        // delivers for, so the channel reads that request's configuration.
+        $this->callAfterResolving(ChannelRegistry::class, static function (ChannelRegistry $registry): void {
+            $registry->register('mail', static fn (): ReportChannel => app(MailChannel::class));
+            $registry->register('database', static fn (): ReportChannel => app(DatabaseChannel::class));
+            $registry->register('webhook', static fn (): ReportChannel => app(WebhookChannel::class));
+        });
 
         if ($this->app->runningInConsole()) {
             $this->registerPublishing();
@@ -232,21 +249,16 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             // only one with no signal — the old copy keeps working and is simply the previous
             // release. The closure defers the measurement to the moment somebody asks, and the
             // console guard keeps it off every web request entirely.
-            if (class_exists(AboutCommand::class)) {
-                AboutCommand::add('Visual Feedback', fn (): array => [
-                    'Published bundle' => $this->app->make(PublishedBundle::class)->label(),
-                ]);
-            }
+            AboutCommand::add('Visual Feedback', fn (): array => [
+                'Published bundle' => $this->app->make(PublishedBundle::class)->label(),
+            ]);
         }
     }
 
     private function registerPublishing(): void
     {
-        // Resolve publish targets through the Application contract's path methods
-        // (available via illuminate/contracts), NOT the config_path()/lang_path()
-        // global helpers. Those are Foundation helpers, shipped ONLY with
-        // laravel/framework, so the helper form would fatal in a lean host. The
-        // method form is behavior-identical. Each group also carries the bare
+        // Publish targets resolve through the Application contract's path methods, which are
+        // equivalent to the config_path()/lang_path() helpers. Each group also carries the bare
         // 'visual-feedback' umbrella tag, so `vendor:publish --tag="visual-feedback"`
         // publishes every resource at once — the convention the official skeleton sets.
         $this->publishes([
@@ -261,9 +273,8 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views' => $this->app->resourcePath('views/vendor/visual-feedback'),
         ], ['visual-feedback', 'visual-feedback-views']);
 
-        // The compiled JS bundle. Resolve the public path through the Application contract
-        // (publicPath), NOT the public_path() Foundation helper, so it never fatals in a
-        // lean host. Rides the umbrella tag — the assets are part of the normal install.
+        // The compiled JS bundle, published to the Application contract's publicPath(). Rides
+        // the umbrella tag — the assets are part of the normal install.
         $this->publishes([
             __DIR__.'/../dist' => $this->app->publicPath('vendor/visual-feedback'),
         ], ['visual-feedback', 'visual-feedback-assets']);
@@ -280,11 +291,14 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views/wirekit/components/trigger.blade.php' => $this->app->resourcePath('views/vendor/visual-feedback/components/trigger.blade.php'),
         ], 'visual-feedback-wirekit');
 
-        // The optional DatabaseChannel migration. DELIBERATELY not in the umbrella (like wirekit):
+        // The optional DatabaseChannel migrations. Deliberately not in the umbrella (like wirekit):
         // a standard install must NOT get the table — only a consumer who publishes this tag and
-        // migrates opts in. Its 0001_… prefix keeps the file first, before the host's own migrations.
+        // migrates opts in. Their 0001_… prefixes keep them first, before the host's own
+        // migrations, and in the order they have to run: the table, then the indexes added to it.
         $this->publishes([
             __DIR__.'/../database/migrations/optional/0001_01_01_000000_create_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000000_create_visual_feedback_reports_table.php'),
+            __DIR__.'/../database/migrations/optional/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php'),
+            __DIR__.'/../database/migrations/optional/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php'),
         ], 'visual-feedback-migrations');
     }
 
@@ -306,10 +320,12 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
      * `array_is_list([])` is true, which is the behavior you want: an empty array is a host saying
      * "none", and descending into it could only re-introduce what it emptied.
      *
-     * NOTE THE EARLY RETURN, because it bounds what this can rescue. A host with a CACHED config is
-     * never merged at all -- the framework's design, not this method's limit. For those installs
-     * the published file is the whole truth, which is why a read site for a nested key needs a
-     * fallback that agrees with the shipped default.
+     * Note the early return, and what it does not mean. A cached config was merged when it was
+     * cached: `config:cache` builds the configuration in a fresh application, where this method
+     * runs, and caches the result, so the return only skips merging again on every request. What a
+     * cached install can lack is a key added by an upgrade made after it was cached, until
+     * `config:cache` runs again, which is why a read site for a nested key still needs a fallback
+     * that agrees with the shipped default.
      *
      * Adopted from the package skeleton rather than invented here, so the packages that had solved
      * this apiece stop each carrying their own answer.
@@ -332,6 +348,38 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             is_array($shipped) ? $shipped : [],
             is_array($existing) ? $existing : [],
         ));
+    }
+
+    /**
+     * Let a field described in the older keys keep the behavior its file gives it.
+     *
+     * A config file published before 0.9.0 says how a field behaves through
+     * `fields.<f>.enabled` and `guests.require_<f>`, and carries no `fields.<f>.mode`. The section
+     * merge fills that `mode` from the shipped file, and Settings::fieldMode() takes `mode` first,
+     * so the shipped default would overrule what the file says: a switched-off subject back on
+     * the form, required name and email optional. For a field the published file describes in the
+     * older keys only, the merged `mode` is cleared and those keys answer, as they did before the
+     * merge reached nested keys.
+     *
+     * @param  array<array-key, mixed>  $published
+     */
+    private function honorTheOlderFieldKeys(array $published): void
+    {
+        $fields = is_array($published['fields'] ?? null) ? $published['fields'] : [];
+        $guests = is_array($published['guests'] ?? null) ? $published['guests'] : [];
+        $config = $this->app->make(ConfigRepository::class);
+
+        foreach (['subject', 'name', 'email', 'phone'] as $field) {
+            $block = is_array($fields[$field] ?? null) ? $fields[$field] : [];
+
+            if (array_key_exists('mode', $block)) {
+                continue;
+            }
+
+            if (array_key_exists('enabled', $block) || array_key_exists("require_{$field}", $guests)) {
+                $config->set("visual-feedback.fields.{$field}.mode");
+            }
+        }
     }
 
     /**

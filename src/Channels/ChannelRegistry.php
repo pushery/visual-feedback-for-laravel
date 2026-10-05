@@ -9,6 +9,8 @@ use Illuminate\Contracts\Config\Repository;
 use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
+use Pushery\VisualFeedback\Support\EnvFlag;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -16,17 +18,21 @@ use Throwable;
  * provider, custom ones via VisualFeedback::extend()), and a factory is invoked ONLY when its
  * config key is enabled — a disabled channel is never instantiated, so it costs nothing at boot.
  * An enabled-but-unavailable channel (missing dependency/config) is skipped, never dispatched.
+ *
+ * The registry is a singleton a host fills once, at boot, through extend(), so it holds the
+ * factories and nothing else. The configuration, the delivery tracker and the logger are asked of
+ * the container serving the current request, each time they are needed. Held from the first
+ * resolution they would be that moment's instances: under Octane a configuration a request
+ * changes would go unseen, and a host's Event::fake() or Log::spy() would miss the failure this
+ * registry reports.
  */
 final class ChannelRegistry
 {
+    /** The channels the shipped config switches on, so a missing switch reads the same. */
+    private const array ENABLED_BY_DEFAULT = ['mail' => true];
+
     /** @var array<string, Closure(): ReportChannel> */
     private array $factories = [];
-
-    public function __construct(
-        private readonly Repository $config,
-        private readonly ReportDeliveryTracker $tracker,
-        private readonly LoggerInterface $logger,
-    ) {}
 
     /**
      * Register a channel factory under `$key`. Lazy: the factory runs only if `channels.$key`
@@ -53,6 +59,7 @@ final class ChannelRegistry
      */
     public function channels(): array
     {
+        $logger = app(LoggerInterface::class);
         $channels = [];
 
         foreach ($this->factories as $key => $factory) {
@@ -74,15 +81,15 @@ final class ChannelRegistry
                     continue;
                 }
 
-                $this->logger->warning('visual-feedback: an enabled channel reported itself unavailable and was skipped', [
+                $logger->warning('visual-feedback: an enabled channel reported itself unavailable and was skipped', [
                     'channel' => $key,
                     'hint' => 'the channel is switched on but its configuration is incomplete — a missing recipient, URL or dependency',
                 ]);
             } catch (Throwable $exception) {
-                $this->logger->error('visual-feedback: a channel could not be constructed and was skipped', [
+                $logger->error('visual-feedback: a channel could not be constructed and was skipped', [
                     'channel' => $key,
-                    'exception' => $exception::class,
-                    'message' => $exception->getMessage(),
+                    'exception' => RedactedFailure::classOf($exception),
+                    'message' => RedactedFailure::message($exception),
                 ]);
             }
         }
@@ -106,6 +113,8 @@ final class ChannelRegistry
     public function dispatch(Report $report): int
     {
         $channels = $this->channels();
+        $logger = app(LoggerInterface::class);
+        $tracker = app(ReportDeliveryTracker::class);
 
         if ($channels === []) {
             // The report is accepted, stored, and delivered nowhere. Every individual reason for
@@ -113,34 +122,42 @@ final class ChannelRegistry
             // "mail skipped" learns one channel is misconfigured, while this says the report is
             // gone. The tracker still runs its zero-channel cleanup — the attachments are
             // released rather than orphaned — so this is the only trace there will be.
-            $this->logger->warning('visual-feedback: a report was accepted but no channel was enabled and available to deliver it', [
+            $logger->warning('visual-feedback: a report was accepted but no channel was enabled and available to deliver it', [
                 'report' => $report->id,
                 'registered' => array_keys($this->factories),
             ]);
         }
 
-        $this->tracker->begin($report, $channels);
+        $tracker->begin($report, $channels);
 
         foreach ($channels as $channel) {
             try {
                 $channel->dispatch($report);
             } catch (Throwable $exception) {
-                $this->logger->error('visual-feedback: channel dispatch failed', [
+                $logger->error('visual-feedback: channel dispatch failed', [
                     'channel' => $channel->key(),
                     'report' => $report->id,
-                    'exception' => $exception::class,
-                    'message' => $exception->getMessage(),
+                    'exception' => RedactedFailure::classOf($exception),
+                    'message' => RedactedFailure::message($exception),
                 ]);
 
-                $this->tracker->settleFailed($report, $channel->key(), $exception);
+                $tracker->settleFailed($report, $channel->key(), $exception);
             }
         }
 
         return count($channels);
     }
 
+    /**
+     * Whether a channel is switched on. A channel the configuration does not mention at all, as a
+     * config cached before an upgrade can leave one, takes the default the shipped file gives it:
+     * on for mail, off for every other channel, a host's own included.
+     */
     private function isEnabled(string $key): bool
     {
-        return (bool) $this->config->get("visual-feedback.channels.{$key}.enabled", false);
+        return EnvFlag::boolean(
+            app(Repository::class)->get("visual-feedback.channels.{$key}.enabled"),
+            self::ENABLED_BY_DEFAULT[$key] ?? false,
+        );
     }
 }

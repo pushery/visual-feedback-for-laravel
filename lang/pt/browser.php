@@ -29,9 +29,14 @@ return [
     'open' => 'Abrir',
     'delete' => 'Eliminar',
     'confirm_delete' => 'Eliminar este relatório e os seus anexos? Não podes desfazer.',
+    'delete_failed' => 'Não foi possível apagar os ficheiros deste relatório, por isso o relatório fica guardado. Tenta de novo mais tarde.',
     'detail' => 'Detalhe do relatório',
     'untitled' => 'Relatório sem assunto',
     'close' => 'Fechar',
     'attachment_alt' => 'Captura anexada a este relatório',
+    'pagination' => 'Páginas de relatórios',
+    'newer' => 'Mais recentes',
+    'older' => 'Mais antigos',
+    'page_of' => 'Página :page de :pages',
 
 ];

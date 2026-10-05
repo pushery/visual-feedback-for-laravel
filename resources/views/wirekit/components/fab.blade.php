@@ -68,9 +68,12 @@
 
      So the WireKit tree's trigger is an icon, where the plain tree's is a text button. That is
      the point of this tree — it looks like the design system, not like us — and the accessible
-     name is the widget heading either way. Named in the integration contract. --}}
+     name is the widget heading either way. Named in the integration contract.
+
+     The host's own attributes go on to the kit's button, as the plain tree passes them to its
+     own. --}}
 <x-wirekit::fab.button
-    class="visual-feedback-fab"
+    {{ $attributes->class('visual-feedback-fab') }}
     :placement="$placement"
     :position="$inline"
     :icon="$icon"

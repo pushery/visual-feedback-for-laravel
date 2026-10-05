@@ -42,7 +42,7 @@ reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3+.
   or a plain window event if you place your own.
 - **Screenshot capture in two stages**: the browser's own screen capture where it exists,
   falling back silently to a DOM renderer that works everywhere, including iOS. The report
-  records which stage produced the image.
+  records which stage the browser says produced the image.
 - **Region redaction** that holds in *both* stages — the area is blacked out and input values
   cleared before anything is captured.
 - **Two view trees** — framework-free, or WireKit components that inherit your design tokens.
@@ -82,7 +82,7 @@ Full docs: **[docs.pushery.com/visual-feedback-for-laravel](https://docs.pushery
 
 ## Third-party notices
 
-[html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.4.1 (MIT) is bundled, and since
+[html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.5.0 (MIT) is bundled, and since
 0.6.0 it sits in a file of its own: `visual-feedback-renderer.iife.js` for the classic build,
 `visual-feedback.chunk.js` for the ESM one. Neither is loaded until a screenshot is actually
 taken. The version and the filename are both named so you can match an advisory against what

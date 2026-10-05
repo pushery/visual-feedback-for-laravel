@@ -9,7 +9,7 @@ use Illuminate\Contracts\Config\Repository as Config;
 /**
  * Can the configured mailer actually put a message on the wire?
  *
- * `Mailer::send()` SUCCEEDS on the `log`, `array` and `null` transports — that is their correct
+ * `Mailer::send()` succeeds on the `log` and `array` transports — that is their correct
  * behavior, not a fault. So a report rendered into `laravel.log` walks the whole happy path: no
  * exception, no retry, no `failed_job`, a DELIVERED receipt, a `ReportDelivered` event, the
  * attachment refcount released, and a success state in the widget. From the outside a swallowed
@@ -28,6 +28,11 @@ use Illuminate\Contracts\Config\Repository as Config;
  * `Mailer [x] is not defined.` at send time, the job retries, `failed()` runs and the receipt
  * settles FAILED — that is an honest failure with a trail, and turning it into a silent skip
  * would remove the trail.
+ *
+ * `null` is that case and not the other one. Laravel registers no transport under that name, so a
+ * mailer naming it throws `Unsupported mail transport [null].` at send time, and `MAIL_MAILER=null`
+ * reaches the mail manager as no name at all and throws as well. A host that registers its own
+ * `null` transport with `Mail::extend()` chose it, and this check does not second-guess it.
  */
 final readonly class TransportDeliverability
 {
@@ -37,7 +42,7 @@ final readonly class TransportDeliverability
      * `smtp` against an unreachable host is NOT one of them: it throws, and a throw is the
      * honest outcome this class exists to preserve.
      */
-    private const array NON_DELIVERING = ['log', 'array', 'null'];
+    private const array NON_DELIVERING = ['log', 'array'];
 
     /** Transports that are a list of other mailers rather than a destination. */
     private const array FAN_OUT = ['failover', 'roundrobin'];

@@ -15,7 +15,10 @@
          carries no h1 because every page brings its own, so without this line the page had no
          first heading at all and a screen reader navigating by heading found no topic. --}}
     <h1 class="visual-feedback-browser-title">{{ __('visual-feedback::browser.title') }}</h1>
-    @if (! $this->tableExists())
+    @if ($deleteFailed)
+        <p class="visual-feedback-browser-error" role="alert">{{ __('visual-feedback::browser.delete_failed') }}</p>
+    @endif
+    @if (! $tableExists)
         <p class="visual-feedback-browser-empty">
             {{ __('visual-feedback::browser.no_table') }}
         </p>
@@ -59,57 +62,63 @@
         @if ($reports !== null && $reports->total() === 0)
             <p class="visual-feedback-browser-empty">{{ __('visual-feedback::browser.none') }}</p>
         @else
-            <table class="visual-feedback-browser-table">
-                <caption class="visual-feedback-sr-only">{{ __('visual-feedback::browser.caption') }}</caption>
-                <thead>
-                    <tr>
-                        <th scope="col">{{ __('visual-feedback::browser.col_date') }}</th>
-                        <th scope="col">{{ __('visual-feedback::browser.col_mode') }}</th>
-                        <th scope="col">{{ __('visual-feedback::browser.col_category') }}</th>
-                        <th scope="col">{{ __('visual-feedback::browser.col_subject') }}</th>
-                        <th scope="col">{{ __('visual-feedback::browser.col_reporter') }}</th>
-                        <th scope="col"><span class="visual-feedback-sr-only">{{ __('visual-feedback::browser.col_actions') }}</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($reports as $report)
-                        <tr wire:key="vf-report-{{ $report->uuid }}">
-                            <td>{{ $report->created_at }}</td>
-                            <td>{{ $report->mode }}</td>
-                            <td>{{ $report->category }}</td>
-                            <td>{{ $report->subject ?: '—' }}</td>
-                            {{-- A guest with no name is the shipped default, so the fallback is
-                                 the normal case rather than a defect. --}}
-                            <td>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
-                            <td class="visual-feedback-browser-actions">
-                                <button type="button" wire:click="open('{{ $report->uuid }}')">
-                                    {{ __('visual-feedback::browser.open') }}
-                                </button>
-                                {{-- wire:confirm rather than a JS confirm(): it is Livewire's own
-                                     mechanism and needs no inline handler, so this template stays
-                                     free of script under any policy. --}}
-                                {{-- `$wire['delete']` and NOT `delete(…)`, which is what this line said until 0.5.1.
-                                     Livewire rewrites a bare `delete('x')` to `$wire.delete('x')`, and under
-                                     Alpine's CSP build `delete` is a KEYWORD where the grammar wants an
-                                     IDENTIFIER — so the expression is never evaluated and the button is dead
-                                     with nothing logged. Index access parses under both builds. The whole
-                                     affected set, measured against Alpine's own parser:
-                                     delete false in instanceof new null true typeof undefined void. --}}
-                                <button
-                                    type="button"
-                                    wire:click="$wire['delete']('{{ $report->uuid }}')"
-                                    wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
-                                >
-                                    {{ __('visual-feedback::browser.delete') }}
-                                </button>
-                            </td>
+            {{-- The table scrolls inside its own frame, so a narrow screen does not push the whole
+                 page sideways. The WireKit tree's table does the same through its `responsive`
+                 prop. --}}
+            <div class="visual-feedback-browser-scroll">
+                <table class="visual-feedback-browser-table">
+                    <caption class="visual-feedback-sr-only">{{ __('visual-feedback::browser.caption') }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ __('visual-feedback::browser.col_date') }}</th>
+                            <th scope="col">{{ __('visual-feedback::browser.col_mode') }}</th>
+                            <th scope="col">{{ __('visual-feedback::browser.col_category') }}</th>
+                            <th scope="col">{{ __('visual-feedback::browser.col_subject') }}</th>
+                            <th scope="col">{{ __('visual-feedback::browser.col_reporter') }}</th>
+                            <th scope="col"><span class="visual-feedback-sr-only">{{ __('visual-feedback::browser.col_actions') }}</span></th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($reports as $report)
+                            <tr wire:key="vf-report-{{ $report->uuid }}">
+                                <td>{{ $report->created_at }}</td>
+                                <td>{{ $report->mode }}</td>
+                                <td>{{ $report->category }}</td>
+                                <td>{{ $report->subject ?: '—' }}</td>
+                                {{-- A guest with no name is the shipped default, so the fallback is
+                                     the normal case rather than a defect. --}}
+                                <td>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
+                                <td class="visual-feedback-browser-actions">
+                                    <button type="button" wire:click="open('{{ $report->uuid }}')">
+                                        {{ __('visual-feedback::browser.open') }}
+                                    </button>
+                                    {{-- wire:confirm rather than a JS confirm(): it is Livewire's own
+                                         mechanism and needs no inline handler, so this template stays
+                                         free of script under any policy. --}}
+                                    {{-- `$wire['delete']` rather than `delete(…)`.
+                                         Livewire rewrites a bare `delete('x')` to `$wire.delete('x')`, and under
+                                         Alpine's CSP build `delete` is a keyword where the grammar wants an
+                                         identifier — so the expression is never evaluated and the button is dead,
+                                         with only the browser console to show for it. Index access parses under
+                                         both builds. The whole
+                                         affected set, measured against Alpine's own parser:
+                                         delete false in instanceof new null true typeof undefined void. --}}
+                                    <button
+                                        type="button"
+                                        wire:click="$wire['delete']('{{ $report->uuid }}')"
+                                        wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
+                                    >
+                                        {{ __('visual-feedback::browser.delete') }}
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
             <div class="visual-feedback-browser-pagination">
-                {{ $reports->links() }}
+                {{ $reports->links('visual-feedback::livewire._browser-pager') }}
             </div>
         @endif
 
@@ -135,17 +144,16 @@
 
                 <p class="visual-feedback-browser-message">{{ $detail->message }}</p>
 
-                @foreach ($this->attachmentsOf($detail->attachments ?? null) as $path)
+                @foreach ($attachments as $attachment)
                     <figure class="visual-feedback-browser-attachment">
-                        @php($vfUrl = $this->attachmentUrl($path))
-                        @if ($vfUrl !== null && $this->isPreviewable($path))
-                            <img src="{{ $vfUrl }}" alt="{{ __('visual-feedback::browser.attachment_alt') }}" loading="lazy" decoding="async">
+                        @if ($attachment['url'] !== null && $attachment['previewable'])
+                            <img src="{{ $attachment['url'] }}" alt="{{ __('visual-feedback::browser.attachment_alt') }}" loading="lazy" decoding="async">
                         @endif
                         {{-- The path is shown either way. On a private disk there is no URL to
                              give, and the path is what a host needs to fetch the file with their
                              own tooling — see the component docblock for why no download route
                              is invented here. --}}
-                        <figcaption>{{ $path }}</figcaption>
+                        <figcaption>{{ $attachment['path'] }}</figcaption>
                     </figure>
                 @endforeach
             </section>

@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
+use Pushery\VisualFeedback\Support\EnvFlag;
 
 /**
  * Deletes reports past the retention cutoff — and their attachment files. This is
@@ -58,15 +59,25 @@ final class PruneReports extends Command
             return self::SUCCESS;
         }
 
+        // A window under one day is no retention: zero or a negative number puts the cutoff at now
+        // or after it, and every report would go. Refused rather than read as "keep forever", so a
+        // scheduler that runs this command reports the value instead of quietly keeping everything.
+        if ((int) $days < 1) {
+            $this->error((string) __('visual-feedback::messages.console.prune.below_one_day', ['days' => (string) $days]));
+
+            return self::FAILURE;
+        }
+
         $cutoff = Carbon::now()->subDays((int) $days);
-        $deliveredOnly = (bool) $config->get('visual-feedback.retention.prune_delivered_only');
+        $deliveredOnly = EnvFlag::boolean($config->get('visual-feedback.retention.prune_delivered_only'), true);
         $disk = $filesystem->disk($this->attachmentsDisk($config));
         $root = $this->attachmentsDirectory($config);
         $pruned = 0;
+        $kept = 0;
 
         $db->connection()->table($table)
             ->where('created_at', '<', $cutoff)
-            ->chunkById(200, function (iterable $rows) use (&$pruned, $disk, $deliveredOnly, $db, $table, $pruner, $root): void {
+            ->chunkById(200, function (iterable $rows) use (&$pruned, &$kept, $disk, $deliveredOnly, $db, $table, $pruner, $root): void {
                 foreach ($rows as $row) {
                     if ($deliveredOnly && $this->hasPendingDelivery($row->deliveries)) {
                         continue; // keep an undelivered report until it lands
@@ -81,8 +92,15 @@ final class PruneReports extends Command
                     // pruner exists for exactly this and both other callers already use it.
                     $paths = $this->attachmentPaths($row->attachments);
 
+                    // A failed delete answers `false` on a disk that is not configured to throw.
+                    // The row is the only reference to those files, so it stays for the next run.
                     if ($paths !== []) {
-                        $disk->delete($paths);
+                        if (! $disk->delete($paths)) {
+                            $kept++;
+
+                            continue;
+                        }
+
                         $pruner->prune($disk, $paths, $root);
                     }
 
@@ -93,28 +111,34 @@ final class PruneReports extends Command
 
         $this->info(trans_choice('visual-feedback::messages.console.prune.pruned', $pruned, ['count' => $pruned]));
 
+        if ($kept > 0) {
+            $this->error(trans_choice('visual-feedback::messages.console.prune.kept', $kept, ['count' => $kept]));
+
+            return self::FAILURE;
+        }
+
         return self::SUCCESS;
     }
 
     /**
      * Whether a row's `deliveries` JSON map still has any OTHER channel at `pending`.
      *
-     * The row's own channel is excluded, and that exclusion is what makes this guard mean
-     * anything at all. `deliveries` is a snapshot the database job takes while it writes the
-     * row, and the job settles its own receipt only AFTER the write — so the map it stores
-     * always carries `database: pending` for itself, on every row, forever. Nothing else ever
-     * writes the column: the upsert refreshes it only on a queue retry, which snapshots the
-     * same moment again. With `prune_delivered_only` on (the shipped default) the unfiltered
-     * check therefore skipped EVERY row the table can hold, and the command reported "no
-     * reports past the retention cutoff" while the retention window silently did nothing.
+     * The row's own channel is excluded. `deliveries` is a snapshot the database job takes while
+     * it writes the row, and the job settles its own receipt only after the write, so a row whose
+     * later refresh did not land still carries `database: pending` for itself. With
+     * `prune_delivered_only` on (the shipped default) counting it would hold back every such row,
+     * and the retention window would silently do nothing.
      *
-     * Excluding it loses no information, because the row itself is the receipt: this table has
-     * exactly one writer, and a row exists only where that writer's upsert succeeded. Reading
+     * The delivery tracker rewrites the column on every terminal settle, so a sibling channel
+     * that settles after the snapshot reaches the row too, and a report is held back only while a
+     * delivery is really pending.
+     *
+     * Excluding it loses no information, because the row itself is the receipt: a row exists
+     * only where the database job's upsert succeeded. Reading
      * the delivery truth out of the ReceiptStore instead would NOT work — its TTL is
      * `reports_days`, the same span as the prune cutoff, so the receipt has expired by the
      * moment a row becomes prunable and the guard would flip from "never prunes" to "always
-     * prunes". A sibling channel that had not settled when the snapshot was taken still holds
-     * its report back, which is the documented behavior.
+     * prunes".
      */
     private function hasPendingDelivery(mixed $json): bool
     {

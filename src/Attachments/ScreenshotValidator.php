@@ -6,6 +6,8 @@ namespace Pushery\VisualFeedback\Attachments;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use RuntimeException;
 
 /**
  * Server-side screenshot validation. A screenshot that travels its own path bypasses attachment
@@ -17,8 +19,9 @@ use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
  *  - the `screenshot.max_bytes` byte cap;
  *  - the image dimension / pixel caps (a PNG is always measurable).
  *
- * The caps that gate this are the same config values that feed the client downscale, so a
- * regularly produced capture — even at scale/DPR 2 — is always both uploadable and valid.
+ * The byte cap is the number the browser fits a capture to before the upload (ClientConfig's
+ * `maxBytes`), and the canvas-area budget the capture clamps its scale with stays far inside the
+ * pixel caps, so a regularly produced capture, even at scale/DPR 2, is both uploadable and valid.
  */
 final readonly class ScreenshotValidator
 {
@@ -38,33 +41,46 @@ final readonly class ScreenshotValidator
         }
 
         $disk = $this->storage->disk($this->diskName());
+        $size = $this->storedSize($disk, $path);
 
-        if (! $disk->exists($path)) {
+        if ($size === null) {
             return [(string) __('visual-feedback::messages.attachments.screenshot_invalid')];
         }
 
-        $errors = [];
-
-        $maxBytes = $this->configInt('screenshot.max_bytes', 8 * 1024 * 1024);
-
-        if ($disk->size($path) > $maxBytes) {
-            $errors[] = (string) __('visual-feedback::messages.attachments.screenshot_too_large');
+        if ($size > $this->configInt('screenshot.max_bytes', 8 * 1024 * 1024)) {
+            // One reason, as for a non-PNG below: the size already refuses the capture, so its
+            // bytes are not downloaded to look for a second one.
+            return [(string) __('visual-feedback::messages.attachments.screenshot_too_large')];
         }
 
         $content = $disk->get($path) ?? '';
 
         if ($this->sniff($content) !== 'image/png') {
             // A non-PNG screenshot is rejected outright — no dimension check on a lie.
-            $errors[] = (string) __('visual-feedback::messages.attachments.screenshot_invalid');
-
-            return $errors;
+            return [(string) __('visual-feedback::messages.attachments.screenshot_invalid')];
         }
 
         if ($this->exceedsPixelCaps($content)) {
-            $errors[] = (string) __('visual-feedback::messages.attachments.screenshot_too_large');
+            return [(string) __('visual-feedback::messages.attachments.screenshot_too_large')];
         }
 
-        return $errors;
+        return [];
+    }
+
+    /**
+     * The stored capture's size in bytes, or null when the disk has no size to report for it.
+     *
+     * The twin of AttachmentValidator::storedSize(): one request answers whether the file is there
+     * and how big it is, and a disk reports a file it cannot find by refusing its size, which
+     * Flysystem throws as a RuntimeException.
+     */
+    private function storedSize(Filesystem $disk, string $path): ?int
+    {
+        try {
+            return $disk->size($path);
+        } catch (RuntimeException) {
+            return null;
+        }
     }
 
     /** Whether the PNG's dimensions or pixel count exceed the configured caps. */
@@ -104,9 +120,7 @@ final readonly class ScreenshotValidator
 
     private function diskName(): string
     {
-        $disk = $this->config->get('visual-feedback.attachments.disk');
-
-        return is_string($disk) && $disk !== '' ? $disk : 'local';
+        return new AttachmentPolicy($this->config)->disk();
     }
 
     private function configInt(string $key, int $default): int

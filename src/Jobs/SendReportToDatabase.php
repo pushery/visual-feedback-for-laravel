@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Jobs;
 use Illuminate\Bus\Queueable;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Config\Repository as Config;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\ConnectionResolverInterface as ConnectionResolver;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,6 +16,9 @@ use Illuminate\Support\Carbon;
 use Pushery\VisualFeedback\Channels\ReceiptStore;
 use Pushery\VisualFeedback\Channels\ReportDeliveryTracker;
 use Pushery\VisualFeedback\Data\Report;
+use Pushery\VisualFeedback\Privacy\ErasedReporters;
+use Pushery\VisualFeedback\Privacy\ReporterWasErased;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -22,8 +26,12 @@ use Throwable;
  * path — so a slow or contended database never blocks the reporter — and settles through the
  * single ReportDeliveryTracker like every other channel. The write is an UPSERT keyed on the
  * report UUID, so an at-least-once queue retry never creates a second row.
+ *
+ * Queued encrypted: the report carries the reporter's name, address and message, and a job that
+ * fails for good stays in the queue's failed jobs until somebody removes it. A report whose
+ * reporter was erased after submitting it is withheld (ErasedReporters).
  */
-final class SendReportToDatabase implements ShouldQueue
+final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
@@ -35,35 +43,53 @@ final class SendReportToDatabase implements ShouldQueue
         private readonly int $backoffSeconds,
     ) {}
 
-    public function handle(Config $config, ConnectionResolver $db, ReceiptStore $receipts, ReportDeliveryTracker $tracker): void
+    public function handle(Config $config, ConnectionResolver $db, ReceiptStore $receipts, ReportDeliveryTracker $tracker, ErasedReporters $erased): void
     {
+        // The reporter was erased after this report was submitted. Storing it now would bring
+        // back the copy the erasure removed, so the channel ends here, recorded as not delivered.
+        // The row this job would write is also the only thing that keeps the report's files: the
+        // attachment refcount never counts a channel that retains the report. Withholding the
+        // row, the job lets go of the files as well.
+        if ($erased->covers($this->report)) {
+            $tracker->settleFailed($this->report, 'database', new ReporterWasErased);
+            $tracker->discardAttachments($this->report);
+
+            return;
+        }
+
         $serialized = $this->report->toArray();
         $metadata = $this->report->metadata;
         $userAgent = $metadata['user_agent'] ?? null;
 
-        $db->connection()->table($this->table($config))->upsert(
-            [[
-                'uuid' => $this->report->id,
-                'mode' => $this->report->mode,
-                'category' => $this->report->category,
-                'subject' => $this->report->subject,
-                'message' => $this->report->message,
-                'reporter_id' => $this->report->reporter->id,
-                'reporter_name' => $this->report->reporter->name,
-                'reporter_email' => $this->report->reporter->email,
-                'reporter_phone' => $this->report->reporter->phone,
-                'is_guest' => $this->report->reporter->isGuest,
-                'context' => $this->json($serialized['context']),
-                'metadata' => $this->json($metadata),
-                'attachments' => $this->json($this->report->attachments),
-                'deliveries' => $this->json($this->deliveryMap($receipts)),
-                'user_agent' => is_string($userAgent) ? mb_substr($userAgent, 0, 500) : null,
-                'created_at' => Carbon::instance(Carbon::parse($this->report->submittedAt->format(DATE_ATOM))),
-                'updated_at' => Carbon::now(),
-            ]],
-            uniqueBy: ['uuid'],
-            update: ['deliveries', 'updated_at'],
-        );
+        // What a job throws, the worker reports and the failed jobs keep. A database error carries
+        // the statement with the report's values in it, so it goes out as a stand-in without them.
+        try {
+            $db->connection()->table($this->table($config))->upsert(
+                [[
+                    'uuid' => $this->report->id,
+                    'mode' => $this->report->mode,
+                    'category' => $this->report->category,
+                    'subject' => $this->report->subject,
+                    'message' => $this->report->message,
+                    'reporter_id' => $this->report->reporter->id,
+                    'reporter_name' => $this->report->reporter->name,
+                    'reporter_email' => $this->report->reporter->email,
+                    'reporter_phone' => $this->report->reporter->phone,
+                    'is_guest' => $this->report->reporter->isGuest,
+                    'context' => $this->json($serialized['context']),
+                    'metadata' => $this->json($metadata),
+                    'attachments' => $this->json($this->report->attachments),
+                    'deliveries' => $this->json($this->deliveryMap($receipts)),
+                    'user_agent' => is_string($userAgent) ? mb_substr($userAgent, 0, 500) : null,
+                    'created_at' => Carbon::instance(Carbon::parse($this->report->submittedAt->format(DATE_ATOM))),
+                    'updated_at' => Carbon::now(),
+                ]],
+                uniqueBy: ['uuid'],
+                update: ['deliveries', 'updated_at'],
+            );
+        } catch (Throwable $exception) {
+            throw RedactedFailure::standIn($exception);
+        }
 
         $tracker->settleDelivered($this->report, 'database');
     }

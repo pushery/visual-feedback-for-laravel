@@ -29,9 +29,14 @@ return [
     'open' => 'Openen',
     'delete' => 'Verwijderen',
     'confirm_delete' => 'Dit rapport en de bijlagen verwijderen? Je kunt dit niet ongedaan maken.',
+    'delete_failed' => 'De bestanden van dit rapport konden niet worden verwijderd, dus het rapport blijft staan. Probeer het later opnieuw.',
     'detail' => 'Rapport-details',
     'untitled' => 'Rapport zonder onderwerp',
     'close' => 'Sluiten',
     'attachment_alt' => 'Screenshot bij dit rapport',
+    'pagination' => 'Rapportpagina’s',
+    'newer' => 'Nieuwere',
+    'older' => 'Oudere',
+    'page_of' => 'Pagina :page van :pages',
 
 ];

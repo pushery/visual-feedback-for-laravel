@@ -8,38 +8,51 @@ namespace Pushery\VisualFeedback\Channels\Mail;
  * Renders one piece of user-influenced text safe for a Markdown MAIL body.
  * Blade's `{{ }}` already HTML-escapes, but Markdown has its own injection surface that HTML
  * escaping does not touch: an unescaped `|` inside a table cell shifts the columns and is the
- * `Bob | Alice` → "Undefined array key 1" crash, and a newline ends the table row (or
- * the list item) early. So a cell value gets its pipes Markdown-escaped and its CR/LF folded to
- * a space BEFORE Blade escapes the rest — user text can never restructure the table or the list.
+ * `Bob | Alice` → "Undefined array key 1" crash, a newline ends the table row (or the list item)
+ * early, and a bracket opens a link or an image. So a value is escaped and folded before Blade
+ * escapes the rest — user text can never restructure the table or the list, or link anywhere.
  */
 final class MailCell
 {
-    /** A single Markdown table cell / list value: pipes escaped, newlines folded to a space. */
+    /**
+     * A single Markdown table cell / list value: newlines folded to a space, and `|`, `[`, `]`
+     * and the backslash escaped.
+     *
+     * The brackets are what a link and an image need: with every `[` escaped there is no link
+     * opener, so `[pay here](https://…)` and `![](https://…/pixel.gif)` stay text. The backslash
+     * is escaped so that one the browser sent cannot cancel the escape in front of a bracket.
+     *
+     * The set stops there on purpose. These cells carry the browser's metadata, and a user agent
+     * always has parentheses and underscores. The text/plain alternative shows every escape as a
+     * visible backslash, so `text()`'s wider set would mark up the user agent of every mail.
+     */
     public static function cell(string $value): string
     {
         $folded = (string) preg_replace('/[\r\n]+/', ' ', $value);
 
-        return str_replace('|', '\|', $folded);
+        return (string) preg_replace('/[\\\\\[\]|]/', '\\\\$0', $folded);
     }
 
     /**
      * Free-form reporter text rendered in a LIVE-Markdown position — a list item, a bold line.
      *
-     * `cell()` is not enough here, and the gap is not cosmetic. It escapes pipes and folds
-     * newlines, so a value cannot restructure a table or end its own row; it does nothing about
-     * Markdown itself. Measured against the converter Laravel actually builds for a mail
-     * (`allow_unsafe_links` off, CommonMark core plus tables): a reporter value of
-     * `[click me](http://evil.example)` arrived in the rendered mail as a real `<a href>`, and
-     * `![x](...)` as a real `<img src>`. That is the hole `fence()` exists for, one position
-     * over, and its docblock already names the stake — a link in a maintainer's inbox that
-     * appears to come from their own tooling.
+     * This is the wider set. `cell()` stops links and images and keeps a table intact; this
+     * also escapes emphasis, code spans and the rest, so the reporter's own words cannot dress
+     * themselves up as the mail's formatting either. Measured against the converter Laravel
+     * actually builds for a mail (`allow_unsafe_links` off, CommonMark core plus tables): before
+     * either escape existed, a reporter value of `[click me](http://evil.example)` arrived in the
+     * rendered mail as a real `<a href>`, and `![x](...)` as a real `<img src>`. That is the hole
+     * `fence()` exists for, one position over, and its docblock already names the stake — a link
+     * in a maintainer's inbox that appears to come from their own tooling.
      *
      * The escape set is deliberately NARROWER than "all ASCII punctuation", and the reason is
      * the other half of the mail. `renderText()` does not parse Markdown; it entity-decodes the
      * rendered body, so every backslash added here is VISIBLE in the text/plain alternative.
      * Escaping `.`, an apostrophe or `-` would put slashes through an ordinary name in a large
      * share of the mails a host ever sends. `<`, `>` and `&` are left out for the opposite
-     * reason: Blade's echo and the converter's `html_input: escape` already render them inert.
+     * reason: Blade's echo escapes them before the converter sees them. The converter itself
+     * would not, because Laravel builds the mail converter with raw HTML allowed unless secured
+     * encoding is switched on, so a value that reaches it without the echo has no such guard.
      *
      * Both `preg_replace` results are cast to `string`. That is not style either: the function
      * returns null on an engine failure, and with `failOnDeprecation` on, a null flowing onward

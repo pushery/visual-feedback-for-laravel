@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Privacy;
 
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Container\Container;
 use Psr\Log\LoggerInterface;
 use Pushery\LegalConsent\Contracts\ConsentManager;
@@ -11,6 +12,7 @@ use Pushery\LegalConsent\Enums\DocumentType;
 use Pushery\LegalConsent\Support\TenantContext;
 use Pushery\VisualFeedback\Contracts\PrivacyNoticeWordingSource;
 use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -38,12 +40,23 @@ use Throwable;
  * own sentence — never to another locale's text, and never to leaving the checkbox out. A silent
  * omission would drop the acknowledgment altogether; a substituted locale would show German under
  * an English UI, exactly what legal-consent's reader is written to prevent.
+ *
+ * The answer is read once a minute per tenant, document key and locale and kept in the default
+ * cache store, not on every guest render: the widget renders on every page that carries it and
+ * again on every round trip, legal-consent's read returns the whole document with its text, and
+ * the answer changes only when a version is published. Every answer is kept, a refusal included,
+ * so its log line comes once a minute as well. A version published since reaches the checkbox
+ * within that minute, and the report records the version the reporter was shown.
  */
 final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
 {
+    /** How long one read answers for its tenant, document key and locale. */
+    private const int REMEMBER_SECONDS = 60;
+
     public function __construct(
         private Container $container,
         private LoggerInterface $logger,
+        private Cache $cache,
     ) {}
 
     /**
@@ -74,9 +87,65 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
         $key = $config->get('visual-feedback.privacy.document_key');
         $key = is_string($key) && $key !== '' ? $key : 'privacy';
         $locale = $this->container->make('translator')->getLocale();
+        $tenancy = $this->container->make(TenantContext::class);
 
+        // Keyed by the tenant too, so one tenant's sentence is never served to another's guests.
+        // A cache that cannot be reached costs the read it would have saved, nothing more.
+        $entry = 'visual-feedback:privacy-wording:'.hash('sha256', $tenancy->current()."\n".$key."\n".$locale);
+        $remembered = $this->remembered(rescue(fn (): mixed => $this->cache->get($entry), report: false));
+
+        if ($remembered !== false) {
+            return $remembered;
+        }
+
+        $wording = $this->read($key, $locale, $tenancy);
+
+        rescue(fn (): bool => $this->cache->put($entry, ['wording' => $wording instanceof PrivacyNoticeWording ? [
+            'text' => $wording->text,
+            'key' => $wording->key,
+            'locale' => $wording->locale,
+            'version' => $wording->version,
+            'fingerprint' => $wording->acceptanceFingerprint,
+        ] : null], self::REMEMBER_SECONDS), report: false);
+
+        return $wording;
+    }
+
+    /**
+     * A remembered answer, or false when there is none to use: a miss, or an entry in a shape this
+     * release did not write, which is read again rather than trusted.
+     */
+    private function remembered(mixed $entry): PrivacyNoticeWording|false|null
+    {
+        if (! is_array($entry) || ! array_key_exists('wording', $entry)) {
+            return false;
+        }
+
+        $wording = $entry['wording'];
+
+        if ($wording === null) {
+            return null;
+        }
+
+        if (! is_array($wording) || ! is_string($wording['text'] ?? null)) {
+            return false;
+        }
+
+        $field = static fn (string $name): ?string => is_string($wording[$name] ?? null) ? $wording[$name] : null;
+
+        return new PrivacyNoticeWording(
+            text: $wording['text'],
+            key: $field('key'),
+            locale: $field('locale'),
+            version: $field('version'),
+            acceptanceFingerprint: $field('fingerprint'),
+        );
+    }
+
+    /** The answer legal-consent gives today, read from the published document. */
+    private function read(string $key, string $locale, TenantContext $tenancy): ?PrivacyNoticeWording
+    {
         try {
-            $tenancy = $this->container->make(TenantContext::class);
             $document = $this->container->make(ConsentManager::class)->published($key, $locale);
         } catch (Throwable $e) {
             // legal-consent promises never to throw for a MISSING publication; it promises nothing
@@ -86,15 +155,17 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
                 'document_key' => $key,
                 'locale' => $locale,
                 'exception' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => RedactedFailure::message($e),
             ]);
         }
 
         if ($document === null) {
-            // Deliberate on their side: the read path has NO locale fallback, because "the page
-            // must show the text of the locale it claims to be showing, or nothing". This package
-            // ships seven locales and legal-consent's default config publishes two, so this is the
-            // ordinary case rather than an edge one — hence a notice, not an error.
+            // Nothing in this locale. legal-consent serves another locale's version of a privacy
+            // notice only where the host opted in with `locale_fallback` on the document's entry,
+            // because "the page must show the text of the locale it claims to be showing, or
+            // nothing". This package ships seven locales and legal-consent's default config
+            // publishes two, so this is the ordinary case rather than an edge one — hence a
+            // notice, not an error.
             $this->logger->notice('visual-feedback: no legal-consent document published for this key and locale — the built-in acknowledgment wording is used', [
                 'document_key' => $key,
                 'locale' => $locale,

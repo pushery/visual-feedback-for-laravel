@@ -16,10 +16,12 @@ namespace Pushery\VisualFeedback\Support;
  * Nothing turned red. The widget renders, opens and sends; it simply looks like nothing else on
  * the page. A defect that raises no signal is not fixed, it is got used to.
  *
- * The state is per-request rather than per-process on purpose: this is an observation about ONE
- * rendered document, and a container that outlives the request would carry the answer from a
- * page that included the sheet into one that did not. Laravel gives a fresh container per
- * request, and under Octane the framework resets bound singletons between them.
+ * The state lives for one request or one queued job rather than for the process, on purpose:
+ * this is an observation about one rendered document, and an instance that outlives it would
+ * carry the answer from a page that included the sheet into one that did not. So the class is
+ * bound `scoped`. PHP-FPM builds a fresh container for every request; Octane runs each request
+ * in a copy of the booted application and forgets scoped instances between requests; a queue
+ * worker forgets them between two jobs. A plain singleton survives the last two.
  */
 final class StylesheetPresence
 {

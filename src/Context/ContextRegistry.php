@@ -9,6 +9,7 @@ use Illuminate\Contracts\Container\Container;
 use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Contracts\ReportContextProvider;
 use Pushery\VisualFeedback\Data\ReportContextEntry;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -27,7 +28,7 @@ use Throwable;
  * broken" into a diagnosable ticket — so losing it produces a worse ticket, never a lost one.
  * Losing the report is the expensive outcome, and every failure mode here is therefore logged
  * and stepped over: a class that does not implement the contract, a class that cannot be built
- * at all, and a provider that throws while collecting.
+ * at all, a provider that throws while collecting, and an entry that is not a ReportContextEntry.
  *
  * That last pair used to be fatal, and the shape is worth remembering: this method is reached
  * from `submit()` and never from `render()`, so a host who renamed a class and left the old name
@@ -76,7 +77,7 @@ final readonly class ContextRegistry
             } catch (Throwable $error) {
                 $this->logger->warning(
                     'visual-feedback: a configured context provider could not be resolved and was skipped.',
-                    ['provider' => $class, 'exception' => $error->getMessage()],
+                    ['provider' => $class, 'exception' => RedactedFailure::message($error)],
                 );
 
                 continue;
@@ -95,13 +96,41 @@ final readonly class ContextRegistry
             }
 
             try {
-                $entries = [...$entries, ...$provider->entries()];
+                // The host's answer, read as what PHP guarantees about it rather than what the
+                // contract asks of it (see below).
+                /** @var array<mixed> $provided */
+                $provided = $provider->entries();
             } catch (Throwable $error) {
                 // Same rule one step later: a provider that throws while collecting is the host's
                 // code failing, and it must not take the reporter's message with it.
                 $this->logger->warning(
                     'visual-feedback: a context provider threw while collecting entries and was skipped.',
-                    ['provider' => $class, 'exception' => $error->getMessage()],
+                    ['provider' => $class, 'exception' => RedactedFailure::message($error)],
+                );
+
+                continue;
+            }
+
+            // And the same rule for the shape of what came back. The contract promises a list of
+            // ReportContextEntry, but PHP checks only that it is an array: an entry written as
+            // `['label' => …, 'value' => …]` passed here and failed every channel later, in the
+            // report's toArray(), the webhook payload and the mail view, so the report was lost
+            // instead of its context. Each entry that is not one is stepped over, and the host
+            // learns how many and of which type, never what they held.
+            $skipped = [];
+
+            foreach ($provided as $entry) {
+                if ($entry instanceof ReportContextEntry) {
+                    $entries[] = $entry;
+                } else {
+                    $skipped[] = get_debug_type($entry);
+                }
+            }
+
+            if ($skipped !== []) {
+                $this->logger->warning(
+                    'visual-feedback: a context provider returned entries that are not ReportContextEntry objects, and they were skipped.',
+                    ['provider' => $class, 'skipped' => count($skipped), 'types' => array_values(array_unique($skipped))],
                 );
             }
         }
