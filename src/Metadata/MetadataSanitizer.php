@@ -26,6 +26,23 @@ final readonly class MetadataSanitizer
     /** URL-shaped keys: only an http(s) value survives; anything else (javascript:, data:) is dropped. */
     private const array URL_KEYS = ['url', 'referrer'];
 
+    /**
+     * Routes whose path is a credential, as `metadata.url_token_paths` ships them: Laravel's
+     * password reset and email verification, Laravel UI's password reset, the magic links of
+     * pushery/email-magic-link-for-laravel and Jetstream's team invitations.
+     *
+     * The config file reads this list, and so does the sanitizer when the key is missing: a cached
+     * configuration built from a file published before the key existed never gets the default
+     * filled in.
+     */
+    public const array TOKEN_PATHS = [
+        'reset-password/*',
+        'password/reset/*',
+        'email/verify/*/*',
+        'magic-link/verify/*',
+        'team-invitations/*',
+    ];
+
     public function __construct(private Repository $config) {}
 
     /**
@@ -83,9 +100,9 @@ final readonly class MetadataSanitizer
                     continue;
                 }
 
-                // A REFERRER IS REDUCED TO ITS ORIGIN, AND THIS IS ENFORCEMENT RATHER THAN
-                // TIDINESS. Under `Referrer-Policy: strict-origin-when-cross-origin` — Laravel's
-                // default — a same-origin navigation sends the full URL, PATH INCLUDED. In a
+                // A referrer is reduced to its origin, and this is enforcement rather than
+                // tidiness. Under `Referrer-Policy: strict-origin-when-cross-origin` — the
+                // browsers' default — a same-origin navigation sends the full URL, path included. In a
                 // Laravel application the path is routinely the credential itself:
                 // `reset-password/{token}`, `email/verify/{id}/{hash}`, a magic link. The page
                 // somebody lands on after one of those is exactly where they file a report.
@@ -96,8 +113,9 @@ final readonly class MetadataSanitizer
                 // the field is for ("they came from our marketing site"); the path only ever adds
                 // somebody else's secret.
                 //
-                // `url` is deliberately NOT treated this way: that one IS the report's subject,
-                // the reporter chose to file from there, and its path is the diagnosis.
+                // `url` is not cut to its origin: that one is the report's subject, the reporter
+                // chose to file from there, and its path is the diagnosis. It loses what can be a
+                // credential instead, below.
                 if ($key === 'referrer') {
                     $parts = parse_url($value);
                     $host = is_array($parts) ? ($parts['host'] ?? null) : null;
@@ -108,6 +126,14 @@ final readonly class MetadataSanitizer
 
                     $value = strtolower((string) ($parts['scheme'] ?? 'https')).'://'.$host
                         .(isset($parts['port']) ? ':'.$parts['port'] : '');
+                }
+
+                if ($key === 'url') {
+                    $value = $this->reportedUrl($value);
+
+                    if ($value === null) {
+                        continue;
+                    }
                 }
 
                 $value = mb_substr($value, 0, $key === 'user_agent' ? $userAgentMax : $maxLength);
@@ -140,6 +166,89 @@ final readonly class MetadataSanitizer
         }
 
         return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+    }
+
+    /**
+     * The page a report was filed from, without what can be somebody's credential.
+     *
+     * The path is kept, because it is what a bug report is about. In a Laravel application it can
+     * also be the credential itself: `reset-password/{token}` is a page somebody files a report
+     * from, and its token resets the account for anybody who reads the report. So each segment a
+     * route in `metadata.url_token_paths` marks with `*` becomes `{token}`, wherever the route sits
+     * in the path, behind a locale or a mount prefix too. The fragment and any user info always go.
+     * The query goes unless `metadata.url_query` is on: a signed URL, an `?email=` and a search
+     * term live there.
+     */
+    private function reportedUrl(string $value): ?string
+    {
+        $parts = parse_url($value);
+        $host = is_array($parts) ? ($parts['host'] ?? null) : null;
+
+        if (! is_array($parts) || ! is_string($host) || $host === '') {
+            return null;
+        }
+
+        $query = (string) ($parts['query'] ?? '');
+        $keepsQuery = filter_var($this->config->get('visual-feedback.metadata.url_query', false), FILTER_VALIDATE_BOOLEAN);
+
+        return strtolower((string) ($parts['scheme'] ?? 'https')).'://'.$host
+            .(isset($parts['port']) ? ':'.$parts['port'] : '')
+            .$this->maskTokenPaths((string) ($parts['path'] ?? ''))
+            .($keepsQuery && $query !== '' ? '?'.$query : '');
+    }
+
+    private function maskTokenPaths(string $path): string
+    {
+        $segments = explode('/', $path);
+
+        foreach ($this->tokenPaths() as $route) {
+            $pattern = array_values(array_filter(explode('/', $route), static fn (string $segment): bool => $segment !== ''));
+
+            for ($start = 0; $pattern !== [] && $start + count($pattern) <= count($segments); $start++) {
+                if (! $this->routeMatchesAt($segments, $pattern, $start)) {
+                    continue;
+                }
+
+                foreach ($pattern as $offset => $expected) {
+                    if ($expected === '*') {
+                        $segments[$start + $offset] = '{token}';
+                    }
+                }
+            }
+        }
+
+        return implode('/', $segments);
+    }
+
+    /**
+     * @param  array<int, string>  $segments
+     * @param  list<string>  $pattern
+     */
+    private function routeMatchesAt(array $segments, array $pattern, int $start): bool
+    {
+        foreach ($pattern as $offset => $expected) {
+            $segment = $segments[$start + $offset];
+
+            if ($expected === '*' ? $segment === '' : strcasecmp($segment, $expected) !== 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function tokenPaths(): array
+    {
+        // Missing means the default. An empty list is a host switching the masking off.
+        $configured = $this->config->get('visual-feedback.metadata.url_token_paths');
+
+        return array_values(array_filter(
+            is_array($configured) ? $configured : self::TOKEN_PATHS,
+            is_string(...),
+        ));
     }
 
     /**

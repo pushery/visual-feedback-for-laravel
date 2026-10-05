@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Jobs;
 use Illuminate\Bus\Queueable;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Config\Repository as Config;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -17,6 +18,9 @@ use Pushery\VisualFeedback\Channels\Webhook\HttpWebhookSender;
 use Pushery\VisualFeedback\Channels\Webhook\WebhookPayload;
 use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Data\Report;
+use Pushery\VisualFeedback\Privacy\ErasedReporters;
+use Pushery\VisualFeedback\Privacy\ReporterWasErased;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use RuntimeException;
 use Throwable;
 
@@ -32,8 +36,12 @@ use Throwable;
  * minimized, path-and-binary-free payload. On success handle() settles DELIVERED; a failure
  * throws so the queue retries, and once the retries in `channels.webhook` are exhausted the
  * failed() hook settles FAILED — both through the single ReportDeliveryTracker.
+ *
+ * Queued encrypted: the report carries the reporter's name, address and message, and a job that
+ * fails for good stays in the queue's failed jobs until somebody removes it. A report whose
+ * reporter was erased after submitting it is withheld (ErasedReporters).
  */
-final class SendReportWebhook implements ShouldQueue
+final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
@@ -46,9 +54,25 @@ final class SendReportWebhook implements ShouldQueue
         private readonly int $backoffSeconds,
     ) {}
 
-    public function handle(WebhooksPlatform $platform, HttpWebhookSender $sender, Config $config, ReportDeliveryTracker $tracker): void
+    public function handle(WebhooksPlatform $platform, HttpWebhookSender $sender, Config $config, ReportDeliveryTracker $tracker, ErasedReporters $erased): void
     {
-        $this->deliver($platform, $sender, $config);
+        // The reporter was erased after this report was submitted. Posting it now would bring
+        // back a copy the erasure was meant to end, so the channel ends here, recorded as not
+        // delivered.
+        if ($erased->covers($this->report)) {
+            $tracker->settleFailed($this->report, 'webhook', new ReporterWasErased);
+
+            return;
+        }
+
+        // What a job throws, the worker reports and the failed jobs keep. A connection error names
+        // the URL it called, and a webhook URL's path is often its credential, so such a failure
+        // goes out as a stand-in without it.
+        try {
+            $this->deliver($platform, $sender, $config);
+        } catch (Throwable $exception) {
+            throw RedactedFailure::standIn($exception);
+        }
 
         $tracker->settleDelivered($this->report, 'webhook');
     }

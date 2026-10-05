@@ -26,6 +26,9 @@ use Pushery\VisualFeedback\Jobs\SendReportToDatabase;
  */
 final readonly class DatabaseChannel implements ReportChannel, RetainsReport
 {
+    /** The channel's key, which the delivery tracker also reads a stored report by. */
+    public const string KEY = 'database';
+
     public function __construct(
         private Config $config,
         private Bus $bus,
@@ -34,7 +37,7 @@ final readonly class DatabaseChannel implements ReportChannel, RetainsReport
 
     public function key(): string
     {
-        return 'database';
+        return self::KEY;
     }
 
     /** Available only when the opt-in table exists — a missing table is a defined skip, not a crash. */

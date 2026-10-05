@@ -48,6 +48,7 @@ final class SweepOrphanAttachments extends Command
 
         $referenced = $this->referencedPaths($config, $db);
         $swept = 0;
+        $failed = 0;
         /** @var list<string> $batch */
         $batch = [];
 
@@ -60,7 +61,14 @@ final class SweepOrphanAttachments extends Command
                 continue; // a stored report still references it — retention/prune owns that file
             }
 
-            $disk->delete($path);
+            // A failed delete answers `false` on a disk that is not configured to throw. Such a
+            // file is neither swept nor handed to the pruner, and the next run finds it again.
+            if (! $disk->delete($path)) {
+                $failed++;
+
+                continue;
+            }
+
             $batch[] = $path;
             $swept++;
 
@@ -79,6 +87,12 @@ final class SweepOrphanAttachments extends Command
         }
 
         $this->info(trans_choice('visual-feedback::messages.console.sweep.swept', $swept, ['count' => $swept, 'minutes' => $minAgeMinutes]));
+
+        if ($failed > 0) {
+            $this->error(trans_choice('visual-feedback::messages.console.sweep.failed', $failed, ['count' => $failed]));
+
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
     }

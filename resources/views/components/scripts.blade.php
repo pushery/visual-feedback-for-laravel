@@ -2,7 +2,7 @@
     <x-visual-feedback::scripts /> — loads the capture bundle and hands the client its config.
 
     Place it once IN YOUR LAYOUT, before </body> — the same layout the widget goes in. Per-page
-    placement reads like a saving (the ~200 KB bundle only on feedback-bearing pages) and buys a
+    placement reads like a saving (the capture bundle only on feedback-bearing pages) and buys a
     problem under `wire:navigate`: a page first reached BY a navigation runs its body scripts
     after Alpine has already walked the new body, so the capture island is initialized before the
     component it names exists. The bundle repairs that itself, but a repair is a fallback, not a
@@ -12,9 +12,15 @@
     carries only BEHAVIOR (locale, capture clamps, redact attribute), no user-facing strings, so
     the committed dist/ can never fall behind the 7 locales. The base URL is the `ui.assets`
     config or the published `vendor/visual-feedback` path.
+
+    Under a nonce-based content security policy the tags carry the nonce passed as
+    `<x-visual-feedback::scripts :nonce="$nonce" />`, or else the one the application gave
+    `Vite::useCspNonce()`, which is where Livewire looks for its own.
 --}}
+@props(['nonce' => null])
 @php
     $assetBase = rtrim((string) (config('visual-feedback.ui.assets') ?: asset('vendor/visual-feedback')), '/');
+    $nonce = app(\Pushery\VisualFeedback\Support\CspNonce::class)->resolve($nonce);
 
     // Subresource Integrity, and ONLY where it can mean something: the bundles have to be coming
     // from an origin this application does not own. Served from the host's own `public/` they are
@@ -48,8 +54,8 @@
     // shape: NOT republished at all, so `public/` still holds the previous release's bundle. It
     // measures server-side out of `vendor/`, which is why it works on the FIRST request after an
     // upgrade — a client-side stamp would be executed by the stale copy itself. It reads nothing
-    // from disk unless APP_DEBUG is on, and renders no inline script, because this package
-    // carries no CSP nonce to attach to one.
+    // from disk unless APP_DEBUG is on, and renders no inline script: a policy that admits the
+    // bundles by path alone, with no nonce, would refuse one.
     app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfUnusable();
 @endphp
 {{-- Master switch. The host places this tag in ITS own layout, so the widget cannot take it away
@@ -88,7 +94,7 @@
         ['hint' => "add @include('visual-feedback::style') to your layout <head>"],
     );
 @endphp
-@include('visual-feedback::style')
+@include('visual-feedback::style', ['nonce' => $nonce])
 @endunless
 <script type="application/json" data-visual-feedback-config>{!! json_encode($clientConfig, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_THROW_ON_ERROR) !!}</script>
 {{-- `strategy = off` is documented as "disables the screenshot entirely", and the widget keeps
@@ -105,11 +111,11 @@
      retained on `window` each time. --}}
 {{-- The widget bundle, ALWAYS — it is what registers the Alpine components the templates bind
      to, and under Alpine's CSP build a component that is not registered means the element is
-     never initialized at all: an empty scope, and every directive on it silently dead.
-     Unconditional for that reason and affordable because of its size: about 4 KB against the
-     capture bundle's 268. --}}
-<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($cacheToken('visual-feedback-widget.iife.js')) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif data-navigate-once defer></script>
+     never initialized at all: an empty scope, and every directive on it dead, with only the browser
+     console to show for it.
+     Unconditional for that reason and affordable because of its size, under 12 KB. --}}
+<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($cacheToken('visual-feedback-widget.iife.js')) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @endif
 @endif

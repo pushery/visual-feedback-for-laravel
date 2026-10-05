@@ -29,8 +29,15 @@ namespace Pushery\VisualFeedback\Attachments;
  */
 final class FilenameSanitizer
 {
-    /** Keep names short enough for every filesystem and mail client. */
-    private const int MAX_LENGTH = 200;
+    /**
+     * Keep names short enough for every filesystem and mail client.
+     *
+     * Counted in bytes, because that is what a filesystem counts: ext4, xfs, btrfs and APFS allow
+     * 255 bytes per path component, and the sanitized name is a component of its own. One hundred
+     * CJK characters are 300 bytes, so a cap in characters let a long Japanese or Cyrillic name
+     * fail to store while the reporter read that their file could not be found.
+     */
+    private const int MAX_BYTES = 200;
 
     /**
      * @param  string  $fallback  used when the name sanitizes to nothing (e.g. a generated UUID)
@@ -73,9 +80,8 @@ final class FilenameSanitizer
      * Replace the name's extension with the content-derived one, or leave it when the caller has
      * none to give.
      *
-     * The fallback goes through here too. It is a generated hash name, and Livewire builds that
-     * one from `getClientOriginalExtension()` — the client's word again — so returning it
-     * unpinned would hand back the very extension this parameter exists to discard.
+     * The fallback goes through here too: a generated hash name. It is pinned as well, so the
+     * stored name never depends on how the fallback was built.
      */
     private function pinExtension(string $name, ?string $extension): string
     {
@@ -86,21 +92,26 @@ final class FilenameSanitizer
         return pathinfo($name, PATHINFO_FILENAME).'.'.$extension;
     }
 
-    /** Cap the length while preserving a short extension when there is one. */
+    /**
+     * Cap the length in bytes while preserving a short extension when there is one.
+     *
+     * `mb_strcut()` cuts at a byte offset and backs off to the start of the character it would
+     * split, so the result stays valid UTF-8 and never exceeds the cap.
+     */
     private function cap(string $name): string
     {
-        if (mb_strlen($name) <= self::MAX_LENGTH) {
+        if (strlen($name) <= self::MAX_BYTES) {
             return $name;
         }
 
         $extension = pathinfo($name, PATHINFO_EXTENSION);
 
-        if ($extension !== '' && mb_strlen($extension) <= 10) {
-            $keep = self::MAX_LENGTH - mb_strlen($extension) - 1;
+        if ($extension !== '' && strlen($extension) <= 10) {
+            $keep = self::MAX_BYTES - strlen($extension) - 1;
 
-            return mb_substr($name, 0, $keep).'.'.$extension;
+            return mb_strcut($name, 0, $keep, 'UTF-8').'.'.$extension;
         }
 
-        return mb_substr($name, 0, self::MAX_LENGTH);
+        return mb_strcut($name, 0, self::MAX_BYTES, 'UTF-8');
     }
 }

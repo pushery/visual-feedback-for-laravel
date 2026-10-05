@@ -5,26 +5,32 @@
         @include('visual-feedback::style')
 
     It is not a no-op under the WireKit tree. That tree gets the smaller block in the @else
-    branch at the foot of this file: the rhythm between field groups, the row under the
-    screenshot preview, the box around a refusal and the concealment rule for the honeypot. A
-    host who leaves the include out there loses all four, and nothing turns red.
+    branch at the foot of this file: the layout design tokens do not cover, such as the rhythm
+    between field groups, the screenshot preview and its status, the required-field legend and
+    the concealment rule for the honeypot. Leave the include out and the scripts component emits
+    the sheet itself, late in the body, and logs a warning that names the missing line.
 
     In the plain tree every color is a CSS custom property with a `prefers-color-scheme: dark`
     fallback, so the widget is dark-mode-neutral out of the box and a host can retint it by
     overriding the `--vf-*` properties. Publish and edit it with:
 
         php artisan vendor:publish --tag=visual-feedback-views
+
+    Under a nonce-based content security policy the block carries the nonce passed as
+    `@include('visual-feedback::style', ['nonce' => $nonce])`, or else the one the application
+    gave `Vite::useCspNonce()`.
 --}}
 @php
     // Recorded OUTSIDE the branch below: the host wrote the include either way, and which tree
     // serves decides what this file CONTAINS, never whether it was asked for. Marking inside the
     // branch would report a WireKit host as having forgotten a line it did write.
     app(\Pushery\VisualFeedback\Support\StylesheetPresence::class)->markRendered();
+    $nonce = app(\Pushery\VisualFeedback\Support\CspNonce::class)->resolve($nonce ?? null);
 @endphp
-{{-- A SMALLER sheet when the WireKit tree is the one rendering, not an absent one — the @else
-     branch at the foot of this file is ~185 lines. This comment used to say "nothing at all",
-     which was true when it was written and stopped being true when that branch was added; the
-     line count is the check, not the sentence. Most of what the plain tree needs IS dead weight
+{{-- A smaller sheet when the WireKit tree is the one rendering, not an absent one: the @else
+     branch at the foot of this file. This comment used to say "nothing at all", which was true
+     when it was written and stopped being true when that branch was added. Most of what the
+     plain tree needs is dead weight
      against the application's own design tokens, and would fight them — but tokens position no
      floating panel, style no dialog and conceal no honeypot.
 
@@ -40,7 +46,11 @@
      over a plain widget — no positioning, no dialog styling, and no concealment rule for the
      honeypot, which lives in here. --}}
 @if (! app(\Pushery\VisualFeedback\Support\ServedViewTree::class)->servingWireKit())
+@if ($nonce !== null)
+<style nonce="{{ $nonce }}">
+@else
 <style>
+@endif
     :root {
         --vf-bg: #ffffff;
         --vf-fg: #111827;
@@ -59,8 +69,16 @@
            floor for body text. Per-scheme like --vf-error and unlike --vf-border, because a
            single green cannot carry both. --}}
         --vf-success: #15803d;
+        {{-- The tone of a choice still open, not of a failure: the border of a capture that is
+           neither attached nor discarded. A 1px boundary, so the floor is the 3:1 of WCAG 1.4.11:
+           5.02:1 on #ffffff here and 6.83:1 on the dark #1f2937 below. --}}
+        --vf-warning: #b45309;
         --vf-backdrop: rgba(17, 24, 39, .5);
+        {{-- Two radii, one per scale: the panels round with --vf-radius, and everything inside them
+           with --vf-radius-control, fields, buttons, status boxes and previews, in the widget and
+           the report browser alike. Overriding one changes that scale everywhere it appears. --}}
         --vf-radius: 10px;
+        --vf-radius-control: 6px;
         --vf-fab-size: 3.5rem;
         --vf-gap: 1rem;
     }
@@ -79,6 +97,7 @@
             --vf-accent-fg: #ffffff;
             --vf-error: #f87171;
             --vf-success: #4ade80;
+            --vf-warning: #f59e0b;
             --vf-backdrop: rgba(0, 0, 0, .6);
         }
     }
@@ -213,6 +232,20 @@
         min-height: 44px;
     }
 
+    {{-- The heading. Nothing styled it, so it rendered as whatever the host leaves an <h2>: the
+       UA's bold 1.5em in a bare document, and body text in a Tailwind host, whose preflight sets
+       every heading to `font-size: inherit; font-weight: inherit`, which made it lighter than the
+       bold field labels below it. The right padding keeps a long heading clear of the close
+       button in the top corner of a modal panel, and it is physical because the button's `right`
+       is. --}}
+    .visual-feedback-heading {
+        margin: 0;
+        padding-right: 2.5rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+
     .visual-feedback-dialog label { display: block; margin-top: 0.75rem; font-weight: 600; }
     {{-- The list this replaced named `text` and `email` and was outgrown the same way the buttons
        above were: `tel` (the opt-in phone field) matched nothing at all, so it rendered borderless
@@ -230,7 +263,7 @@
         margin-top: 0.25rem;
         padding: 0.5rem 0.625rem;
         border: 1px solid var(--vf-border);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
@@ -337,7 +370,7 @@
         padding: 0.625rem 0.75rem;
         border: 1px solid var(--vf-success);
         border-inline-start: 4px solid var(--vf-success);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         color: var(--vf-success);
         font-weight: 600;
     }
@@ -396,7 +429,7 @@
         padding: 0.625rem 0.75rem;
         border: 1px solid var(--vf-error);
         border-inline-start: 4px solid var(--vf-error);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         color: var(--vf-error);
         font-weight: 600;
     }
@@ -429,7 +462,16 @@
            to be the same tone in both schemes. It has a dark-scheme value, which a literal
            would not. --}}
         color: var(--vf-error);
+    }
+
+    {{-- The star sits after a field's label text and before the legend's, as the WireKit tree
+       places them, so its spacing follows where it stands. --}}
+    .visual-feedback-required-legend .visual-feedback-required-mark {
         margin-inline-end: 0.25rem;
+    }
+
+    label .visual-feedback-required-mark {
+        margin-inline-start: 0.125rem;
     }
 
     {{-- The capture block's own separation from the field above it.
@@ -504,7 +546,7 @@
         height: auto;
         margin-top: 0.5rem;
         border: 1px solid var(--vf-border);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         box-sizing: border-box;
     }
 
@@ -519,9 +561,9 @@
        attaching moves the status to `attached`, discarding resets it, and either way this
        container is no longer shown. --}}
     .visual-feedback-captured-pending {
-        padding: var(--space-wk-md, 1rem);
-        border: 1px solid var(--color-wk-warning, #b45309);
-        border-radius: var(--radius-wk-md, 0.5rem);
+        padding: 0.75rem;
+        border: 1px solid var(--vf-warning);
+        border-radius: var(--vf-radius-control);
     }
 
     .visual-feedback-preview-actions {
@@ -539,7 +581,7 @@
         margin-top: 0.25rem;
         padding: 0.5rem;
         border: 1px dashed var(--vf-border);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
@@ -560,7 +602,7 @@
         min-width: 44px;
         min-height: 44px;
         border: 1px solid var(--vf-border);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         background: transparent;
         color: var(--vf-muted);
         font-size: 1.25rem;
@@ -573,7 +615,7 @@
         padding: 0.625rem 1.25rem;
         min-height: 44px;
         border: 0;
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         background: var(--vf-accent);
         color: var(--vf-accent-fg);
         font: inherit;
@@ -606,7 +648,7 @@
         padding: 0.5rem 1rem;
         min-height: 44px;
         border: 1px solid var(--vf-border);
-        border-radius: 6px;
+        border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
@@ -616,7 +658,9 @@
     {{-- ── The report browser ──────────────────────────────────────────────────────────
        Same custom properties as the widget, so a host that already overrode --vf-accent
        gets a browser that matches without touching anything else. No new tokens: a
-       second palette to keep in sync is a second palette that drifts. --}}
+       second palette to keep in sync is a second palette that drifts. That holds for the
+       radii too: the fields and buttons here round with the widget's --vf-radius-control,
+       and only the detail pane, a panel like the widget's own, with --vf-radius. --}}
     .visual-feedback-browser {
         color: var(--vf-fg);
         font: inherit;
@@ -646,7 +690,7 @@
         min-height: 44px;
         padding: 0.5rem 0.75rem;
         border: 1px solid var(--vf-border);
-        border-radius: var(--vf-radius);
+        border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
@@ -655,6 +699,14 @@
     {{-- The same fixed height as the panel's select, for the same reason: WebKit ignores the
        min-height above on a native select. --}}
     .visual-feedback-browser-field select { height: 44px; }
+
+    {{-- The frame is the containing block of what the table positions absolutely, such as the
+       hidden heading of the actions column. Without it that heading sat at the far end of a table
+       wider than the screen, outside the frame, and widened the page. --}}
+    .visual-feedback-browser-scroll {
+        position: relative;
+        overflow-x: auto;
+    }
 
     .visual-feedback-browser-table {
         width: 100%;
@@ -677,20 +729,48 @@
     {{-- 44px on every control in the table, the same floor the widget holds. --}}
     .visual-feedback-browser-actions button,
     .visual-feedback-browser-clear,
+    .visual-feedback-browser-pager button,
     .visual-feedback-browser-detail button {
         min-height: 44px;
         padding: 0.5rem 0.875rem;
         border: 1px solid var(--vf-border);
-        border-radius: var(--vf-radius);
+        border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
         cursor: pointer;
     }
 
+    {{-- The pager: newer reports on the left, older on the right, the position between. An end of
+       the list keeps its word in place, muted, so the other button does not jump. --}}
+    .visual-feedback-browser-pager {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--vf-gap);
+        margin-top: var(--vf-gap);
+    }
+
+    .visual-feedback-browser-pager-position,
+    .visual-feedback-browser-pager-edge {
+        color: var(--vf-muted);
+    }
+
+    .visual-feedback-browser-pager-edge {
+        padding: 0.5rem 0.875rem;
+    }
+
     .visual-feedback-browser-empty {
         padding: var(--vf-gap);
         color: var(--vf-muted);
+    }
+
+    .visual-feedback-browser-error {
+        padding: var(--vf-gap);
+        border: 1px solid var(--vf-error);
+        border-radius: var(--vf-radius-control);
+        color: var(--vf-error);
     }
 
     .visual-feedback-browser-detail {
@@ -718,7 +798,7 @@
         max-width: 100%;
         height: auto;
         border: 1px solid var(--vf-border);
-        border-radius: var(--vf-radius);
+        border-radius: var(--vf-radius-control);
     }
 
     .visual-feedback-browser-attachment figcaption {
@@ -733,8 +813,8 @@
      What the guard is for is COLOR and design: a second set of --vf-* colors, borders and radii
      would fight the application's own tokens, and that is why this stylesheet silences itself
      for that tree. It does not follow that the tree needs no CSS at all, and for four releases
-     it read as though it did. The WireKit tree emits the SAME class names -- six of them carry a
-     rule here -- so `.visual-feedback-preview-actions` lost `display: flex` and its gap, and the
+     it read as though it did. The WireKit tree emits the same class names, so without this block
+     `.visual-feedback-preview-actions` lost `display: flex` and its gap, and the
      Attach / Discard / Retake row rendered with no space between the buttons at all. A consumer
      photographed four such places and filed it.
 
@@ -750,7 +830,11 @@
      A visible honeypot is filled in by real people, and a honeypot hit is answered with the
      success screen on purpose -- so their report is thanked for and discarded. That is the one
      failure here worth more than a margin. --}}
+@if ($nonce !== null)
+<style nonce="{{ $nonce }}">
+@else
 <style>
+@endif
     {{-- Concealment, not decoration. See the note above. --}}
     .visual-feedback-honeypot {
         position: absolute;
@@ -781,11 +865,51 @@
        0.75rem / 0.5rem / 0.5rem over its three parts while every direct child of the form got
        1rem, and the button row was the one that read as cramped -- it sits between two things
        that are spaced a third wider than it is. --}}
+    {{-- The report browser's message keeps the reporter's line breaks, as in the plain tree. The
+         kit's text component collapses white space. --}}
+    .visual-feedback-browser-message {
+        white-space: pre-wrap;
+    }
+
+    {{-- The hidden heading of the actions column is positioned absolutely, and its cell is its
+         containing block. WireKit releases before 2.51 do not make the table's scroller one, so on
+         a narrow screen the heading sat at the far end of the table, outside the scroller, and
+         widened the page. --}}
+    .visual-feedback-browser-actions-head {
+        position: relative;
+    }
+
     .visual-feedback-preview-actions {
         display: flex;
         flex-wrap: wrap;
         gap: var(--gap-wk-sm, 0.5rem);
         margin-block-start: var(--space-wk-md, 1rem);
+    }
+
+    {{-- The block while a capture waits for a decision, attached or discarded, neither yet. The
+       sentence naming that state stands at the end of the form; this border shows which part of
+       the screen it means. WireKit's warning text tone rather than its fill, because a 1px line
+       needs the 3:1 of WCAG 1.4.11 against the surface and the fill is too light for it. --}}
+    .visual-feedback-captured-pending {
+        padding: var(--space-wk-md, 1rem);
+        border: 1px solid var(--color-wk-warning-text, #b45309);
+        border-radius: var(--radius-wk-md, 0.5rem);
+    }
+
+    {{-- The legend's star in the tone WireKit's label gives the star on every required control,
+       so the legend explains the mark the reporter actually sees, and the sentence muted like
+       the other notes of this form. --}}
+    .visual-feedback-required-mark {
+        color: var(--color-wk-danger-text, #b91c1c);
+    }
+
+    .visual-feedback-required-legend {
+        font-size: var(--text-wk-sm, 0.8125rem);
+        color: var(--color-wk-text-muted, #6b7280);
+    }
+
+    .visual-feedback-required-legend .visual-feedback-required-mark {
+        margin-inline-end: var(--space-wk-xs, 0.25rem);
     }
 
     {{-- The preview speaks the dropzone's language: dashed, rounded, with room around it. It sat
@@ -902,34 +1026,23 @@
        the gap the report is about.
 
        `:empty` is not enough for the honeypot: it HAS children, it is just positioned out of the
-       flow, so it is named directly. The challenge slot is the opposite case -- an ordinary block
-       that is genuinely empty until a host injects something -- and `:empty` is exactly the
-       question there, so its spacing returns by itself the moment it has content.
+       flow, so it is named directly. The challenge slot is an ordinary block that is empty until a
+       host injects something, but `:empty` is only half the question there: an invisible provider
+       fills it with elements that take no room, and the slot is then not empty and still zero
+       high. The widget measures it and sets `data-visual-feedback-collapsed` while it has no
+       height (watchChallengeHeight in js/widget.js), so its spacing returns the moment it shows.
 
        The margin is removed from the element AFTER them as well: the owl selector spaces a child
        from its predecessor, so skipping a zero-height predecessor means the next visible element
        must not inherit a step from it either. That is what the second selector does. --}}
     .visual-feedback-panel form > .visual-feedback-honeypot,
-    .visual-feedback-panel form > .visual-feedback-challenge:empty {
+    .visual-feedback-panel form > .visual-feedback-challenge:is(:empty, [data-visual-feedback-collapsed]) {
         margin-block-start: 0;
     }
 
     .visual-feedback-panel form > .visual-feedback-honeypot + *,
-    .visual-feedback-panel form > .visual-feedback-challenge:empty + * {
+    .visual-feedback-panel form > .visual-feedback-challenge:is(:empty, [data-visual-feedback-collapsed]) + * {
         margin-block-start: 0;
-    }
-
-    {{-- …and the one child the rule above cannot reach on its own. The privacy anchor is a direct
-       child of the form and an INLINE box, and a vertical margin on an inline box does nothing —
-       so the submit button, which WireKit renders `inline-flex`, sat on the same line as the
-       link and overlapped it by 30px, measured in a browser at a phone width.
-
-       `display: block` is the whole fix: it makes the anchor a block box, which both takes the
-       margin above and puts the button back on its own line. Width is left alone, so the link's
-       clickable area still ends with its text rather than spanning the panel — an anchor that
-       reaches the full width invites a click on empty space beside the words. --}}
-    .visual-feedback-panel form > a {
-        display: block;
     }
 
     {{-- Every rejection the reporter can see, in a box that reads as one.

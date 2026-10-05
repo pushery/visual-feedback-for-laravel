@@ -91,7 +91,12 @@ final readonly class AbuseGateManager implements AbuseGate
                     // Its own reason rather than ChallengeFailed: a host watching rejections has
                     // to be able to tell "this submission failed the challenge" from "there was no
                     // challenge to fail", and those two arrive on the same event.
-                    return AbuseDecision::reject(RejectionReason::GateUnavailable);
+                    //
+                    // And visible. An outage turns away every reporter, people included, and a
+                    // silent rejection answers with the success screen: the reporter reads "sent"
+                    // for a report that was discarded and never tries again. Telling a bot that a
+                    // provider is down gives it nothing, because nothing gets through while it is.
+                    return AbuseDecision::reject(RejectionReason::GateUnavailable, visible: true);
                 }
             }
         }

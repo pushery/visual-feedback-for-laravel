@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 
 /**
@@ -42,6 +43,13 @@ use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
  *    Per action, not once in mount(): a Livewire component re-hydrates on every request from
  *    client-supplied state, so a check that ran only at mount is a check that ran on a request
  *    nobody is making any more.
+ *
+ *    And per public method, not per render: a client can call any public method of a component
+ *    by name and mark the call renderless, which skips render() and the check in it while the
+ *    method's return value still travels back. So every public method checks, and the helpers
+ *    the view needs are private, out of the client's reach. render() hands their results to the
+ *    view, and a published view that still calls them keeps working, because Livewire renders
+ *    a component's view bound to the component.
  *
  * 3. THE TABLE IS OPTIONAL, SO THIS IS TOO. Without the opt-in migration there is nothing to
  *    browse, and the component says so instead of throwing — the same shape DatabaseChannel
@@ -78,6 +86,12 @@ final class ReportBrowser extends Component
     /** The report open in the detail pane, by uuid. Empty means the list. */
     public string $selected = '';
 
+    /** Whether the last delete kept its report because the disk would not delete the files. */
+    public bool $deleteFailed = false;
+
+    /** The answer tableExists() gave in this request, kept for the rest of it. */
+    private ?bool $reportsTableExists = null;
+
     public function mount(): void
     {
         $this->authorizeBrowsing();
@@ -113,11 +127,15 @@ final class ReportBrowser extends Component
 
     public function close(): void
     {
+        $this->authorizeBrowsing();
+
         $this->selected = '';
     }
 
     public function clearFilters(): void
     {
+        $this->authorizeBrowsing();
+
         $this->filterMode = '';
         $this->filterCategory = '';
         $this->filterFrom = '';
@@ -150,7 +168,7 @@ final class ReportBrowser extends Component
         $db = app(DatabaseManager::class);
         $table = $this->reportsTable($config);
 
-        if (! Schema::hasTable($table)) {
+        if (! $this->tableExists()) {
             return;
         }
 
@@ -161,12 +179,19 @@ final class ReportBrowser extends Component
         }
 
         $paths = $this->attachmentPaths($row->attachments ?? null);
+        $disk = app(FilesystemFactory::class)->disk($this->attachmentsDisk($config));
 
-        if ($paths !== []) {
-            app(FilesystemFactory::class)
-                ->disk($this->attachmentsDisk($config))
-                ->delete($paths);
+        // A failed delete answers `false` on a disk that is not configured to throw. The row is
+        // the only reference to those files, so it stays, and the page says so.
+        $this->deleteFailed = $paths !== [] && ! $disk->delete($paths);
+
+        if ($this->deleteFailed) {
+            return;
         }
+
+        // Every file sat in a directory of its own, and once the row is gone nothing names that
+        // directory any more: removed here when empty, as prune and forget do, or it stays forever.
+        app(EmptyDirectoryPruner::class)->prune($disk, $paths, $this->attachmentsDirectory($config));
 
         $db->connection()->table($table)->where('uuid', $uuid)->delete();
 
@@ -177,10 +202,16 @@ final class ReportBrowser extends Component
         $this->resetPage();
     }
 
-    /** Whether the opt-in table exists at all. The view branches on this rather than erroring. */
-    public function tableExists(): bool
+    /**
+     * Whether the opt-in table exists at all. The view branches on this rather than erroring.
+     *
+     * Asked once per request: a render reads it for the list, the detail pane, both filters and
+     * the view, and every read was a query against the database catalog. Livewire builds the
+     * component anew for each request, so a table migrated in between is seen on the next one.
+     */
+    private function tableExists(): bool
     {
-        return Schema::hasTable($this->reportsTable(app(Config::class)));
+        return $this->reportsTableExists ??= Schema::hasTable($this->reportsTable(app(Config::class)));
     }
 
     /**
@@ -192,7 +223,7 @@ final class ReportBrowser extends Component
      *
      * @return list<string>
      */
-    public function categories(): array
+    private function categories(): array
     {
         if (! $this->tableExists()) {
             return [];
@@ -215,7 +246,7 @@ final class ReportBrowser extends Component
      *
      * @return list<string>
      */
-    public function modes(): array
+    private function modes(): array
     {
         if (! $this->tableExists()) {
             return [];
@@ -246,10 +277,10 @@ final class ReportBrowser extends Component
      * So the detail pane shows the PATH when it cannot show the picture. That is honest and
      * still useful — it is what a host needs to fetch the file with their own tooling.
      */
-    public function attachmentUrl(string $path): ?string
+    private function attachmentUrl(string $path): ?string
     {
         $config = app(Config::class);
-        $disk = $this->attachmentsDisk($config) ?? 'local';
+        $disk = $this->attachmentsDisk($config);
 
         // THE DECIDER IS THE DISK'S CONFIGURED `url`, NOT WHETHER url() THROWS.
         // The first version of this method asked the adapter and treated a RuntimeException as
@@ -282,7 +313,7 @@ final class ReportBrowser extends Component
      *
      * @return list<string>
      */
-    public function attachmentsOf(mixed $json): array
+    private function attachmentsOf(mixed $json): array
     {
         return $this->attachmentPaths($json);
     }
@@ -294,9 +325,24 @@ final class ReportBrowser extends Component
      * type — would mean the browser fetches every attachment of every listed report just to
      * decide how to render a link, and a report can carry several.
      */
-    public function isPreviewable(string $path): bool
+    private function isPreviewable(string $path): bool
     {
         return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['png', 'jpg', 'jpeg', 'webp', 'gif'], true);
+    }
+
+    /**
+     * The attachments of the open report as the detail pane shows them: each path, its URL when
+     * the disk has one, and whether the picture can be shown inline.
+     *
+     * @return list<array{path: string, url: ?string, previewable: bool}>
+     */
+    private function attachmentsShown(mixed $json): array
+    {
+        return array_map(fn (string $path): array => [
+            'path' => $path,
+            'url' => $this->attachmentUrl($path),
+            'previewable' => $this->isPreviewable($path),
+        ], $this->attachmentsOf($json));
     }
 
     /** The filtered query, shared by the list and by the detail lookup. */
@@ -365,11 +411,16 @@ final class ReportBrowser extends Component
                 ->first();
         }
 
+        // The page's title for a host that routes the component as a full page
+        // (`Route::livewire(...)`): Livewire hands it to the layout as `$title`. Embedded in a view
+        // of the host's own, the component has no say over the document title, and this does nothing.
         return view('visual-feedback::livewire.report-browser', [
+            'tableExists' => $this->tableExists(),
             'reports' => $reports,
             'detail' => $detail,
+            'attachments' => $detail === null ? [] : $this->attachmentsShown($detail->attachments ?? null),
             'categories' => $this->categories(),
             'modes' => $this->modes(),
-        ]);
+        ])->title(__('visual-feedback::browser.title'));
     }
 }

@@ -84,18 +84,52 @@ final readonly class AttachmentPolicy
     }
 
     /**
+     * The disk attachments live on, for every reader: the widget's store and discard, both
+     * validators, the delivery cleanup, the mail and the retention commands.
+     *
+     * Four fallbacks existed and they disagreed. With an empty value the widget wrote to the
+     * application's default disk while the validators looked on `local` and refused every
+     * attachment; with a value that is not a string the files went to `local` while the mail, the
+     * cleanup, `prune`, `forget` and the orphan sweep worked on the default disk, so an erasure
+     * reported done over files it never reached. The fallback is `local`, the documented private
+     * default, and never the application's default disk, which may be a public bucket.
+     */
+    public function disk(): string
+    {
+        $disk = $this->config->get('visual-feedback.attachments.disk');
+
+        return is_string($disk) && trim($disk) !== '' ? $disk : 'local';
+    }
+
+    /**
      * The directory attachments live in, under the configured disk.
      *
      * Three copies of this fallback existed — the widget's store, the delivery cleanup and the
      * orphan sweep — and they did not AGREE: an empty string counted as a valid directory in one
      * and mapped to the default in the others, so the cleanup guarded a root the store had never
      * used. One source, like the caps above.
+     *
+     * The value is read the way the filesystem reads a path: a backslash separates like a slash,
+     * and empty, `.` and `..` segments are resolved. `.`, `./` and `x/..` all name the root of the
+     * disk, and an attachment directory at the root hands the whole disk to the orphan sweep. A
+     * value that resolves to the root, or climbs above it, falls back to `visual-feedback`.
      */
     public function directory(): string
     {
         $directory = $this->config->get('visual-feedback.attachments.directory');
+        $segments = [];
 
-        return is_string($directory) && trim($directory, '/') !== '' ? trim($directory, '/') : 'visual-feedback';
+        foreach (explode('/', str_replace('\\', '/', is_string($directory) ? $directory : '')) as $segment) {
+            if ($segment === '..') {
+                if (array_pop($segments) === null) {
+                    return 'visual-feedback';
+                }
+            } elseif ($segment !== '' && $segment !== '.') {
+                $segments[] = $segment;
+            }
+        }
+
+        return $segments === [] ? 'visual-feedback' : implode('/', $segments);
     }
 
     public function maxFiles(): int

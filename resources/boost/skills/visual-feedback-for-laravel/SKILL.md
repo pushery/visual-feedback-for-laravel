@@ -11,9 +11,8 @@ metadata:
 # Visual Feedback for Laravel
 
 Use this skill when a Laravel application installs or integrates the
-`pushery/visual-feedback-for-laravel` package. Laravel Boost surfaces it inside
-consuming applications, so keep it focused on adoption — never on package
-internals.
+`pushery/visual-feedback-for-laravel` package. The full reference is at
+<https://docs.pushery.com/visual-feedback-for-laravel/>.
 
 ## Primary Goal
 
@@ -54,14 +53,14 @@ a stale copy is the one failure this setup produces on its own.
 
 There are **three** of them since 0.6.0, and they fail differently.
 
-`visual-feedback-widget.iife.js` is ~4 KB, always ships, and registers the Alpine
+`visual-feedback-widget.iife.js` is under 12 KB, always ships, and registers the Alpine
 components the templates bind to — so a page missing that one renders a widget whose
-every control silently does nothing.
+every control does nothing, with only the browser console to show for it.
 
-`visual-feedback.iife.js` is ~16 KB and ships while `screenshot.strategy` is not `off`.
+`visual-feedback.iife.js` is under 40 KB and ships while `screenshot.strategy` is not `off`.
 It is the capture state machine, not the renderer.
 
-`visual-feedback-renderer.iife.js` is ~245 KB and is the DOM renderer. Nothing loads it
+`visual-feedback-renderer.iife.js` is ~276 KB and is the DOM renderer. Nothing loads it
 until a screenshot is actually taken, and the URL it is fetched from is derived from the
 script that loads it — so it has to sit beside `visual-feedback.iife.js` under the same
 base. `vendor:publish` puts all three there for you. If you serve the bundles from your
@@ -106,7 +105,7 @@ it`.
 VISUAL_FEEDBACK_MAIL_TO=support@example.com
 ```
 
-**And check `MAIL_MAILER` while you are there.** `log`, `array` and `null` let `Mailer::send()`
+**And check `MAIL_MAILER` while you are there.** `log` and `array` let `Mailer::send()`
 succeed with the message going nowhere, and Laravel's own default is `env('MAIL_MAILER', 'log')`
 — so an application that never set it is in that state. The mail channel refuses those (and a
 `failover` chain that can fall through to one) instead of reporting a delivery that did not
@@ -126,6 +125,9 @@ VISUAL_FEEDBACK_FIELD_NAME_MODE=optional
 VISUAL_FEEDBACK_FIELD_EMAIL_MODE=optional
 VISUAL_FEEDBACK_FIELD_PHONE_MODE=off
 ```
+
+A value that is none of the three words shows the field as `optional`, so a typo never removes an
+input; `true` and `false` read as `optional` and `off`.
 
 `message` has no mode: a feedback form without a message is not a feedback form. Name, email and
 phone are asked of GUESTS only — an authenticated reporter's identity comes from the auth guard,
@@ -218,17 +220,26 @@ deletes nothing and orphaned attachments accumulate:
 // routes/console.php
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('visual-feedback:prune')->daily();
-Schedule::command('visual-feedback:sweep-orphans')->daily();
+Schedule::command('visual-feedback:prune')->daily()->withoutOverlapping()->onOneServer();
+Schedule::command('visual-feedback:sweep-orphans')->daily()->withoutOverlapping()->onOneServer();
 ```
 
 Both are safe to add before a retention window is chosen: with `reports_days` unset, prune
-is a clean no-op. The sweep is needed even then — the ordinary attachment cleanup runs off a
+is a clean no-op, and a value under one day is refused rather than deleting every report. The sweep is needed even then — the ordinary attachment cleanup runs off a
 cache-backed reference count, and a `cache:clear` on deploy loses it; the age-based sweep is
 the only thing that collects the residue, and it works without the optional reports table.
 
 **Run `visual-feedback:forget` by hand.** It answers one person's erasure request and does
-not belong on a schedule.
+not belong on a schedule. For a signed-in member, erase by id rather than by address, because
+addresses move between accounts: `visual-feedback:forget --reporter=<id>` takes that account's
+reports under every address it used, `--guest-email=<address>` adds the guest reports sent under
+an address, and `visual-feedback:forget <address> --guests-only` takes only those. An address
+alone erases every report under it, another account's included. Pass it as it was submitted:
+MySQL ignores its case, PostgreSQL and SQLite do not, and no engine matches across accents.
+Besides deleting the stored reports and their files, it records what it erased so that a
+delivery still queued for one of those reports stores, mails and posts nothing. It cannot reach
+a mail already delivered, a job in the queue's failed jobs (remove those with `queue:forget`),
+or the webhooks platform's delivery log, and it says so in its output.
 
 **If the application runs a content security policy**, it needs five allowances, and two of the
 failures are silent rather than loud:
@@ -242,6 +253,12 @@ failures are silent rather than loud:
   Without it the shot comes back with holes where the icons were.
 - `connect-src` and `font-src` for the origins of any inlined SVG or webfont inside the captured
   region.
+
+**Under a nonce-based policy there is nothing to wire** if the application already calls
+`Vite::useCspNonce()`: the script and style tags carry that nonce, the one Livewire uses for its
+own tags, and the renderer the DOM stage loads at capture time carries it too. To pass a nonce
+explicitly, write `<x-visual-feedback::scripts :nonce="$nonce" />` and
+`@include('visual-feedback::style', ['nonce' => $nonce])`.
 
 **You do not need `unsafe-eval`.** That is worth saying because Alpine normally does: its
 standard build evaluates every directive expression by constructing a function at runtime.
@@ -303,8 +320,10 @@ window.dispatchEvent(new Event('visual-feedback:open'))
 ### 5. Override the configuration per widget
 
 Six props override the configuration for one widget, so two pages in the same application
-can offer different forms. All six are `#[Locked]` — the browser cannot change or widen them
-after mount.
+can offer different forms. The browser cannot change or widen any of them after mount:
+`categories`, `context`, `fields` and `withScreenshot` are sealed and restored on every request,
+`recipient` must stay an address the configuration permits, and `mode` one the widget renders.
+A request that breaks the seal makes the widget refuse to send until the page is reloaded.
 
 | Prop | Type | Default | What it does |
 |---|---|---|---|
@@ -339,12 +358,13 @@ Three things to get right:
 
 ### 6. Redact sensitive regions
 
-No CSS effect hides anything from a screenshot. `filter: blur()` and
-`content-visibility: hidden` are not reproduced by the DOM renderer at all — the live page
-looks masked and the capture does not. `filter: grayscale()` *is* reproduced, and gray text
-is still perfectly readable. Which properties survive also changes between renderer
+No CSS effect hides anything from a screenshot. `content-visibility: hidden` is not
+reproduced by the DOM renderer at all. `filter: blur()` is reproduced now, and blurred text can
+still be read back out of an image; an earlier renderer returned it sharp. `filter: grayscale()`
+is reproduced in Blink, and gray text is still perfectly readable. Which properties survive also changes between renderer
 versions. Mark the region instead; the attribute blacks it out in both capture stages and
-clears input values as it goes:
+clears input values as it goes. It works on a wrapper and directly on an image, a canvas, an
+inline SVG, a video, an iframe, a checkbox or a custom element:
 
 ```blade
 <div data-visual-feedback-redact>
@@ -367,7 +387,9 @@ and the `alt` text, in the capture that area is simply empty. A report about a m
 therefore shows a gap rather than the evidence.
 
 Everything else on a normal page — gradients, `oklch` fills, `box-shadow` and Tailwind's `ring-*`,
-sticky headers, tables, web fonts — is reproduced faithfully.
+sticky headers, tables, web fonts — is reproduced faithfully, with one exception: an `inset` shadow
+on a rounded element is left out of the capture, because the renderer would paint it as a band
+as wide as the radius.
 
 **Which properties survive changes with the renderer version, so treat any list as dated.** This
 section used to say the opposite about `box-shadow`: it was painted across the whole element
@@ -379,7 +401,7 @@ which is the copy that gets corrected when a dependency moves.
 
 ### 8. Use a WireKit-styled widget (optional)
 
-**Nothing to do — an application with WireKit 2.50+ installed already gets it.** The shipped
+**Nothing to do — an application with WireKit 2.51+ installed already gets it.** The shipped
 `ui.variant` is `auto`, which serves the WireKit tree when a new enough WireKit is present and
 the framework-free one otherwise. Force either tree when the automatic choice is not what the
 application wants:
@@ -396,9 +418,9 @@ views, which every update then silently leaves behind. That is what `ui.variant`
 replace. The stylesheet needs no attention either way: it carries the same switch and renders
 nothing under the WireKit tree.
 
-**Needs WireKit 2.50 or newer** — the report dialog is a `<x-wirekit::modal>`, and 2.50 is the
-release whose panel is a column, so a dialog taller than the screen keeps its header and close
-button in reach. `auto` serves the plain tree below 2.50; check the installed version before
+**Needs WireKit 2.51 or newer** — the report browser's pager turns pages inside Livewire from
+2.51, and from 2.50 the report dialog, a `<x-wirekit::modal>`, keeps its header and close button
+in reach when it is taller than the screen. `auto` serves the plain tree below 2.51; check the installed version before
 forcing or publishing the WireKit tree. One thing differs from the plain tree by design: the trigger is an **icon** button
 rather than a text one (its accessible name is the widget heading either way). The corner does
 not differ: `ui.position` follows the writing direction in both trees, so `bottom-end` mirrors
@@ -551,6 +573,9 @@ final class SubscriptionContext implements ReportContextProvider
 ],
 ```
 
+Return `ReportContextEntry` objects only: anything else in the list is skipped with a warning in
+the log, and the report goes out without it.
+
 Deliver reports somewhere else with a class implementing
 `Pushery\VisualFeedback\Contracts\ReportChannel` — `key()`, `isAvailable()` and
 `dispatch(Report $report)`. Register the factory in a service provider's `boot()`:
@@ -589,6 +614,10 @@ decision on the next line, so a queued listener runs and is ignored), and the re
 validated yet, so treat `$event->report->message` as untrusted input. The string you pass
 reaches your logs and `ReportRejected::$detail`, never the reporter's screen.
 
+A listener on `ReportDelivered` or `ReportDeliveryFailed` that throws is reported and does not
+fail the delivery, so it is not retried either: queue it (`ShouldQueue`) when it calls a service
+that can be down.
+
 Then enable it in the config. **The switch is the `enabled` key inside the channel's own
 array, never a bare boolean** — `'slack' => true` reads as a missing `enabled` key, which
 means off, silently:
@@ -609,11 +638,6 @@ are isolated from each other: one failing never stops the rest.
 
 ## Anti-Patterns
 
-- Do not document package internals here; keep the skill focused on adoption
-  in Laravel applications.
-- Do not duplicate the full README; link the deeper reference material instead
-  and keep this skill small enough to load and apply quickly. The reference is
-  <https://docs.pushery.com/visual-feedback-for-laravel/>.
 - Do not store attachments on a public disk, and do not point `attachments.disk` at the
   same disk the application serves user uploads from.
 - Do not rely on any CSS effect — `filter`, `mask`, `content-visibility` — to hide sensitive

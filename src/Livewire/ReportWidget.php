@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Livewire;
 
 use DateTimeImmutable;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Psr\Log\LoggerInterface;
@@ -34,6 +37,7 @@ use Pushery\VisualFeedback\Submission\SubmitReport;
 use Pushery\VisualFeedback\Submission\ValidationFailure;
 use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\ClientConfig;
+use Pushery\VisualFeedback\Support\FieldLabel;
 use Pushery\VisualFeedback\Support\Settings;
 use Pushery\VisualFeedback\Support\WidgetAvailability;
 use Throwable;
@@ -44,6 +48,11 @@ use Throwable;
  * result. `mode` (modal | inline) is a per-instance override, CLAMPED on every request
  * rather than locked -- see the property. The reset lifecycle lets a reporter file a second report
  * in the same session; without a reset, a screenshot button that has been used once stays gone.
+ *
+ * Not an extension point. The class is not final because the package's own browser tests extend
+ * it to seed state a real upload would produce, and nothing in it is held stable for a subclass
+ * across releases. Publish the views to change what the widget shows, and use the channels and
+ * events to act on a report.
  */
 class ReportWidget extends Component
 {
@@ -85,7 +94,8 @@ class ReportWidget extends Component
 
     /**
      * Per-instance category override. Empty falls back to the configured categories.
-     * Locked so the client can never widen or swap the offered categories after mount.
+     * Sealed with the other mount props (see $sealedProps), so the client cannot widen or swap
+     * the offered categories after mount.
      *
      * @var list<string>
      */
@@ -93,9 +103,9 @@ class ReportWidget extends Component
     public array $availableCategories = [];
 
     /**
-     * Per-instance context entries, supplied ONLY as mount props by host code. Locked
-     * so there is no client-callable path to set or widen the report's context — the
-     * structural fix for that authorization defect. Each entry is a plain array
+     * Per-instance context entries, supplied only as mount props by host code. Sealed with
+     * the other mount props (see $sealedProps), so there is no client-callable path to set or
+     * widen the report's context — the structural fix for that authorization defect. Each entry is a plain array
      * (key/label/value[/url/identifier]); the host authorizes what it puts here.
      *
      * @var list<array<string, mixed>>
@@ -104,8 +114,9 @@ class ReportWidget extends Component
     public array $context = [];
 
     /**
-     * Per-instance field overrides (e.g. ['subject' => false]) — Locked. A key present
-     * here wins over config('visual-feedback.fields.*'); absent falls back to config.
+     * Per-instance field overrides (e.g. ['subject' => false]), sealed with the other mount
+     * props (see $sealedProps). A key present here wins over config('visual-feedback.fields.*');
+     * absent falls back to config.
      *
      * @var array<string, mixed>
      */
@@ -113,7 +124,7 @@ class ReportWidget extends Component
     public array $fields = [];
 
     /**
-     * Per-instance mail recipient — Locked. Where this widget's reports go, overriding
+     * Per-instance mail recipient. Where this widget's reports go, overriding
      * `mail.to`: a docs page and a billing page in the same app can reach different teams.
      * Validated as an address in mount(), so an invalid one fails loudly at the call site
      * instead of silently swallowing every report from that page.
@@ -132,7 +143,8 @@ class ReportWidget extends Component
     public ?string $recipient = null;
 
     /**
-     * Per-instance capture switch — Locked. `null` follows the config default (which is
+     * Per-instance capture switch, sealed with the other mount props (see $sealedProps).
+     * `null` follows the config default (which is
      * itself modal-only, see screenshotEnabled()); `false` removes the capture UI from this
      * widget even where the config allows it — a page showing someone else's data has good
      * reason to refuse screenshots regardless of the app-wide setting.
@@ -163,9 +175,10 @@ class ReportWidget extends Component
      * defaults. That is the same widening through the back door. A copy carries the values, so
      * there is something to restore to.
      *
-     * Failing to open it -- or opening to another widget's copy -- is the one case that does fall
-     * back to the configuration, and there it is correct: nothing trustworthy is left. It still
-     * does not throw.
+     * Failing to open it -- or opening to another widget's copy -- leaves nothing trustworthy, and
+     * the widget then stops accepting reports until the page is reloaded (see restoreMountProps()).
+     * A fallback to the configuration there would be the back door this copy exists to close. It
+     * still does not throw.
      *
      * WHERE THE ARMS REACH, stated rather than implied. Livewire's protocol sends property changes
      * as update entries, and a test can only produce those, so every arm below exercises the
@@ -227,8 +240,9 @@ class ReportWidget extends Component
      * The capture stage that produced the screenshot — `native` (pixel-exact getDisplayMedia)
      * or `dom` (the DOM-renderer reconstruction). Client-set via the capture module's onStage
      * seam, so it is UNTRUSTED: it is validated to the known set and recorded on the report
-     * only when a screenshot was actually attached (see submit()). The recipient must be able
-     * to tell an exact shot from a reconstruction.
+     * only when a screenshot was actually attached (see submit()). It tells the recipient which
+     * stage the browser says it used. The server cannot check that against the file, so the
+     * report mail marks the value as reported by the browser.
      */
     public ?string $screenshotStage = null;
 
@@ -317,29 +331,6 @@ class ReportWidget extends Component
     public array $challenge = [];
 
     /**
-     * Normalize whatever arrived into a shape this widget actually renders.
-     *
-     * One function for both entry points. The mount prop goes through it so a host writing
-     * `mode="banana"` gets the configured default instead of a value every `@if` below compares
-     * false against -- which rendered a widget with no trigger and no form, reachable by nobody.
-     * And the hydrated snapshot goes through it because that is where an arbitrary value now
-     * arrives from, once the lock is gone.
-     *
-     * `null` is not a failure: it is the documented way to say "take the default", and the default
-     * is the host's `ui.trigger`.
-     */
-    /**
-     * The recipient this widget is allowed to name, or null for the configured default.
-     *
-     * Permitted means `mail.to` or listed under `mail.allowed_recipients`. Everything else answers
-     * null, which the mail channel reads as "use `mail.to`" — so an address that is not permitted
-     * cannot redirect a report, it simply does not reach the header.
-     *
-     * The comparison is case-insensitive on the whole address, which is coarser than the RFC (the
-     * local part is technically case-sensitive) and correct for what this list is: a host writing
-     * down its own inboxes, not a mail server routing between two of them.
-     */
-    /**
      * The four properties whose value must come from the tag rather than from the browser.
      *
      * Named once because three methods walk it, and a list written three times is a list that
@@ -348,6 +339,19 @@ class ReportWidget extends Component
      * @var list<string>
      */
     private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot'];
+
+    /**
+     * What the four hold while the seal will not open: none of the tag's own categories, context
+     * or field modes, so the configuration's are rendered, and no capture.
+     *
+     * One list for both readers. restoreMountProps() renders from it, and restoreAfterAWrite()
+     * compares a write with it, so a page with a broken seal that sends back what it was rendered
+     * with stays quiet, and any other value is reported as it would be against an intact seal.
+     */
+    private const array UNSEALED = ['availableCategories' => [], 'context' => [], 'fields' => [], 'withScreenshot' => false];
+
+    /** The request attribute that lists the sealed properties this request has reported a write to. */
+    private const string SEALED_WRITES_REPORTED = 'visual-feedback.sealed-writes-reported';
 
     /** Put the mount props beyond the round trip. Called once, at the end of mount(). */
     private function sealMountProps(): void
@@ -368,31 +372,27 @@ class ReportWidget extends Component
 
         // Encrypted, not merely signed: a signature would keep the values readable in the page,
         // which is the other half of what the lock never gave. Laravel's own APP_KEY, so a host
-        // rotating it invalidates every open page -- which reads as a tamper and lands on the
-        // configuration, not on an error.
+        // rotating it invalidates every open page -- which reads as a tamper: those pages ask the
+        // reporter to reload before sending, and nothing throws.
         $this->sealedProps = Crypt::encryptString((string) json_encode($values));
     }
 
     /**
-     * Restore the four from the sealed copy, or fall back to the configuration if it will not open.
+     * Restore the four from the sealed copy, or stop accepting if it will not open.
      *
-     * The fallback is deliberately the CONFIGURATION and not "leave what arrived": if the copy is
-     * unreadable there is nothing trustworthy left, and keeping the arriving values would make a
-     * forged seal the way to keep a forged prop.
+     * A copy that will not open leaves nothing trustworthy to restore to. Keeping the arriving
+     * values would make a forged seal the way to keep a forged prop, and falling back to the
+     * configuration would let a client break the seal on purpose to pull the page onto the wider
+     * defaults: every category instead of this widget's few, the configured field modes instead of
+     * the page's, and the capture back on where the host had refused it.
+     *
+     * So the props go to the configuration only for rendering, the capture is switched off, and
+     * the broken seal is left as it is rather than sealed again over those values. Every later
+     * request finds it broken too, and submit() refuses until the page is reloaded.
      */
     private function restoreMountProps(): void
     {
-        $values = $this->openTheSeal();
-
-        if ($values === null) {
-            $this->availableCategories = [];
-            $this->context = [];
-            $this->fields = [];
-            $this->withScreenshot = null;
-            $this->sealMountProps();
-
-            return;
-        }
+        $values = $this->openTheSeal() ?? self::UNSEALED;
 
         $this->availableCategories = $values['availableCategories'];
         $this->context = $values['context'];
@@ -485,6 +485,17 @@ class ReportWidget extends Component
         ];
     }
 
+    /**
+     * The recipient this widget is allowed to name, or null for the configured default.
+     *
+     * Permitted means `mail.to` or listed under `mail.allowed_recipients`. Everything else answers
+     * null, which the mail channel reads as "use `mail.to`" — so an address that is not permitted
+     * cannot redirect a report, it simply does not reach the header.
+     *
+     * The comparison is case-insensitive on the whole address, which is coarser than the RFC (the
+     * local part is technically case-sensitive) and correct for what this list is: a host writing
+     * down its own inboxes, not a mail server routing between two of them.
+     */
     private function aPermittedRecipient(?string $address): ?string
     {
         if (! is_string($address) || $address === '') {
@@ -505,6 +516,18 @@ class ReportWidget extends Component
         return in_array(mb_strtolower(trim($address)), $permitted, true) ? $address : null;
     }
 
+    /**
+     * Normalize whatever arrived into a shape this widget actually renders.
+     *
+     * One function for both entry points. The mount prop goes through it so a host writing
+     * `mode="banana"` gets the configured default instead of a value every `@if` below compares
+     * false against -- which rendered a widget with no trigger and no form, reachable by nobody.
+     * And the hydrated snapshot goes through it because that is where an arbitrary value now
+     * arrives from, once the lock is gone.
+     *
+     * `null` is not a failure: it is the documented way to say "take the default", and the default
+     * is the host's `ui.trigger`.
+     */
     private function aShapeThisWidgetRenders(?string $shape): string
     {
         if (is_string($shape) && in_array($shape, self::MODES, true)) {
@@ -586,11 +609,12 @@ class ReportWidget extends Component
      * The restore is silent on purpose: it is what ended the 419s that ordinary navigation used to
      * raise. That also took away the only trace a real attempt left, so the difference is looked at
      * first. Navigation sends back the value the page was rendered with and stays quiet; a value
-     * that differs from the sealed one never comes from the rendered page.
+     * that differs from the sealed one never comes from the rendered page. With the seal broken,
+     * the page was rendered from UNSEALED, so that is the value a write is compared with.
      */
     private function restoreAfterAWrite(string $property): void
     {
-        $sealed = $this->openTheSeal();
+        $sealed = $this->openTheSeal() ?? self::UNSEALED;
 
         $written = match ($property) {
             'availableCategories' => $this->availableCategories,
@@ -599,7 +623,7 @@ class ReportWidget extends Component
             default => $this->withScreenshot,
         };
 
-        if ($sealed !== null && $written !== $sealed[$property]) {
+        if ($written !== $sealed[$property]) {
             $this->reportAWriteToASealedProp($property);
         }
 
@@ -607,11 +631,32 @@ class ReportWidget extends Component
     }
 
     /**
-     * One warning per attempt, naming the property and never its value: what arrived is the
-     * attacker's text, and a log is the wrong place to keep it.
+     * A warning naming the property and never its value: what arrived is the attacker's text, and a
+     * log is the wrong place to keep it.
+     *
+     * At most one line a minute per property, for the whole application. A request may carry two
+     * hundred components with six sealed properties each and is free to repeat, and every write
+     * in it would have been a line in the host's log. The first attempt of each minute is named,
+     * which is what the line is for: knowing that somebody tries. The request remembers what it
+     * has already reported, so a batch asks the cache once per property rather than once per
+     * write. A cache that cannot answer lets the line through.
      */
     private function reportAWriteToASealedProp(string $property): void
     {
+        $request = request();
+        $reported = $request->attributes->get(self::SEALED_WRITES_REPORTED);
+        $reported = is_array($reported) ? $reported : [];
+
+        if (in_array($property, $reported, true)) {
+            return;
+        }
+
+        $request->attributes->set(self::SEALED_WRITES_REPORTED, [...$reported, $property]);
+
+        if (! rescue(static fn (): bool => Cache::add('visual-feedback:sealed-write-reported:'.$property, true, 60), true, false)) {
+            return;
+        }
+
         app(LoggerInterface::class)->warning(
             'visual-feedback: a request tried to change a widget property the page cannot change; the sealed value was kept',
             ['component' => $this->getName(), 'property' => $property],
@@ -708,19 +753,6 @@ class ReportWidget extends Component
     }
 
     /**
-     * Re-anchor the time trap to the moment the modal OPENED, from the server clock.
-     *
-     * Anchoring at mount alone is inert for the deployment this package documents: a widget
-     * kept alive in `@persist` across `wire:navigate` mounts ONCE, at page load. The trap
-     * would then measure "time since the visitor arrived on the site" — anyone who read a
-     * page for a few seconds before opening the form clears `min_fill_seconds` without ever
-     * having seen it, which is exactly the bot behavior it exists to catch.
-     *
-     * The stamp is held server-side, so this action is the only thing that can move it and it
-     * only ever moves it to the server's own time — a client can call it, but calling it is
-     * indistinguishable from opening the form, and every call makes the trap STRICTER.
-     */
-    /**
      * The key this widget's open-time anchor is stored under.
      *
      * Livewire declares `getId()` untyped, so this is where the value becomes a string — CHECKED
@@ -755,6 +787,23 @@ class ReportWidget extends Component
         return $openedAt === null ? null : new DateTimeImmutable('@'.$openedAt);
     }
 
+    /**
+     * Re-anchor the time trap to the moment the modal opened, from the server clock.
+     *
+     * Anchoring at mount alone is inert for the deployment this package documents: a widget
+     * kept alive in `@persist` across `wire:navigate` mounts once, at page load. The trap
+     * would then measure "time since the visitor arrived on the site" — anyone who read a
+     * page for a few seconds before opening the form clears `min_fill_seconds` without ever
+     * having seen it, which is exactly the bot behavior it exists to catch.
+     *
+     * The stamp is held server-side, so this action is the only thing that can move it and it
+     * only ever moves it to the server's own time — a client can call it, but calling it is
+     * indistinguishable from opening the form, and every call makes the trap stricter.
+     *
+     * It renders the widget like any other round trip. A renderless open would save that render,
+     * but below Livewire 4.4.0 a renderless call skips the render of every call batched with it,
+     * and this package supports Livewire from 4.3.0.
+     */
     public function markOpened(): void
     {
         app(FormOpenedAt::class)->stamp($this->anchorKey(), Carbon::now()->getTimestamp());
@@ -827,6 +876,8 @@ class ReportWidget extends Component
      */
     public function updatedScreenshot(): void
     {
+        $this->discardUnofferedScreenshot();
+
         if ($this->screenshot instanceof TemporaryUploadedFile) {
             $maxBytes = is_numeric($b = config('visual-feedback.screenshot.max_bytes')) ? (int) $b : 8 * 1024 * 1024;
 
@@ -845,6 +896,16 @@ class ReportWidget extends Component
     public function submit(SubmitReport $submit, ResolvesReporter $reporter): void
     {
         $this->failed = false;
+
+        // A seal that will not open means this widget no longer knows what its host offered on the
+        // page, see restoreMountProps(). It refuses before anything is stored, and the reporter is
+        // told how to get a working form back. No control is marked invalid: nothing they typed is
+        // wrong.
+        if ($this->openTheSeal() === null) {
+            $this->fail('message', (string) trans('visual-feedback::messages.validation.form_expired'));
+
+            return;
+        }
 
         // The master switch, read FIRST and then used to skip every step below that costs
         // something. The verdict itself still comes from SubmitReport::handle(), which refuses on
@@ -907,9 +968,13 @@ class ReportWidget extends Component
             return;
         }
 
-        // Sanitize the untrusted CLIENT metadata first, then fold in the trusted capture
-        // stage — added AFTER sanitization and off the client-controlled allowlist, so it can
-        // never be spoofed from the browser and only rides when a screenshot was attached.
+        // Before anything reads it: the stage below, the caps and the store.
+        $this->discardUnofferedScreenshot();
+
+        // Sanitize the untrusted client metadata first, then fold in the capture stage. It is
+        // added after sanitization and off the client-controlled allowlist, so the browser cannot
+        // put anything but `native` or `dom` there, and it only rides when a screenshot was
+        // attached. Which of the two it says is still the browser's word, not a proof.
         $metadata = app(MetadataSanitizer::class)->sanitize($this->metadata, request()->userAgent());
 
         if ($this->screenshot instanceof TemporaryUploadedFile && in_array($this->screenshotStage, ['native', 'dom'], true)) {
@@ -1137,13 +1202,6 @@ class ReportWidget extends Component
     }
 
     /**
-     * Record a failed submit so the view can announce it and move focus to the field it belongs to.
-     *
-     * `$message` is the reason in the reporter's words where the pipeline knew one. Without it the
-     * view falls back to the generic line — which is what EVERY failure used to show, whatever had
-     * gone wrong.
-     */
-    /**
      * The package settings accessor.
      *
      * Resolved per call instead of held as a property: Livewire serializes a component's public
@@ -1155,6 +1213,13 @@ class ReportWidget extends Component
         return app(Settings::class);
     }
 
+    /**
+     * Record a failed submit so the view can announce it and move focus to the field it belongs to.
+     *
+     * `$message` is the reason in the reporter's words where the pipeline knew one. Without it the
+     * view falls back to the generic line — which is what every failure used to show, whatever had
+     * gone wrong.
+     */
     private function fail(string $field, ?string $message = null, bool $invalid = false): void
     {
         $this->failed = true;
@@ -1240,11 +1305,6 @@ class ReportWidget extends Component
     }
 
     /**
-     * Store the captured screenshot to the configured PRIVATE disk under its own random
-     * subdir, returning its PATH (or null when there is no screenshot). The
-     * TemporaryUploadedFile never travels past this component.
-     */
-    /**
      * Delete files stored for a submission that produced no report.
      *
      * Deliberately best-effort and silent: this runs on a path that is ALREADY a rejection, and a
@@ -1260,7 +1320,7 @@ class ReportWidget extends Component
             return;
         }
 
-        $disk = is_string($d = config('visual-feedback.attachments.disk')) ? $d : 'local';
+        $disk = app(AttachmentPolicy::class)->disk();
 
         try {
             $filesystem = Storage::disk($disk);
@@ -1283,13 +1343,77 @@ class ReportWidget extends Component
         }
     }
 
+    /**
+     * Drop an uploaded screenshot this widget does not offer.
+     *
+     * `screenshot` is a public upload property, so a client can fill it through Livewire's own
+     * upload API whatever the page shows. With `screenshot.strategy` at `off`, `withScreenshot`
+     * false, or an inline widget at its default, the upload is deleted from Livewire's temporary
+     * storage and nothing of it is stored, attached or described. No message: the reporter was
+     * never offered the control.
+     */
+    private function discardUnofferedScreenshot(): void
+    {
+        if ($this->screenshot instanceof TemporaryUploadedFile && ! $this->screenshotEnabled()) {
+            $this->forgetTemporaryUpload($this->screenshot);
+            $this->screenshot = null;
+        }
+    }
+
+    /**
+     * The labels of the four fields an operator switches between optional and required. Each label
+     * carries the note that the field may be left empty; a required field's label drops it, and the
+     * views put the star the form's legend explains in its place.
+     *
+     * @param  list<string>  $requiredFields
+     * @return array<string, string>
+     */
+    private function fieldLabels(array $requiredFields): array
+    {
+        $labels = [
+            'subject' => (string) trans('visual-feedback::messages.widget.subject_label'),
+            'name' => (string) trans('visual-feedback::messages.widget.name_label'),
+            'email' => (string) trans('visual-feedback::messages.widget.email_label'),
+            'phone' => (string) trans('visual-feedback::messages.widget.phone_label'),
+        ];
+
+        foreach ($labels as $field => $label) {
+            if (in_array($field, $requiredFields, true)) {
+                $labels[$field] = FieldLabel::withoutOptionalMarker($label);
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Delete a temporary upload together with the metadata file Livewire writes beside it. That
+     * file carries the client's original file name, and TemporaryUploadedFile::delete() removes
+     * only the upload itself.
+     */
+    private function forgetTemporaryUpload(TemporaryUploadedFile $upload): void
+    {
+        /** @var Filesystem $storage */
+        $storage = FileUploadConfiguration::storage();
+        /** @var string $metadataFile */
+        $metadataFile = FileUploadConfiguration::path($upload->getFilename().'.json');
+
+        $upload->delete();
+        $storage->delete($metadataFile);
+    }
+
+    /**
+     * Store the captured screenshot to the configured private disk under its own random
+     * subdir, returning its path (or null when there is no screenshot). The
+     * TemporaryUploadedFile never travels past this component.
+     */
     private function storeScreenshot(): ?string
     {
         if (! $this->screenshot instanceof TemporaryUploadedFile) {
             return null;
         }
 
-        $disk = is_string($d = config('visual-feedback.attachments.disk')) ? $d : 'local';
+        $disk = app(AttachmentPolicy::class)->disk();
         // Through the policy, NOT off the raw config. The policy trims slashes and maps an empty
         // string onto the default; a raw read accepts `''` as a directory, and the screenshot then
         // lands at `/screenshots/...` while the orphan sweep walks `visual-feedback/` and the
@@ -1365,7 +1489,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * Store each queued upload to the configured PRIVATE disk under its own random subdir
+     * Store each queued upload to the configured private disk under its own random subdir
      * (so two files with the same name never collide), keeping the sanitized client name as
      * the readable basename — which is also the mail attachment name. Returns only paths;
      * the TemporaryUploadedFile never travels onward.
@@ -1385,7 +1509,7 @@ class ReportWidget extends Component
      */
     private function storeAttachments(): array
     {
-        $disk = is_string($d = config('visual-feedback.attachments.disk')) ? $d : 'local';
+        $disk = app(AttachmentPolicy::class)->disk();
         $directory = app(AttachmentPolicy::class)->directory();
         $sanitizer = app(FilenameSanitizer::class);
 
@@ -1462,12 +1586,16 @@ class ReportWidget extends Component
         // Resolved once, because both are asked twice below and the second question is expensive.
         // Together they are the condition BOTH view trees put the whole privacy block behind
         // (`@if ($showGuestFields && $privacyNoticeUrl)`), and the wording lookup underneath it can
-        // be a database read: with `privacy.source = legal-consent` it goes through the bridge to
-        // the published document, uncached, on every render — including the renders of an
-        // authenticated reporter, who never sees the block. So the condition is evaluated here
-        // instead of paying for a value the templates will discard.
+        // be a database read: with `privacy.source = legal-consent` the bridge reads the published
+        // document once a minute per tenant, document key and locale and answers from the cache in
+        // between. An authenticated reporter never sees the block, so the condition is evaluated
+        // here instead of paying even that for a value the templates will discard.
         $isGuest = app(ResolvesReporter::class)->resolve()->isGuest;
         $privacyNoticeUrl = app(PrivacyNotice::class)->url();
+        $requiredFields = array_values(array_filter(
+            ['subject', 'name', 'email', 'phone'],
+            fn (string $field): bool => $this->fieldMode($field) === Settings::FIELD_REQUIRED,
+        ));
 
         return view('visual-feedback::livewire.report-widget', [
             'categoryOptions' => $this->categoryOptions(),
@@ -1493,10 +1621,10 @@ class ReportWidget extends Component
             // Passed to the templates so a required field can be marked as one in the markup.
             // A form that demands a value without saying so is the accessibility failure this
             // package would otherwise have shipped along with the new `required` mode.
-            'requiredFields' => array_values(array_filter(
-                ['subject', 'name', 'email', 'phone'],
-                fn (string $field): bool => $this->fieldMode($field) === Settings::FIELD_REQUIRED,
-            )),
+            'requiredFields' => $requiredFields,
+            // The labels of those four fields, built once for both trees: an optional one says so,
+            // a required one drops the note and gets the star.
+            'fieldLabels' => $this->fieldLabels($requiredFields),
             // The privacy notice URL a guest must acknowledge, or null when none is set. This one
             // value decides both whether the block renders and whether submit() demands the tick —
             // see PrivacyNotice::required().
@@ -1526,16 +1654,17 @@ class ReportWidget extends Component
             // or <x-visual-feedback::fab>, keeping exactly one trigger per instance.
             'showFab' => $this->mode === 'modal' && config('visual-feedback.ui.trigger') === 'fab',
             // App locale for the client counter's Intl.NumberFormat — never a hardcoded
-            // literal, so the thousands separator follows the reporter's language.
-            'appLocale' => app()->getLocale(),
+            // literal, so the thousands separator follows the reporter's language. Laravel names
+            // a regional locale with an underscore (`pt_BR`), and Intl reads only the BCP 47 form
+            // (`pt-BR`): handed `pt_BR`, it throws a RangeError and the counter stops.
+            'appLocale' => str_replace('_', '-', app()->getLocale()),
             // The file picker's `accept` attribute, DERIVED from the same server MIME
             // allowlist the validation uses — so the two can never drift apart.
             'acceptAttribute' => app(AttachmentPolicy::class)->acceptAttribute(),
             'screenshotEnabled' => $this->screenshotEnabled(),
-            // Client-capture options, for a view published before 0.10.0: those copies open the
-            // capture state machine with `@js($screenshotCaptureConfig)` in their x-data. The
-            // shipped views read the same ClientConfig source through the
-            // <x-visual-feedback::scripts> island, so the two cannot drift apart either way.
+            // Client-capture options. The shipped views render them onto the capture element,
+            // where the component reads its own settings rather than the first config element
+            // on the page; a view published before 0.10.0 passes them as `@js(...)` in x-data.
             'screenshotCaptureConfig' => ClientConfig::screenshot(),
         ]);
     }
@@ -1565,7 +1694,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * Rebuild the Locked instance-context prop into value objects. Only well-formed
+     * Rebuild the sealed instance-context prop into value objects. Only well-formed
      * entries (string key/label/value) survive; the host owns what it puts in the prop.
      *
      * @return list<ReportContextEntry>
@@ -1597,9 +1726,6 @@ class ReportWidget extends Component
     }
 
     /**
-     * Whether a field is enabled: a per-instance override wins over the config default.
-     */
-    /**
      * How this widget wants one field: `off`, `optional` or `required`.
      *
      * The per-instance `fields` prop wins over configuration, because a docs page and a billing
@@ -1622,6 +1748,9 @@ class ReportWidget extends Component
         return $this->settings()->fieldMode($field);
     }
 
+    /**
+     * Whether a field is enabled: a per-instance override wins over the config default.
+     */
     private function fieldEnabled(string $field): bool
     {
         return $this->fieldMode($field) !== Settings::FIELD_OFF;

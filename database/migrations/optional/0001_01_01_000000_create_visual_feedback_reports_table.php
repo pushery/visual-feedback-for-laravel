@@ -9,16 +9,21 @@ use Illuminate\Support\Facades\Schema;
 /**
  * The optional DatabaseChannel table. It lives in `database/migrations/optional/`,
  * NOT `database/migrations/`, so it is NEVER auto-loaded — a consumer gets it only by publishing
- * the `visual-feedback-migrations` tag and running migrate. Every column is typed with an
- * explicit length because SQLite does not enforce lengths: an over-long value would otherwise
- * only fail in a MySQL/PostgreSQL production (the string-enum-vs-varchar trap).
+ * the `visual-feedback-migrations` tag and running migrate. Every string column the package sizes
+ * carries its width here, because SQLite does not enforce lengths: an over-long value would
+ * otherwise only fail in a MySQL/PostgreSQL production (the string-enum-vs-varchar trap). Three
+ * take the application's default string length instead: `reporter_id`, `reporter_name` and
+ * `reporter_email`, 255 unless `Schema::defaultStringLength()` lowers it before this runs.
  *
- * THREE OF THESE WIDTHS ARE THE OTHER HALF OF A CONFIG KNOB, SO WIDEN THE COLUMN WHENEVER
- * YOU TURN THE KNOB PAST IT. `subject` pairs with `fields.subject.max_length` (150),
- * `reporter_phone` with `fields.phone.max_length` (32), and `category` has to hold the longest
- * key in `categories` (64). None of those config values is capped in shipped code — deliberately,
- * because after publishing this file the column belongs to YOU, and a runtime cap would silently
- * ignore a column you legitimately widened. Raise one without widening its column here and the
+ * Five of these widths are the other half of a config knob, so widen the column whenever
+ * you turn the knob past it. `subject` pairs with `fields.subject.max_length` (150),
+ * `reporter_phone` with `fields.phone.max_length` (32), `category` has to hold the longest
+ * key in `categories` (64), and `reporter_name` and `reporter_email` pair with
+ * `fields.name.max_length` (150) and `fields.email.max_length` (254) against the default string
+ * length. An application that sets that length to 191 gets 191-wide columns, and has to keep
+ * `email` at or under 191 or widen the column. None of those config values is capped in shipped
+ * code — deliberately, because after publishing this file the column belongs to you, and a
+ * runtime cap would silently ignore a column you legitimately widened. Raise one without widening its column here and the
  * validator accepts the value, the row write answers `22001`, and the report reaches every other
  * channel while the reporter still sees the success screen. SQLite will not warn you: it does not
  * enforce lengths, so a local suite stays green and only PostgreSQL or MySQL falls over.
@@ -72,12 +77,14 @@ return new class extends Migration
             // walks the primary key and treats created_at as a filter, so the comment that
             // used to name the prune here named the wrong consumer). `reporter_email` is the
             // WHERE predicate of `visual-feedback:forget`, the DSAR erasure, and was the one
-            // filtered column with no index: a sequential scan on every chunk. A `mode` index
-            // stood here too and served nothing — `mode` is a widget mount prop, no query in
-            // this package, its docs or its README filters on it, and Postgres declined the
-            // composite even for the query it was shaped for. It is gone rather than shipped,
-            // because this file freezes at 0.1.0 and every later change to it is a second
-            // publish plus a migration in every consumer's tree.
+            // filtered column with no index: a sequential scan on every chunk. A `(mode,
+            // created_at)` composite stood here too and served nothing: Postgres declined it even
+            // for the query it was shaped for. The report browser filters on `mode` alone, a
+            // column of two or three values whose filtered page walks the `created_at` index, so
+            // `mode` stays without one. `category`, which the browser and the documented recipe
+            // filter on, gets its index from a later migration of its own, because this file
+            // freezes at 0.1.0 and every later change to it is a second publish plus a migration
+            // in every consumer's tree.
             $table->index('created_at');
             $table->index('reporter_email');
         });

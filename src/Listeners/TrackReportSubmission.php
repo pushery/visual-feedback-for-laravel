@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Listeners;
 use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Bridges\MatomoBridge;
 use Pushery\VisualFeedback\Events\ReportSubmitted;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -42,7 +43,7 @@ final readonly class TrackReportSubmission
             // application must act on tonight, and the report itself went through.
             $this->logger->warning('visual-feedback: tracking an accepted report failed', [
                 'exception' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => RedactedFailure::message($e),
             ]);
         }
     }

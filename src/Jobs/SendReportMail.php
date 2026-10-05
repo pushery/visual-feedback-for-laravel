@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Jobs;
 use Illuminate\Bus\Queueable;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -14,7 +15,10 @@ use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Channels\Mail\ReportMail;
 use Pushery\VisualFeedback\Channels\ReportDeliveryTracker;
 use Pushery\VisualFeedback\Data\Report;
+use Pushery\VisualFeedback\Privacy\ErasedReporters;
+use Pushery\VisualFeedback\Privacy\ReporterWasErased;
 use Pushery\VisualFeedback\Support\CategoryLabels;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
@@ -24,8 +28,12 @@ use Throwable;
  * failed() (after the retries in `channels.mail` are exhausted) settles FAILED. The receipt,
  * the ReportDelivered/ReportDeliveryFailed event and the attachment-refcount step all flow
  * through the single ReportDeliveryTracker — never from a second path.
+ *
+ * Queued encrypted: the report carries the reporter's name, address and message, and a job that
+ * fails for good stays in the queue's failed jobs until somebody removes it. A report whose
+ * reporter was erased after submitting it is withheld (ErasedReporters).
  */
-final class SendReportMail implements ShouldQueue
+final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
@@ -42,8 +50,17 @@ final class SendReportMail implements ShouldQueue
         private readonly int $backoffSeconds,
     ) {}
 
-    public function handle(Mailer $mailer, ReportDeliveryTracker $tracker, CategoryLabels $labels, LoggerInterface $logger): void
+    public function handle(Mailer $mailer, ReportDeliveryTracker $tracker, CategoryLabels $labels, LoggerInterface $logger, ErasedReporters $erased): void
     {
+        // The reporter was erased after this report was submitted. Mailing it now would bring
+        // back a copy the erasure was meant to end, so the channel ends here, recorded as not
+        // delivered.
+        if ($erased->covers($this->report)) {
+            $tracker->settleFailed($this->report, 'mail', new ReporterWasErased);
+
+            return;
+        }
+
         $this->warnIfFromEqualsTo($logger);
 
         // ReportMail resolves the category label from $labels inside envelope()/content(),
@@ -55,7 +72,13 @@ final class SendReportMail implements ShouldQueue
             $mailable->locale($this->locale);
         }
 
-        $mailer->send($mailable);
+        // What a job throws, the worker reports and the failed jobs keep, so a transport error that
+        // names a URL or a DSN goes out as a stand-in without its secrets.
+        try {
+            $mailer->send($mailable);
+        } catch (Throwable $exception) {
+            throw RedactedFailure::standIn($exception);
+        }
 
         $tracker->settleDelivered($this->report, 'mail');
     }

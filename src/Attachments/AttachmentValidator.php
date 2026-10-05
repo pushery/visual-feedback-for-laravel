@@ -6,6 +6,8 @@ namespace Pushery\VisualFeedback\Attachments;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use RuntimeException;
 
 /**
  * Submit-side attachment validation. It
@@ -65,13 +67,14 @@ final readonly class AttachmentValidator
         $total = 0;
 
         foreach ($paths as $path) {
-            if (! $disk->exists($path)) {
+            $size = $this->storedSize($disk, $path);
+
+            if ($size === null) {
                 $errors[] = (string) __('visual-feedback::messages.attachments.missing', ['name' => basename($path)]);
 
                 continue;
             }
 
-            $size = $disk->size($path);
             $total += $size;
 
             if ($size > $perFile) {
@@ -79,6 +82,10 @@ final readonly class AttachmentValidator
                     'name' => basename($path),
                     'max' => $this->megabytes($perFile),
                 ]);
+
+                // One reason per file, as the screenshot gets: the size already refuses this one,
+                // so its bytes are not downloaded to look for a second reason.
+                continue;
             }
 
             $content = $disk->get($path) ?? '';
@@ -102,6 +109,23 @@ final readonly class AttachmentValidator
         }
 
         return $errors;
+    }
+
+    /**
+     * The stored file's size in bytes, or null when the disk has no size to report for it.
+     *
+     * One request answers both questions the check asks before the bytes: whether the file is
+     * there, and how big it is. A disk reports a file it cannot find by refusing its size, which
+     * Flysystem throws as a RuntimeException. The global class is caught, so the check does not
+     * depend on the storage library the framework ships with.
+     */
+    private function storedSize(Filesystem $disk, string $path): ?int
+    {
+        try {
+            return $disk->size($path);
+        } catch (RuntimeException) {
+            return null;
+        }
     }
 
     /**
@@ -147,9 +171,7 @@ final readonly class AttachmentValidator
 
     private function diskName(): string
     {
-        $disk = $this->config->get('visual-feedback.attachments.disk');
-
-        return is_string($disk) && $disk !== '' ? $disk : 'local';
+        return $this->policy->disk();
     }
 
     /**

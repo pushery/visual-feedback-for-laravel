@@ -23,7 +23,8 @@ use Psr\Log\LoggerInterface;
  *
  * Not `readonly`, unlike its sibling `Settings`: it memoizes its own measurement, because two
  * `<x-visual-feedback::scripts />` tags on one page would otherwise hash the same two files
- * twice. It is bound as a singleton for the same reason.
+ * twice. It is bound scoped for the same reason, so the measurement is made once per request or
+ * queued job, and a long-running worker measures a re-published copy anew.
  */
 final class PublishedBundle
 {
@@ -105,8 +106,8 @@ final class PublishedBundle
         if ($this->status() === PublishedBundleStatus::NotPublished) {
             $this->logger->error(
                 'visual-feedback: the widget bundle is not published, so the widget is INERT — '
-                .'its Alpine components are never registered. Under Alpine\'s CSP build that '
-                .'fails silently: the panel renders and every control on it does nothing.',
+                .'its Alpine components are never registered. The panel renders and every control '
+                .'on it does nothing, and the browser reports it only in its console.',
                 [
                     'hint' => 'php artisan vendor:publish --tag=visual-feedback-assets',
                     'expected' => $this->publishedPath(self::BUNDLES[0]),

@@ -9,10 +9,13 @@ use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Translation\Translator;
 use Psr\Log\LoggerInterface;
+use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
 use Pushery\VisualFeedback\Channels\Mail\TransportDeliverability;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportMail;
+use Pushery\VisualFeedback\Support\ConfiguredLocale;
+use Pushery\VisualFeedback\Support\EnvFlag;
 
 /**
  * The mail delivery channel: it records a pending receipt and enqueues the channel's own
@@ -32,6 +35,7 @@ final readonly class MailChannel implements ReportChannel
         private Application $app,
         private LoggerInterface $logger,
         private TransportDeliverability $transports,
+        private ConfiguredLocale $configuredLocale,
     ) {}
 
     public function key(): string
@@ -160,7 +164,7 @@ final readonly class MailChannel implements ReportChannel
         $mail = $this->config->get('visual-feedback.mail');
         $mail = is_array($mail) ? $mail : [];
         $from = isset($mail['from']) && is_array($mail['from']) ? $mail['from'] : [];
-        $disk = $this->config->get('visual-feedback.attachments.disk');
+        $disk = new AttachmentPolicy($this->config)->disk();
         $excerpt = $mail['subject_excerpt_length'] ?? null;
 
         return [
@@ -179,9 +183,9 @@ final readonly class MailChannel implements ReportChannel
                 'address' => is_string($from['address'] ?? null) ? $from['address'] : null,
                 'name' => is_string($from['name'] ?? null) ? $from['name'] : null,
             ],
-            'reply_to_reporter' => (bool) ($mail['reply_to_reporter'] ?? false),
-            'attach_files' => (bool) ($mail['attach_files'] ?? true),
-            'disk' => is_string($disk) && $disk !== '' ? $disk : null,
+            'reply_to_reporter' => EnvFlag::boolean($mail['reply_to_reporter'] ?? null, false),
+            'attach_files' => EnvFlag::boolean($mail['attach_files'] ?? null, true),
+            'disk' => $disk,
             // Read here rather than in the mailable, because this class is the one place the
             // mail configuration is turned into a value the queue can carry. A mailable that
             // reached for config() itself would resolve it in the WORKER, whose configuration is
@@ -192,7 +196,11 @@ final readonly class MailChannel implements ReportChannel
 
     /**
      * The render locale: `mail.locale` = a concrete locale, `reporter` (the reporter's language,
-     * folded from the metadata), or null → the app's configured locale. Never the worker's.
+     * folded from the metadata), or empty → the app's configured locale. Never the worker's.
+     *
+     * The app locale is resolved here and carried, because a job without a locale renders in
+     * whatever locale is active where it runs: on the `sync` connection the one Livewire restored
+     * for the reporter's page, in a worker the one the previous job left behind.
      */
     private function renderLocale(Report $report): ?string
     {
@@ -200,11 +208,18 @@ final readonly class MailChannel implements ReportChannel
 
         if ($configured === 'reporter') {
             $language = $report->metadata['language'] ?? null;
+            $folded = is_string($language) && $language !== '' ? $this->foldToATranslatableLocale($language) : null;
 
-            return is_string($language) && $language !== '' ? $this->foldToATranslatableLocale($language) : null;
+            return $folded ?? $this->appLocale();
         }
 
-        return is_string($configured) && $configured !== '' ? $configured : null;
+        return is_string($configured) && $configured !== '' ? $configured : $this->appLocale();
+    }
+
+    /** The application's configured locale, as it stood when the package registered. */
+    private function appLocale(): ?string
+    {
+        return $this->configuredLocale->locale;
     }
 
     /**
@@ -228,12 +243,21 @@ final readonly class MailChannel implements ReportChannel
      * one this package ships in all seven of its locales, so the question is really "can this
      * mail be rendered", not "does the host happen to translate something".
      *
-     * A tag that folds to nothing returns null, which means the app's own locale. That is better
-     * than forcing an untranslatable tag: the result would be the fallback either way, and null
-     * at least lets a host that set `app.locale` deliberately keep it.
+     * A tag that folds to nothing returns null, and the caller answers with the app's own locale.
+     * That is better than forcing an untranslatable tag: the result would be the fallback either
+     * way, and this lets a host that set `app.locale` deliberately keep it.
+     *
+     * The tag is checked for the shape of a language tag before the first lookup. It is the
+     * browser's value, the translator turns a locale into a directory and a file name and
+     * `require`s what it finds there, and only `Translator::setLocale()` refuses the characters
+     * that would leave the lang directory, a call this lookup never makes.
      */
     private function foldToATranslatableLocale(string $tag): ?string
     {
+        if (preg_match('/\A[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{1,8}){0,3}\z/', $tag) !== 1) {
+            return null;
+        }
+
         $probe = 'visual-feedback::messages.mail.message';
 
         $candidates = [$tag];

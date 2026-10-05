@@ -50,12 +50,17 @@
 
              The x in the modal header is a WINDOW gesture; this is a step of the flow, and
              inline there is no header at all -- that surface had no way to end the flow before
-             this button existed. --}}
+             this button existed.
+
+             One filled button per state of the form, the main action: here "Report another",
+             in the form the submit button. Every other action is `soft`, a further step in
+             `primary` and a way back or out in `neutral`, so a state never shows two filled
+             buttons side by side. --}}
         <x-wirekit::button class="visual-feedback-report-another" x-ref="reportAnother"
             x-on:click="vfResetAndFocus()">
             {{ __('visual-feedback::messages.widget.report_another') }}
         </x-wirekit::button>
-        <x-wirekit::button class="visual-feedback-done" intent="neutral" x-on:click="vfDoneWireKit()">
+        <x-wirekit::button class="visual-feedback-done" intent="neutral" surface="soft" x-on:click="vfDoneWireKit()">
             {{ __('visual-feedback::messages.widget.done') }}
         </x-wirekit::button>
     @endif
@@ -85,7 +90,9 @@
              dialog's aria-labelledby points at; rendering it twice would announce it twice. The
              inline (card) surface has no header component, so it keeps its own heading. --}}
         @unless ($headingInHeader ?? false)
-            <h2 id="visual-feedback-heading" tabindex="-1">{{ __('visual-feedback::messages.widget.heading') }}</h2>
+            {{-- The kit's heading, because a bare <h2> here took whatever the host left it: in a
+                 Tailwind host, card text in size and weight. The modal header styles its own. --}}
+            <x-wirekit::heading level="2" id="visual-feedback-heading" tabindex="-1">{{ __('visual-feedback::messages.widget.heading') }}</x-wirekit::heading>
         @endunless
 
         {{-- Honeypot: off-screen, hidden from AT, never tab-reachable. --}}
@@ -107,11 +114,11 @@
             </label>
         </div>
 
-        {{-- Challenge region — see the plain tree for why wire:ignore and overflow-x are
+        {{-- Challenge region — see the plain tree for why wire:ignore, overflow-x and x-init are
              load-bearing. Same contract, same class name, same inline style, so a host's challenge
              view behaves identically in either tree. --}}
         @if ($challengeView)
-            <div class="visual-feedback-challenge" style="overflow-x:auto" wire:ignore>
+            <div class="visual-feedback-challenge" style="overflow-x:auto" wire:ignore x-init="vfWatchChallenge($el)">
                 @includeIf($challengeView)
             </div>
         @endif
@@ -127,7 +134,7 @@
             @if ($showName)
                 <x-wirekit::input
                     id="visual-feedback-name" :error="$vfInvalidField === 'name' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-                    :label="__('visual-feedback::messages.widget.name_label')"
+                    :label="$fieldLabels['name']"
                     :required="in_array('name', $requiredFields, true)"
                     wire:model="guestName" autocomplete="name" />
             @endif
@@ -135,7 +142,7 @@
                 <x-wirekit::input
                     id="visual-feedback-email" :error="$vfInvalidField === 'email' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="email"
-                    :label="__('visual-feedback::messages.widget.email_label')"
+                    :label="$fieldLabels['email']"
                     :required="in_array('email', $requiredFields, true)"
                     wire:model="guestEmail" autocomplete="email" />
             @endif
@@ -143,7 +150,7 @@
                 <x-wirekit::input
                     id="visual-feedback-phone" :error="$vfInvalidField === 'phone' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="tel"
-                    :label="__('visual-feedback::messages.widget.phone_label')"
+                    :label="$fieldLabels['phone']"
                     :required="in_array('phone', $requiredFields, true)"
                     wire:model="guestPhone" autocomplete="tel" />
             @endif
@@ -165,7 +172,7 @@
         @if ($showSubject)
             <x-wirekit::input
                 id="visual-feedback-subject" :error="$vfInvalidField === 'subject' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-                :label="__('visual-feedback::messages.widget.subject_label')"
+                :label="$fieldLabels['subject']"
                 :required="in_array('subject', $requiredFields, true)"
                 wire:model="subject" />
         @endif
@@ -215,8 +222,9 @@
                  user is carried along instead of being dropped on <body> when the button they
                  just pressed is swapped out (see the plain tree for the detail). --}}
             <div class="visual-feedback-screenshot"
-                                x-data="visualFeedbackCapture()">
-                <x-wirekit::button type="button" class="visual-feedback-capture"
+                                x-data="visualFeedbackCapture()"
+                                data-visual-feedback-capture="{{ json_encode($screenshotCaptureConfig, JSON_THROW_ON_ERROR) }}">
+                <x-wirekit::button type="button" class="visual-feedback-capture" surface="soft"
                     x-ref="idle"
                     x-show="status === 'idle'"
                     x-on:click="capture()">
@@ -297,13 +305,13 @@
                             alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" decoding="async">
                     </template>
                     <div class="visual-feedback-preview-actions">
-                        <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="primary" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
-                        <x-wirekit::button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
-                        <x-wirekit::button type="button" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="primary" surface="soft" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" surface="soft" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </div>
                 </div>
 
-                <x-wirekit::button type="button" class="visual-feedback-retake" x-ref="attached"
+                <x-wirekit::button type="button" class="visual-feedback-retake" surface="soft" x-ref="attached"
                     x-show="status === 'attached'" x-on:click="retake()">
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
@@ -319,7 +327,7 @@
                     <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown"
                         x-show="status === 'failed'">
                         {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                        <x-wirekit::button type="button" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" surface="soft" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </x-wirekit::alert>
                 </div>
 
@@ -407,24 +415,21 @@
         </div>
 
         @if ($showGuestFields && $privacyNoticeUrl)
-            {{-- `$privacyNoticeWording` is the PUBLISHED sentence when a source supplies one, else
-                 null and this package's own lang line is used. Safe to hand to the component:
-                 WireKit renders the label as `{{ $label }}` (verified — checkbox.blade.php:185),
-                 which matters because legal-consent never runs this field through a sanitizer. --}}
+            {{-- The sentence is the link, as in the plain tree: the notice opens in a new tab from
+                 the words that acknowledge it, and there is no second line for it. A click on the
+                 link does not tick the box, because a link inside a label runs no label
+                 activation. The kit's checkbox takes the label as its slot for exactly this,
+                 rich content such as a consent link, and puts the required star after it.
+
+                 `$privacyNoticeWording` is the published sentence when a source supplies one, else
+                 null and this package's own lang line is used. It is plain text that legal-consent
+                 never sanitizes, so it is escaped here like any other untrusted string. --}}
             <x-wirekit::checkbox
                 id="visual-feedback-privacy" :error="$vfInvalidField === 'privacy' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 wire:model="privacyAcknowledged"
-                required
-                :label="$privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge')" />
-            {{-- The anchor stays a SIBLING of the checkbox here, unlike the plain tree where it
-                 sits inside the `<label>`: that is what keeps the checkbox's accessible name the
-                 bare acknowledgment sentence, with no link text folded into it. So the link
-                 needs a text of its own, and it deliberately does NOT repeat the sentence the
-                 label already carries — a second copy of it would render twice on screen and
-                 read as a link that never says where it goes. It names the destination instead. --}}
-            <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">
-                {{ __('visual-feedback::messages.widget.privacy_notice_link') }}
-            </a>
+                required>
+                <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">{{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</a>
+            </x-wirekit::checkbox>
         @endif
 
         {{-- The star the required controls carry, spelled out. A red mark with no key is a

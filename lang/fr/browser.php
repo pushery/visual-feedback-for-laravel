@@ -29,9 +29,14 @@ return [
     'open' => 'Ouvrir',
     'delete' => 'Supprimer',
     'confirm_delete' => 'Supprimer ce rapport et ses pièces jointes ? Tu ne pourras pas revenir en arrière.',
+    'delete_failed' => 'Les fichiers de ce rapport n\'ont pas pu être supprimés, le rapport est donc conservé. Réessaie plus tard.',
     'detail' => 'Détail du rapport',
     'untitled' => 'Rapport sans objet',
     'close' => 'Fermer',
     'attachment_alt' => 'Capture jointe à ce rapport',
+    'pagination' => 'Pages de rapports',
+    'newer' => 'Plus récents',
+    'older' => 'Plus anciens',
+    'page_of' => 'Page :page sur :pages',
 
 ];

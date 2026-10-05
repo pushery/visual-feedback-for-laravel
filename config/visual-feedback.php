@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Pushery\VisualFeedback\Metadata\MetadataSanitizer;
+use Pushery\VisualFeedback\Support\EnvFlag;
+
 return [
 
     /*
@@ -96,11 +99,16 @@ return [
     | of UTF-8, which is exactly why the shipped migration gives it `mediumText`
     | rather than MySQL's 64 KB `text` — size your own column the same way if you
     | write reports somewhere else. The shipped limits do stay inside the shipped
-    | columns, and the package's own suite holds them there.
+    | columns, and the package's own suite holds them there. Two of those columns,
+    | the reporter's name and email, take your application's default string length,
+    | 255 unless `Schema::defaultStringLength()` lowers it: an application that sets
+    | 191 there gets 191-wide columns, so keep `email` at or under that width.
     |
     | Every field has ONE key that says how you want it: `mode`, which is `off`,
     | `optional` or `required`. `off` keeps it out of the form entirely, `required`
     | refuses a submission without it, `optional` offers it and takes it if given.
+    | Any other value shows the field as `optional`, so a typo never removes an
+    | input; `true` and `false` read as `optional` and `off`.
     |
     | `message` has no `mode` on purpose. A feedback form without a message is not a
     | feedback form, and a switch nobody may turn is a lie in this file.
@@ -243,11 +251,11 @@ return [
     */
     'screenshot' => [
         'strategy' => env('VISUAL_FEEDBACK_SCREENSHOT_STRATEGY', 'auto'), // auto|native|dom|off
-        'scale' => env('VISUAL_FEEDBACK_SCREENSHOT_SCALE', 2),
-        // A SERVER-side cap. The browser is not told about it, so an over-large capture is
-        // uploaded and then refused — lower this and a reporter gets a capture→reject loop with
-        // no way out, because nothing on the client knows to shrink. Sized against what the DOM
-        // renderer produces at `scale`, not chosen freely.
+        // An empty value keeps the shipped 2 rather than handing the capture an empty string.
+        'scale' => is_string($scale = env('VISUAL_FEEDBACK_SCREENSHOT_SCALE', 2)) && trim($scale) === '' ? 2 : $scale,
+        // The cap a capture must fit, on both ends: the browser scales a capture over it down
+        // before the upload, and the server refuses one that still exceeds it. Every pass
+        // costs detail, so lower `scale` rather than this when captures are routinely too large.
         'max_bytes' => filter_var(
             env('VISUAL_FEEDBACK_SCREENSHOT_MAX_BYTES', 8388608),
             FILTER_VALIDATE_INT,
@@ -295,7 +303,7 @@ return [
         // `referrer` IS NOT IN THIS LIST, AND ITS ABSENCE IS THE POINT. It shipped enabled
         // until 0.6.0 and it is the one key here that can carry somebody else's secret.
         //
-        // Under `Referrer-Policy: strict-origin-when-cross-origin` — Laravel's default, and what
+        // Under `Referrer-Policy: strict-origin-when-cross-origin` — the browsers' default, and what
         // a careful application sets — a browser sends the FULL URL including the path on a
         // SAME-origin navigation. The "strict-origin" half governs cross-origin requests only.
         //
@@ -330,6 +338,17 @@ return [
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 2000,
         'user_agent_max' => 512,
+
+        // The page a report is filed from keeps its path, which is the diagnosis, and loses what
+        // can be a credential. Its query is dropped unless this is true, because a signed URL, an
+        // `?email=` and a search term live there. The fragment and any user info are never kept.
+        'url_query' => false,
+
+        // Routes whose path is a credential. Each `*` is one path segment, stored as `{token}`,
+        // wherever the route sits in the path (behind a locale or a mount prefix too). The
+        // default covers Laravel's, Laravel UI's and Jetstream's token routes and pushery's magic
+        // links. Add your own application's: [...MetadataSanitizer::TOKEN_PATHS, 'invite/*'].
+        'url_token_paths' => MetadataSanitizer::TOKEN_PATHS,
     ],
 
     /*
@@ -354,8 +373,9 @@ return [
     | leaves the floor carrying the request, it never protects nothing silently.
     | Limits are per hour. `on_error` is the failure mode of the builtin floor's own
     | limiter: `open` lets a submission through if that check errors. An additional
-    | driver has its own, under `drivers.<name>.on_error` — same two words, different
-    | subject and a different default, both spelled out at the key itself.
+    | driver has its own, under `drivers.<name>.on_error` — same two words and the same
+    | shipped default, `open`. They differ in subject, and in what a key that is missing
+    | altogether reads as: the floor's as closed, an added driver's as open.
     |
     */
     'abuse' => [
@@ -579,7 +599,8 @@ return [
         'allowed_recipients' => [],
         'from' => [
             'address' => env('VISUAL_FEEDBACK_MAIL_FROM_ADDRESS'),
-            // Falls back to the application name, the way Laravel's own `config/mail.php` does.
+            // Falls back to the application name, as a new Laravel application's `.env.example`
+            // does with `MAIL_FROM_NAME="${APP_NAME}"`.
             // Without a default this key was WORSE than the framework value it overrides: the
             // From header arrived as a bare address, and a report from a product nobody can name
             // reads like an unattended relay rather than like feedback somebody just gave.
@@ -611,7 +632,7 @@ return [
         'attach_files' => true,
 
         // Refuse to "deliver" through a transport that accepts a message and drops it — `log`,
-        // `array`, `null`, or a `failover`/`roundrobin` chain that can fall through to one.
+        // `array`, or a `failover`/`roundrobin` chain that can fall through to one.
         //
         // On such a transport `Mailer::send()` succeeds, so the report gets a DELIVERED receipt,
         // fires ReportDelivered, releases its attachments and shows the reporter a success state
@@ -622,7 +643,8 @@ return [
         // Turn it off to send through the log transport on purpose — reading a rendered report in
         // `laravel.log` during development is a legitimate thing to want. It is never consulted
         // while the application runs its tests, where `array` is the correct answer.
-        'require_deliverable_transport' => filter_var(env('VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+        // An empty value keeps the check on: only an explicit false switches it off.
+        'require_deliverable_transport' => EnvFlag::protection(env('VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT', true), true),
     ],
 
     /*
@@ -686,9 +708,9 @@ return [
     | reads `reports_days` and `prune_delivered_only`; `orphan_attachments_min_age` is
     | read by `visual-feedback:sweep-orphans` and by nothing else — so tuning it while
     | scheduling only `prune` sweeps no orphan at all. `reports_days` deletes reports
-    | older than N days (null = keep forever). `orphan_attachments_min_age` (minutes)
-    | must stay ABOVE the queue retry horizon so a still-delivering report's files are
-    | never swept. `prune_delivered_only` keeps undelivered reports until they land —
+    | older than N days (null = keep forever); a value under one day would delete every
+    | report, so `prune` refuses it. `orphan_attachments_min_age` (minutes) must stay
+    | ABOVE the queue retry horizon so a still-delivering report's files are never swept. `prune_delivered_only` keeps undelivered reports until they land —
     | judged from the delivery snapshot stored on the row, and only for the OTHER
     | channels: the database channel writes that snapshot before settling its own
     | receipt, so its own entry always reads `pending` and would hold back every row.

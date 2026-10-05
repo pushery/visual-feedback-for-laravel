@@ -10,6 +10,7 @@ use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Contracts\AbuseGate;
 use Pushery\VisualFeedback\Events\InstanceRateLimitReached;
 use Pushery\VisualFeedback\Events\RejectionReason;
+use Pushery\VisualFeedback\Support\RedactedFailure;
 use Pushery\VisualFeedback\Support\Settings;
 use Throwable;
 
@@ -179,7 +180,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         } catch (Throwable $exception) {
             $this->logger->warning('visual-feedback: builtin rate limiter errored', [
                 'exception' => $exception::class,
-                'message' => $exception->getMessage(),
+                'message' => RedactedFailure::message($exception),
                 // Named so an operator reading the log knows which half of the floor was lost.
                 'floor' => 'rate_limit_only',
             ]);
@@ -221,7 +222,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         } catch (Throwable $exception) {
             $this->logger->warning('visual-feedback: builtin rate limiter errored', [
                 'exception' => $exception::class,
-                'message' => $exception->getMessage(),
+                'message' => RedactedFailure::message($exception),
                 'floor' => 'global_rate_limit_only',
             ]);
 
@@ -272,6 +273,12 @@ final readonly class BuiltinAbuseGate implements AbuseGate
      * would fold unrelated customers of one ISP into a shared bucket; truncating less is what this
      * did. IPv4 is left whole -- a /24 there is a neighborhood, not a household.
      *
+     * That includes an IPv4 address written as IPv6. A dual-stack listener reports an IPv4 client
+     * as `::ffff:a.b.c.d`, and the /64 of every such address is `::/64`, so all of them shared one
+     * bucket. A mapped address is keyed on its IPv4 form, the same key the plain form gets. The
+     * deprecated IPv4-compatible form (`::a.b.c.d`) is not mapped: no current stack reports it,
+     * and its prefix also holds the loopback `::1`.
+     *
      * A malformed or absent address keeps its old behavior and shares the `unknown` bucket, which
      * is deliberate: an adapter that cannot say who is calling gets the strictest treatment
      * available, not an exemption.
@@ -286,6 +293,12 @@ final readonly class BuiltinAbuseGate implements AbuseGate
 
         if ($packed === false || strlen($packed) !== 16) {
             return $ipAddress;
+        }
+
+        if (str_starts_with($packed, str_repeat("\0", 10)."\xff\xff")) {
+            $ipv4 = inet_ntop(substr($packed, 12));
+
+            return $ipv4 === false ? $ipAddress : $ipv4;
         }
 
         $network = inet_ntop(substr($packed, 0, 8).str_repeat("\0", 8));

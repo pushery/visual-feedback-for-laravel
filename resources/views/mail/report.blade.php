@@ -59,9 +59,10 @@
      nowhere: what this template omits is gone the moment the mail is sent, per report.
 
      Every reporter-typed value here goes through MailCell::text(), not ::cell(). These sit in a
-     LIVE-Markdown position — a bold line, a list item — and cell() escapes pipes but not links.
-     Measured before this block existed: a phone value of `[click me](http://evil.example)`
-     reached the rendered mail as a real anchor. --}}
+     live Markdown position — a bold line, a list item — and text() also escapes emphasis and code
+     spans, where cell() stops at links, images and the table's pipes. Measured before either
+     escape existed: a phone value of `[click me](http://evil.example)` reached the rendered mail
+     as a real anchor. --}}
 **{{ __('visual-feedback::messages.mail.reporter') }}**
 
 - **{{ __('visual-feedback::messages.mail.reporter_type') }}:** {{ $report->reporter->isGuest ? __('visual-feedback::messages.mail.reporter_guest') : __('visual-feedback::messages.mail.reporter_member') }}
@@ -95,8 +96,10 @@
 <x-mail::table>
 | {{ __('visual-feedback::messages.mail.field') }} | {{ __('visual-feedback::messages.mail.value') }} |
 | :--- | :--- |
+{{-- The capture stage is the browser's own statement: the server cannot tell which stage made
+     the file, so the row says whose word it is rather than reading as proof of an exact shot. --}}
 @foreach ($report->metadata as $key => $value)
-| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Illuminate\Support\Str::headline((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }} |
+| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Illuminate\Support\Str::headline((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if ($key === 'capture_method') {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
 @endforeach
 </x-mail::table>
 @endif
