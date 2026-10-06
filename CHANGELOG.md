@@ -4,6 +4,14 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.20.1] - 2026-10-06
+
+### 🐛 Fixed
+
+- **No false "did not load" message on a page reached by `wire:navigate`.** On the first visit by `wire:navigate` to a page that carries the widget, the two bundles arrive together and run in the order they finish loading, and the one that ran first reported the other one as missing in the browser console, a moment before it arrived. Each bundle now waits until the other one has run or failed to load before it says anything.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
 ## [0.20.0] - 2026-10-06
 
 ### ✨ Added
@@ -1176,7 +1184,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...v0.18.1
