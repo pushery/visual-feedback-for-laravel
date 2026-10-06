@@ -11,18 +11,18 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\ConnectionResolverInterface as ConnectionResolver;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Schema;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
+use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
  * The age-based orphan sweep — the backstop for a lost cleanup refcount: if the cache-backed refcount is evicted, a transient report's attachments are
  * never deleted, and this sweep catches them once they are old enough.
  *
- * AGE is the ONLY deletion criterion, and the sweep is confined to the package's own attachments
- * directory on the configured disk. A DB match is a KEEP-ALIVE only, never the deletion rule: a
- * DB-diff would be catastrophic with the database channel OFF (no table → EVERY file looks
- * orphaned → it would delete the lot). The min-age MUST exceed the queue retry horizon
+ * Age is the only deletion criterion, and the sweep is confined to the package's own attachments
+ * directory on the configured disk. A DB match is a keep-alive only, never the deletion rule: a
+ * DB-diff would be catastrophic with the database channel off (no table → every file looks
+ * orphaned → it would delete the lot). The min-age must exceed the queue retry horizon
  * (latency + tries × backoff) so a file a retrying mail job still needs is never swept — the
  * config default (24 h) clears any realistic backoff.
  */
@@ -73,7 +73,7 @@ final class SweepOrphanAttachments extends Command
             $swept++;
 
             // The files are gone; their per-file subdirectories are not, and this command is the
-            // one that would otherwise have to walk them on every future run. Pruning PER BATCH
+            // one that would otherwise have to walk them on every future run. Pruning per batch
             // rather than once at the end is what keeps this bounded: the old single call needed
             // the full list of every path the run had deleted, held until the loop finished.
             if (count($batch) >= self::PRUNE_BATCH) {
@@ -111,7 +111,7 @@ final class SweepOrphanAttachments extends Command
      * The bigger win is on remote storage, and it is a latency one rather than a memory one. The
      * listing already carries each file's modification time — S3 returns it inside the
      * ListObjectsV2 response — while `$disk->lastModified($path)` is passed straight through to
-     * the adapter and costs one HeadObject request PER FILE. Reading it off the listing turns a
+     * the adapter and costs one HeadObject request per file. Reading it off the listing turns a
      * sweep of 50 000 remote files from 50 000 sequential round trips into the listing itself.
      *
      * A Filesystem implementation that is not the framework's adapter has no driver to ask, so
@@ -141,7 +141,7 @@ final class SweepOrphanAttachments extends Command
     }
 
     /**
-     * The set of attachment paths any stored report references — a KEEP-ALIVE, empty without the
+     * The set of attachment paths any stored report references — a keep-alive, empty without the
      * opt-in table (then age alone decides, which is correct: no table means no persistent store).
      *
      * @return array<string, true>
@@ -150,7 +150,7 @@ final class SweepOrphanAttachments extends Command
     {
         $table = $this->reportsTable($config);
 
-        if (! Schema::hasTable($table)) {
+        if (! TableLookup::exists($table)) {
             return [];
         }
 

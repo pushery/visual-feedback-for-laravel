@@ -33,12 +33,12 @@ use Pushery\VisualFeedback\Support\Settings;
  * whole pipeline testable without a UI and keeps the seam open for other adapters.
  *
  * Pipeline order, fixed:
- *   0. the master switch — `visual-feedback.enabled`. It runs before EVERYTHING, including the
+ *   0. the master switch — `visual-feedback.enabled`. It runs before everything, including the
  *      abuse floor, because a disabled package must not touch a rate limiter, a cache or a disk,
  *      and because this is the endpoint half of a promise the shipped config makes: switch it
- *      off and the widget renders nothing AND the submit path rejects everything,
+ *      off and the widget renders nothing and the submit path rejects everything,
  *   1. abuse floor — the always-on AbuseGate (honeypot + time trap + rate limits) runs
- *      BEFORE validation, so a failing attempt still burns a rate-limit token,
+ *      before validation, so a failing attempt still burns a rate-limit token,
  *   2. build the report with its stable UUID,
  *   3. ReportSubmitting — synchronous listeners may cancel,
  *   4. validate,
@@ -60,11 +60,11 @@ final readonly class SubmitReport
 
     public function handle(SubmissionInput $input): SubmissionResult
     {
-        // 0. Master switch. FIRST, ahead of the abuse floor: a disabled package must not burn a
+        // 0. Master switch. First, ahead of the abuse floor: a disabled package must not burn a
         // rate-limit token, warm a cache or touch a disk, and an operator who switched it off
         // during an incident has to be able to rely on that.
         //
-        // The check lives HERE rather than only in the component, because the component is
+        // The check lives here rather than only in the component, because the component is
         // registered by name and is therefore reachable without the page that renders it — a
         // stale tab, or anything that can address a Livewire component, still arrives at this
         // method. A switch enforced only where it is drawn is not a switch.
@@ -86,7 +86,7 @@ final readonly class SubmitReport
         // was never invited, and spending a rate-limit token on them would let a bot drain the
         // bucket of whichever subject it is keyed on.
         //
-        // This is the half that HOLDS. The five component templates and the widget's render()
+        // This is the half that holds. The five component templates and the widget's render()
         // also ask, and all of those are drawing: the component is registered by name, so a stale
         // tab or anything that can address a Livewire component still arrives here.
         //
@@ -104,10 +104,10 @@ final readonly class SubmitReport
             );
         }
 
-        // 1. Abuse floor — the always-on gate runs BEFORE validation, so a failing attempt
+        // 1. Abuse floor — the always-on gate runs before validation, so a failing attempt
         // still burns a rate-limit token. A filled honeypot or a too-fast fill
-        // is a SILENT decoy (nothing stored, a bot learns nothing); a rate limit is a visible
-        // rejection so a real user gets feedback — and the GATE says which of the two it is, so a
+        // is a silent decoy (nothing stored, a bot learns nothing); a rate limit is a visible
+        // rejection so a real user gets feedback — and the gate says which of the two it is, so a
         // consumer's interactive challenge can be visible too. ReportRejected fires either way for
         // observability.
         $decision = $this->abuse->check(new ReportAttempt(
@@ -122,7 +122,7 @@ final readonly class SubmitReport
         if ($decision->reason instanceof RejectionReason) {
             $this->events->dispatch(new ReportRejected($decision->reason, $decision->detail));
 
-            // The GATE decides whether the reporter is told, not this line. It used to compare
+            // The gate decides whether the reporter is told, not this line. It used to compare
             // the reason against one hardcoded case, which silently made every reason a consumer's
             // own gate could return — `ChallengeFailed` above all — render the decoy success
             // screen. A person who fails an interactive challenge would have been shown "thanks,
@@ -131,7 +131,7 @@ final readonly class SubmitReport
                 return SubmissionResult::rejected($decision->reason);
             }
 
-            // A SILENT rejection answers with the success screen, which is the right answer to a
+            // A silent rejection answers with the success screen, which is the right answer to a
             // bot and the wrong one to the single human case that reaches it: open the widget,
             // press send with nothing typed, and read a confirmation for a report that never
             // left. Whether the trap or the required field would have refused first is a matter
@@ -140,11 +140,11 @@ final readonly class SubmitReport
             //
             // Naming the empty field gives a bot nothing it does not already have: `required`
             // stands in the markup it just read, and the category allowlist is rendered as the
-            // picker's own options. A submission that is COMPLETE and too fast still gets the
+            // picker's own options. A submission that is complete and too fast still gets the
             // decoy, so the trap keeps every case it was built for.
             //
             // The event above named the floor's decision, because that is what happened to the
-            // submission. The RESULT names validation, because that is what the reporter can act
+            // submission. The result names validation, because that is what the reporter can act
             // on — and because the widget marks a control invalid on that reason alone.
             $failure = $this->validate($input);
 
@@ -172,7 +172,7 @@ final readonly class SubmitReport
         $report = Report::forSubmission(
             category: $input->category,
             subject: $this->modeOf($input, 'subject') === Settings::FIELD_OFF ? null : $this->trimmed($input->subject),
-            message: Str::trim($input->message),
+            message: $this->trimmed($input->message),
             reporter: $this->withoutSwitchedOffFields($input),
             context: $input->context,
             attachments: $attachments,
@@ -213,7 +213,7 @@ final readonly class SubmitReport
             );
         }
 
-        // 4c. Validate the screenshot through the SAME kind of caps — a screenshot on its
+        // 4c. Validate the screenshot through the same kind of caps — a screenshot on its
         // own path bypasses attachment validation entirely. A valid, present screenshot fires
         // ScreenshotAttached with the report UUID + its stored path.
         $screenshotErrors = $this->screenshots->validate($screenshotPath);
@@ -236,14 +236,14 @@ final readonly class SubmitReport
 
         // 6. Accepted — and the widget is told whether anything actually took it. The event fires
         // either way: a host that delivers from a listener still gets its report, and the count
-        // is about what the PACKAGE arranged, not about what the host does afterwards.
+        // is about what the package arranged, not about what the host does afterwards.
         $this->events->dispatch(new ReportSubmitted($report));
 
         return SubmissionResult::accepted($report, handedToAChannel: $handedTo > 0);
     }
 
     /**
-     * Validation messages owned by THIS package, so a rejection reads the same in every locale it
+     * Validation messages owned by this package, so a rejection reads the same in every locale it
      * ships — independent of what the host app has under `validation.*`.
      *
      * Only the rules used above. A rule added to $rules without a message here falls back to the
@@ -261,15 +261,15 @@ final readonly class SubmitReport
             // `email` says.
             'guest_email.not_regex' => (string) trans('visual-feedback::messages.validation.email'),
             'guest_email.regex' => (string) trans('visual-feedback::messages.validation.email'),
-            // `max`, NOT `max.string`. Laravel looks an inline message up under
+            // `max`, not `max.string`. Laravel looks an inline message up under
             // "{$attribute}.{$rule}", "{$rule}" and "{$attribute}" — nothing else — so
             // `max.string` only ever matches an attribute literally called `max`
             // validated by a `string` rule. It matched nothing here, and the fallback is
-            // silent: Laravel serves its OWN validation.max.string line, so every
+            // silent: Laravel serves its own validation.max.string line, so every
             // over-long field showed "The Subject field must not be greater than 20
             // characters" while this package shipped a translated sentence in seven
             // locales that no reporter ever saw. (The dotted form is what a size rule
-            // wants in a translation FILE, where the type is a nested key; an inline
+            // wants in a translation file, where the type is a nested key; an inline
             // message array is indexed by the rule alone.)
             'max' => (string) trans('visual-feedback::messages.validation.max'),
             'string' => (string) trans('visual-feedback::messages.validation.string'),
@@ -298,17 +298,18 @@ final readonly class SubmitReport
     /** The first validation failure, its field and message, or null when the submission is valid. */
     private function validate(SubmissionInput $input): ?ValidationFailure
     {
-        // What the call site OFFERED, falling back to the configured list. A widget mounted
-        // with its own `categories` used to render options this rule then rejected — the picker
-        // and the validator disagreed, and the reporter lost.
+        // What the call site offered, falling back to the configured list. Checked against the
+        // configured list alone, a widget mounted with its own `categories` would render options
+        // this rule then rejects — the picker and the validator would disagree, and the reporter
+        // would lose.
         //
-        // An INT IS KEPT AND CAST, NOT DROPPED, and the difference is the whole submission.
-        // This filter used to be `is_string(...)`, which is right for config data — a host can
-        // put anything in there — and catastrophic for the offered list: PHP converts a numeric
-        // -string array key to an int on write, so a configured `['101', '102']` reaches here as
-        // `[101, 102]`, every entry is discarded, `Rule::in([])` renders as a bare `in:`, and
-        // EVERY category is invalid. The reporter is told their choice is wrong with nothing they
-        // can do about it, on a shape this package documents as supported.
+        // An int is kept and cast, not dropped, and the difference is the whole submission. An
+        // `is_string(...)` filter is right for config data — a host can put anything in there —
+        // and catastrophic for the offered list: PHP converts a numeric-string array key to an
+        // int on write, so a configured `['101', '102']` reaches here as `[101, 102]`, every entry
+        // would be discarded, `Rule::in([])` renders as a bare `in:`, and every category would be
+        // invalid. The reporter would be told their choice is wrong with nothing they can do
+        // about it, on a shape this package documents as supported.
         //
         // Dropping is still right for a value no category key can be — an array, an object, a
         // bool, a null. Those cannot round-trip through a form field, so admitting them would
@@ -345,7 +346,7 @@ final readonly class SubmitReport
             $rules['subject'] = [$this->requiredness($input, 'subject'), 'string', "max:{$subjectMax}"];
         }
 
-        $data['message'] = Str::trim($input->message);
+        $data['message'] = $this->trimmed($input->message);
         $rules['message'] = ['required', 'string', "max:{$messageMax}"];
 
         // Guest identity fields, each governed by its own `fields.<f>.mode`, by the same rule. An
@@ -380,7 +381,7 @@ final readonly class SubmitReport
             }
         }
 
-        // Messages and attribute names come from THIS package, in all seven locales. Leaving them
+        // Messages and attribute names come from this package, in all seven locales. Leaving them
         // to the host's `validation.*` lines would show whatever that app happens to have — often
         // English only, and with `guest_email` as the field name.
         $validator = $this->validator->make($data, $rules, $this->messages(), $this->attributeNames());
@@ -420,7 +421,8 @@ final readonly class SubmitReport
     }
 
     /**
-     * A free-text field as Laravel's TrimStrings middleware hands a form field over.
+     * A free-text field as Laravel's TrimStrings middleware hands a form field over, without NUL
+     * bytes.
      *
      * Livewire switches that middleware off for its own requests, and the `required` rule trims
      * with PHP's trim(), which knows only ASCII whitespace. A message of nothing but U+3000, the
@@ -428,10 +430,16 @@ final readonly class SubmitReport
      * as written, and an empty report was mailed and stored. Str::trim() removes Unicode whitespace
      * and the zero-width marks as well. Every adapter reaches this class, so the text the rules
      * judge and the text the report carries are trimmed here.
+     *
+     * A NUL byte is removed before the trim. PostgreSQL cuts a text value at the first one without
+     * an error, so the database channel would store a message only up to that byte while mail and
+     * webhook carry all of it. The byte carries nothing a reader of the report needs.
+     *
+     * @return ($value is null ? null : string)
      */
     private function trimmed(?string $value): ?string
     {
-        return $value === null ? null : Str::trim($value);
+        return $value === null ? null : Str::trim(str_replace("\0", '', $value));
     }
 
     /** `required` or `nullable` for one field, from the single `fields.<f>.mode` vocabulary. */

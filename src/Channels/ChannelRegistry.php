@@ -14,8 +14,8 @@ use Pushery\VisualFeedback\Support\RedactedFailure;
 use Throwable;
 
 /**
- * The registry of delivery channels. Channels are registered as FACTORIES (built-in ones by the
- * provider, custom ones via VisualFeedback::extend()), and a factory is invoked ONLY when its
+ * The registry of delivery channels. Channels are registered as factories (built-in ones by the
+ * provider, custom ones via VisualFeedback::extend()), and a factory is invoked only when its
  * config key is enabled — a disabled channel is never instantiated, so it costs nothing at boot.
  * An enabled-but-unavailable channel (missing dependency/config) is skipped, never dispatched.
  *
@@ -46,8 +46,8 @@ final class ChannelRegistry
     }
 
     /**
-     * The enabled AND available channels, instantiated. A disabled channel is never instantiated;
-     * an unavailable one is dropped after construction — and SAID SO, which it was not.
+     * The enabled and available channels, instantiated. A disabled channel is never instantiated;
+     * an unavailable one is dropped after construction — and said so, which it was not.
      *
      * A channel that is switched on and then silently dropped is the difference between "you
      * turned it off" and "you turned it on and it does not work", and those want opposite
@@ -67,10 +67,10 @@ final class ChannelRegistry
                 continue; // no instantiation for a disabled channel
             }
 
-            // Construction and the availability probe are INSIDE the isolation, and they were
-            // not. Both run consumer code — a factory registered through extend(), and that
-            // channel's own isAvailable() — so a single broken custom channel used to throw out
-            // of here and take the whole report with it, past the per-channel try/catch in
+            // Construction and the availability probe are inside the isolation too. Both run
+            // consumer code — a factory registered through extend(), and that channel's own
+            // isAvailable() — so outside it a single broken custom channel would throw out of
+            // here and take the whole report with it, past the per-channel try/catch in
             // dispatch() that exists to stop precisely that.
             try {
                 $channel = $factory();
@@ -99,16 +99,16 @@ final class ChannelRegistry
 
     /**
      * Dispatch the report to every enabled + available channel. Each channel is isolated: a
-     * dispatch-time failure of one is logged and settled as a terminal failure for THAT channel
+     * dispatch-time failure of one is logged and settled as a terminal failure for that channel
      * (via the tracker), and never blocks the others. The lifecycle is armed once, up front, so
      * the attachment refcount / retain policy / zero-channels cleanup are decided from the full
      * channel set.
      *
      * Returns how many channels took the report, and that number is the point rather than a
-     * convenience: the caller could not previously tell "handed to somebody" from "accepted and
-     * dropped", so both ended at the same success state in the widget while only one of them was
-     * true. A dispatch-time throw still counts — the report reached that channel and its receipt
-     * settles FAILED, which is a trail rather than a silence.
+     * convenience: without it the caller cannot tell "handed to somebody" from "accepted and
+     * dropped", and both would end at the same success state in the widget while only one of
+     * them is true. A dispatch-time throw still counts — the report reached that channel and its receipt
+     * settles failed, which is a trail rather than a silence.
      */
     public function dispatch(Report $report): int
     {
@@ -118,7 +118,7 @@ final class ChannelRegistry
 
         if ($channels === []) {
             // The report is accepted, stored, and delivered nowhere. Every individual reason for
-            // that is now logged above, but the SUM is worth its own line: an operator reading
+            // that is logged above, but the sum is worth its own line: an operator reading
             // "mail skipped" learns one channel is misconfigured, while this says the report is
             // gone. The tracker still runs its zero-channel cleanup — the attachments are
             // released rather than orphaned — so this is the only trace there will be.
@@ -128,7 +128,18 @@ final class ChannelRegistry
             ]);
         }
 
-        $tracker->begin($report, $channels);
+        // The delivery bookkeeping lives in the cache, and a cache that is down must not cost the
+        // report. Without an armed counter no refcount cleanup applies, and the orphan sweep
+        // collects the files, as it does for a counter the cache evicted.
+        try {
+            $tracker->begin($report, $channels);
+        } catch (Throwable $exception) {
+            $logger->warning('visual-feedback: the delivery bookkeeping could not be started, so the report is dispatched without it', [
+                'report' => $report->id,
+                'exception' => RedactedFailure::classOf($exception),
+                'message' => RedactedFailure::message($exception),
+            ]);
+        }
 
         foreach ($channels as $channel) {
             try {
@@ -141,7 +152,13 @@ final class ChannelRegistry
                     'message' => RedactedFailure::message($exception),
                 ]);
 
-                $tracker->settleFailed($report, $channel->key(), $exception);
+                // The failed receipt goes to the same cache, and a store that cannot take it must
+                // not keep the channels after this one from being dispatched.
+                try {
+                    $tracker->settleFailed($report, $channel->key(), $exception);
+                } catch (Throwable $settle) {
+                    report(RedactedFailure::standIn($settle));
+                }
             }
         }
 

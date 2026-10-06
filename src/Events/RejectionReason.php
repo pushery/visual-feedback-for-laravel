@@ -27,7 +27,7 @@ enum RejectionReason: string
     case Disabled = 'disabled';
 
     /**
-     * An additional abuse driver threw, and it is configured to fail CLOSED.
+     * An additional abuse driver threw, and it is configured to fail closed.
      *
      * Kept apart from `ChallengeFailed` on purpose, because they mean opposite things about the
      * reporter: that one says the submission was judged and refused, this one says nobody was

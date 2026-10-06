@@ -13,8 +13,8 @@ use Pushery\VisualFeedback\Jobs\SendReportWebhook;
 use Pushery\VisualFeedback\Support\EnvFlag;
 
 /**
- * The webhook delivery channel. It is available when EITHER the
- * pushery/webhooks platform is installed (fleet infrastructure, preferred) OR both a fallback
+ * The webhook delivery channel. It is available when either the
+ * pushery/webhooks platform is installed (preferred) or both a fallback
  * `webhook.url` and a `webhook.secret` are configured — otherwise there is nowhere to deliver
  * safely and it is skipped (see isAvailable() for why the secret is not optional).
  * dispatch() records a pending receipt and enqueues the channel's own SendReportWebhook job,
@@ -36,9 +36,9 @@ final readonly class WebhookChannel implements ReportChannel
     }
 
     /**
-     * Available with the fleet platform installed, or a configured fallback URL AND secret.
+     * Available with the pushery/webhooks platform installed, or a configured fallback URL and secret.
      *
-     * The secret is not optional and the reason is that leaving it out fails OPEN rather than
+     * The secret is not optional and the reason is that leaving it out fails open rather than
      * closed. `hash_hmac()` returns the same digest for a null key and an empty one, and the
      * scheme is public — algorithm, "{timestamp}.{rawBody}" input format and header names are
      * constants here and printed on the documentation site. So an unset secret does not produce
@@ -61,7 +61,7 @@ final readonly class WebhookChannel implements ReportChannel
 
     public function dispatch(Report $report): void
     {
-        $this->receipts->record($report->id, $this->key(), DeliveryStatus::Pending);
+        $this->receipts->recordPending($report->id, $this->key());
 
         $job = new SendReportWebhook(
             report: $report,
@@ -71,7 +71,7 @@ final readonly class WebhookChannel implements ReportChannel
         );
 
         // Connection before queue, matching the order a host reads them in the config file.
-        // This is a QUEUE connection, so it decides which worker carries the job — a host
+        // This is a queue connection, so it decides which worker carries the job — a host
         // that leaves it unset keeps the application default, which is the common case.
         $connection = $this->config->get('visual-feedback.channels.webhook.connection');
 

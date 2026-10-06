@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Channels\Mail;
 
 /**
- * Renders one piece of user-influenced text safe for a Markdown MAIL body.
+ * Renders one piece of user-influenced text safe for a Markdown mail body.
  * Blade's `{{ }}` already HTML-escapes, but Markdown has its own injection surface that HTML
  * escaping does not touch: an unescaped `|` inside a table cell shifts the columns and is the
  * `Bob | Alice` → "Undefined array key 1" crash, a newline ends the table row (or the list item)
@@ -34,7 +34,7 @@ final class MailCell
     }
 
     /**
-     * Free-form reporter text rendered in a LIVE-Markdown position — a list item, a bold line.
+     * Free-form reporter text rendered in a live-Markdown position — a list item, a bold line.
      *
      * This is the wider set. `cell()` stops links and images and keeps a table intact; this
      * also escapes emphasis, code spans and the rest, so the reporter's own words cannot dress
@@ -45,9 +45,9 @@ final class MailCell
      * `fence()` exists for, one position over, and its docblock already names the stake — a link
      * in a maintainer's inbox that appears to come from their own tooling.
      *
-     * The escape set is deliberately NARROWER than "all ASCII punctuation", and the reason is
+     * The escape set is deliberately narrower than "all ASCII punctuation", and the reason is
      * the other half of the mail. `renderText()` does not parse Markdown; it entity-decodes the
-     * rendered body, so every backslash added here is VISIBLE in the text/plain alternative.
+     * rendered body, so every backslash added here is visible in the text/plain alternative.
      * Escaping `.`, an apostrophe or `-` would put slashes through an ordinary name in a large
      * share of the mails a host ever sends. `<`, `>` and `&` are left out for the opposite
      * reason: Blade's echo escapes them before the converter sees them. The converter itself
@@ -69,7 +69,7 @@ final class MailCell
      * The opening/closing delimiter for a fenced code block that $value cannot break out of.
      *
      * A hardcoded ``` fence does not make user text inert, and the mail template's own comment
-     * claimed it did. CommonMark closes a fence on the first line that begins with AT LEAST as
+     * claimed it did. CommonMark closes a fence on the first line that begins with at least as
      * many backticks as opened it, so a reporter who types three backticks on a line of their own
      * ends the block and everything after it renders as live Markdown. Measured: a message
      * carrying a fence and `[CLICK ME](https://evil.example)` produced

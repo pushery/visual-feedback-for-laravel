@@ -11,19 +11,19 @@ use Pushery\VisualFeedback\Contracts\PrivacyNoticeWordingSource;
 use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
 
 /**
- * The privacy notice a GUEST must acknowledge before submitting. Distinct from consent:
+ * The privacy notice a guest must acknowledge before submitting. Distinct from consent:
  * this is only the "you can see we collect a screenshot + metadata" notice. Its source
  * is `config('visual-feedback.privacy.source')`:
  *
  *  - null            → no notice (nothing to acknowledge),
  *  - 'url'           → the configured `privacy.url`,
- *  - 'legal-consent' → the pushery/legal-consent bridge: the configured `privacy.url` PLUS the
+ *  - 'legal-consent' → the pushery/legal-consent bridge: the configured `privacy.url` plus the
  *                      published acknowledgment sentence as the label,
  *  - a FQCN          → a host PrivacyNoticeSource resolved from the container.
  *
  * A notice is required exactly when there is a URL, whatever the source. That is deliberate and
  * load-bearing: the URL is the full text the reporter can actually open, and a required checkbox
- * whose text cannot be opened is an uninformed clickwrap. So a wording source raises the QUALITY
+ * whose text cannot be opened is an uninformed clickwrap. So a wording source raises the quality
  * of the label and never the question of whether a notice exists — which also keeps the views and
  * the submit-time check keyed on one and the same condition. They diverged once; a checkbox that
  * validation demands and the template never renders is unfixable from the reporter's side.
@@ -52,7 +52,7 @@ final readonly class PrivacyNotice
     /**
      * The sentence to put on the checkbox, or null to use this package's own lang line.
      *
-     * Only a source that CAN answer is asked — a plain URL source has no sentence to give and is
+     * Only a source that can answer is asked — a plain URL source has no sentence to give and is
      * not expected to implement one.
      */
     public function wording(): ?PrivacyNoticeWording

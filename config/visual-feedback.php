@@ -15,29 +15,29 @@ return [
     | The single, complete configuration surface for the package. Publish it with
     | `php artisan vendor:publish --tag=visual-feedback-config`. Every option is
     | documented inline. Security-sensitive reads (abuse limits, attachment caps)
-    | degrade CLOSED when a key is missing — the package's Settings accessor never
+    | degrade closed when a key is missing — the package's Settings accessor never
     | reads a laxer value than the documented default.
     |
     */
 
-    // EVERY BOOLEAN KEY IN THIS FILE READS ITS ENV VALUE THROUGH `filter_var`, AND THAT IS NOT
-    // DECORATION. `env()` converts exactly four spellings -- `true`, `false`, `empty`, `null` --
-    // and hands back everything else as a STRING. A non-empty string is truthy, so
-    // `VISUAL_FEEDBACK_ENABLED=off` used to read as ON. Nothing throws and nothing logs; from the
+    // Every boolean key in this file reads its env value through `filter_var`, and that is not
+    // decoration. `env()` converts exactly four spellings -- `true`, `false`, `empty`, `null` --
+    // and hands back everything else as a string. A non-empty string is truthy, so without it
+    // `VISUAL_FEEDBACK_ENABLED=off` would read as on. Nothing throws and nothing logs; from the
     // outside it looks like the package ignores the setting, and the direction is the unpleasant
     // one for every `*_ENABLED` and `*_CHANNEL_*` key here.
     //
-    // A `(bool)` CAST IS NOT THE CURE, IT IS THE MORE EXPENSIVE VERSION. `(bool) 'off'` is
-    // `true` -- the cast confirms the non-empty string `env()` already returned. One key here
-    // carried such a cast and was no safer than the ten without it, while reading like a
-    // safeguard and stopping nobody.
+    // A `(bool)` cast is not the cure, it is the more expensive version. `(bool) 'off'` is
+    // `true` -- the cast confirms the non-empty string `env()` already returned. A key with such
+    // a cast is no safer than one without it, while reading like a safeguard and stopping
+    // nobody.
     //
     // The `?? <default>` is load-bearing too: without it an unreadable value becomes `null` and
-    // therefore falsy, so a typo would switch a feature OFF instead of falling back to what this
+    // therefore falsy, so a typo would switch a feature off instead of falling back to what this
     // file declares. The right answer to "cannot read that" is the default.
     //
     // Two edges, measured rather than assumed, and left as they are because they match what
-    // Laravel itself does with an env value: an EMPTY value (`KEY=`) and a literal `KEY=null`
+    // Laravel itself does with an env value: an empty value (`KEY=`) and a literal `KEY=null`
     // both read as `false`, not as the default -- `filter_var` calls them readable-and-false, so
     // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for.
 
@@ -48,7 +48,7 @@ return [
     // <x-visual-feedback::fab>, <x-visual-feedback::trigger> and <x-visual-feedback::scripts>
     // components render nothing at all — so neither JS bundle is requested either — and
     // the submit path refuses every request before it touches a rate limiter, a cache
-    // or a disk. The refusal is VISIBLE — a page that was already open when you flipped the
+    // or a disk. The refusal is visible — a page that was already open when you flipped the
     // switch tells its reporter the form is off, rather than showing a success screen for a
     // report nobody received. A `ReportRejected` event carries `RejectionReason::Disabled`, so
     // an operator can tell "switched off" from "under attack" in the same listener.
@@ -65,7 +65,7 @@ return [
     // Off by default, and deliberately not for symmetry with the ceiling under `abuse` — that one
     // ships on. A ceiling that is too low costs an install some reports on its worst day. Turning
     // this on for a host who never asked would delete their entire guest audience, silently. A
-    // default may be restrictive about VOLUME; it must not be restrictive about WHO.
+    // default may be restrictive about volume; it must not be restrictive about who.
     //
     // "Signed in" is answered by the package's ResolvesReporter contract — the same one that
     // decides whose name is on a report — so a host on a non-default guard binds their own
@@ -81,7 +81,7 @@ return [
     | The feedback categories offered in the widget. Project-neutral and freely
     | extensible: add, rename, or remove a key here and add its matching label to
     | every locale's lang file. `visual` is this package's core category — the
-    | screenshot exists for exactly that. Labels live ONLY in lang
+    | screenshot exists for exactly that. Labels live only in lang
     | (`visual-feedback::messages.categories.<key>`), never here, so a missing
     | label falls back gracefully instead of leaking a raw translation key.
     |
@@ -93,8 +93,8 @@ return [
     | Form fields
     |--------------------------------------------------------------------------
     |
-    | Toggles and max lengths for the reporter's input fields. The limits are CODE
-    | POINTS, not bytes: they become Laravel `max:` rules on string attributes, and
+    | Toggles and max lengths for the reporter's input fields. The limits are code
+    | points, not bytes: they become Laravel `max:` rules on string attributes, and
     | that rule measures with `mb_strlen`. So `message` at 50 000 admits up to ~200 KB
     | of UTF-8, which is exactly why the shipped migration gives it `mediumText`
     | rather than MySQL's 64 KB `text` — size your own column the same way if you
@@ -104,7 +104,7 @@ return [
     | 255 unless `Schema::defaultStringLength()` lowers it: an application that sets
     | 191 there gets 191-wide columns, so keep `email` at or under that width.
     |
-    | Every field has ONE key that says how you want it: `mode`, which is `off`,
+    | Every field has one key that says how you want it: `mode`, which is `off`,
     | `optional` or `required`. `off` keeps it out of the form entirely, `required`
     | refuses a submission without it, `optional` offers it and takes it if given.
     | Any other value shows the field as `optional`, so a typo never removes an
@@ -113,7 +113,7 @@ return [
     | `message` has no `mode` on purpose. A feedback form without a message is not a
     | feedback form, and a switch nobody may turn is a lie in this file.
     |
-    | Name, email and phone are asked of GUESTS only. An authenticated reporter's
+    | Name, email and phone are asked of guests only. An authenticated reporter's
     | identity comes from the auth guard, so those three are not shown to them and
     | `mode` does not apply.
     |
@@ -191,7 +191,7 @@ return [
     | Attachments
     |--------------------------------------------------------------------------
     |
-    | Uploaded files (and the screenshot). The disk defaults to a PRIVATE local
+    | Uploaded files (and the screenshot). The disk defaults to a private local
     | disk — never a public one. Reports may contain sensitive screenshots, so a
     | public disk would expose them by URL. If you point this at S3, keep the
     | bucket private and serve via temporary URLs.
@@ -206,14 +206,14 @@ return [
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 0]],
         ) ?? 5,
         // 5 MB per file, in bytes. Written out rather than as `5 * 1024 * 1024`: the documented
-        // default has to be the number a host TYPES into a `.env`, and an arithmetic expression
+        // default has to be the number a host types into a `.env`, and an arithmetic expression
         // is not one -- the same reason `global_rate_limit` below spells 1000 without separators.
         'max_file_size' => filter_var(
             env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_FILE_SIZE', 5242880),
             FILTER_VALIDATE_INT,
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 5242880,
-        // Bytes, and it bounds the UPLOADS only — the screenshot is validated on its own
+        // Bytes, and it bounds the uploads only — the screenshot is validated on its own
         // path against `screenshot.max_bytes` and never enters this sum. With both at their
         // shipped defaults one report can therefore carry 15 MB + 8 MB = 23 MB, which is the
         // number to size a disk quota or an MTA limit against, not this one.
@@ -262,7 +262,7 @@ return [
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 8388608,   // 8 MB, in bytes
         'viewport_only' => true,                 // capture the visible viewport, not the full page
-        // The forced background for a page whose html AND body backgrounds are both
+        // The forced background for a page whose html and body backgrounds are both
         // transparent while color-scheme is dark (the UA canvas is invisible to the renderer).
         // Any set background wins via the native cascade; this is only the last resort.
         'dark_fallback_color' => env('VISUAL_FEEDBACK_SCREENSHOT_DARK_FALLBACK', '#111827'),
@@ -271,7 +271,7 @@ return [
         // no switch: somebody sets it and stops looking. If it needs to become configurable,
         // it needs a reader first.
         //
-        // An `<img src="*.svg">` is NOT fetched and inlined. It goes through the
+        // An `<img src="*.svg">` is not fetched and inlined. It goes through the
         // renderer's ordinary image path under `useCORS`, so a cross-origin SVG served
         // without CORS headers is missing from the capture like any other cross-origin
         // image — and one served from your own origin is captured like any other image.
@@ -293,33 +293,33 @@ return [
     |
     | No raw IP address is ever stored, and none reaches the report, this metadata,
     | the database or any channel — the optional migration ships no `ip_address`
-    | column at all. The address IS read at submit, for one purpose: the guest rate
+    | column at all. The address is read at submit, for one purpose: the guest rate
     | limit keys on a SHA-256 of it, which lives in your cache for the length of the
     | window and nowhere else. Written out because you may need it for your own
     | processing record: a hashed IP is pseudonymous, not anonymous.
     |
     */
     'metadata' => [
-        // `referrer` IS NOT IN THIS LIST, AND ITS ABSENCE IS THE POINT. It shipped enabled
+        // `referrer` is not in this list, and its absence is the point. It shipped enabled
         // until 0.6.0 and it is the one key here that can carry somebody else's secret.
         //
         // Under `Referrer-Policy: strict-origin-when-cross-origin` — the browsers' default, and what
-        // a careful application sets — a browser sends the FULL URL including the path on a
-        // SAME-origin navigation. The "strict-origin" half governs cross-origin requests only.
+        // a careful application sets — a browser sends the full URL including the path on a
+        // same-origin navigation. The "strict-origin" half governs cross-origin requests only.
         //
-        // A Laravel application routinely has routes whose path IS the credential:
+        // A Laravel application routinely has routes whose path is the credential:
         //
         //     reset-password/{token}            Laravel
         //     email/verify/{id}/{hash}          Laravel
         //     magic-link/verify/{token}         pushery/email-magic-link-for-laravel
         //     team-invitations/{token}          applications
         //
-        // The page somebody lands on AFTER one of those carries the widget — for a password
+        // The page somebody lands on after one of those carries the widget — for a password
         // reset that is the ordinary path — so a report filed there wrote a working reset link
         // into its metadata, out by mail, through a queue, possibly into a shared inbox.
         //
         // Checking whether those routes render the widget is the wrong check, and it passes: the
-        // leak is not the page reported FROM, it is the one before it.
+        // leak is not the page reported from, it is the one before it.
         //
         // Add it back if you need it and know your policy. The sanitizer will keep only its
         // scheme and host either way — see MetadataSanitizer — so the path cannot come with it.
@@ -356,8 +356,8 @@ return [
     | Abuse protection
     |--------------------------------------------------------------------------
     |
-    | The built-in floor (honeypot + time trap + rate limits) is ALWAYS active,
-    | even under another driver — no `driver` value removes it. ONE value does turn
+    | The built-in floor (honeypot + time trap + rate limits) is always active,
+    | even under another driver — no `driver` value removes it. One value does turn
     | a third of it off, deliberately and by name: `min_fill_seconds = 0` disarms
     | the time trap, because the whole check is gated on the minimum being above
     | zero. It exists for test suites, which submit instantly; that is also how it
@@ -365,9 +365,9 @@ return [
     | artisan about` does not mention it, so if you are auditing an install, this
     | is the value to read.
     |
-    | `driver` selects an ADDITIONAL layer that runs on
+    | `driver` selects an additional layer that runs on
     | top of the floor and can only ever reject more, never less: `builtin` (floor
-    | only), `none` (floor still on), or ANY key you register yourself with
+    | only), `none` (floor still on), or any key you register yourself with
     | `VisualFeedback::extendAbuse($key, fn () => new YourGate)`. The set is
     | deliberately open — naming a key with no gate registered logs a warning and
     | leaves the floor carrying the request, it never protects nothing silently.
@@ -396,14 +396,14 @@ return [
         ) ?? 5,
 
         /*
-         * The ceiling for the WHOLE application, per hour, counted across every reporter and
+         * The ceiling for the whole application, per hour, counted across every reporter and
          * every address. `0` switches it off.
          *
          * The two limits above count per subject, and a distributed sender never meets either:
          * a thousand addresses that each stay under the guest limit are a thousand reports an
          * hour between them, and on the mail channel that is a thousand messages with their
          * attachments at a provider billing per message and per byte. This is the key that
-         * bounds what an attack COSTS rather than what one attacker gets.
+         * bounds what an attack costs rather than what one attacker gets.
          *
          * It ships switched on, and the number is chosen to be invisible to any plausible
          * feedback volume while still turning "unbounded" into "bounded" — a form that really
@@ -412,17 +412,17 @@ return [
          * an `error` line; refusals after that carry `RejectionReason::GlobalRateLimited`, so a
          * host can tell "this sender had their share" from "the application did".
          *
-         * IMPORTANT. THE FILTER IS NOT DECORATION, AND THE FALLBACK IS THE HALF THAT MATTERS. `env()`
-         * hands back a STRING, and the accessor that reads this key takes an `int` — so a bare
+         * Important. The filter is not decoration, and the fallback is the half that matters. `env()`
+         * hands back a string, and the accessor that reads this key takes an `int` — so a bare
          * `env()` here would have made the key look settable and do nothing, which is the exact
          * failure this package has already paid for once on its boolean switches. `"0"` has to
          * survive as the integer `0`, because that is how an operator declines a ceiling they
          * know is wrong for them; `FILTER_NULL_ON_FAILURE` is what keeps it from colliding with
-         * the failure value. And anything unreadable falls back to the SHIPPED cap rather than to
+         * the failure value. And anything unreadable falls back to the shipped cap rather than to
          * `0`: a typo must not silently remove the ceiling.
          *
          * Written `1000` rather than `1_000`, and the guard that compares this literal with the
-         * documented one is why: the documentation states a default a reader TYPES into a `.env`,
+         * documented one is why: the documentation states a default a reader types into a `.env`,
          * and `1_000` is not that. The digit separator is a PHP nicety; this number now has a
          * second home where it is not one.
          */
@@ -445,14 +445,14 @@ return [
          *
          * Lower-cased and trimmed before it is stored, which a bare `env()` would not do. The
          * accessor compares against the exact word `open`, so `OPEN` in a `.env` would degrade
-         * CLOSED — the safe direction, and still not what the person who typed it meant. A host
+         * closed — the safe direction, and still not what the person who typed it meant. A host
          * whose cache is also the thing being rate-limited is exactly who reaches for this key,
          * and they should not have to discover the casing rule from a silent refusal.
          */
         'on_error' => mb_strtolower(trim((string) env('VISUAL_FEEDBACK_ABUSE_ON_ERROR', 'open'))), // open|closed — builtin only
 
         /*
-         * The failure mode for the SELECTED additional driver, when the map below says nothing
+         * The failure mode for the selected additional driver, when the map below says nothing
          * about it. `open` is the shipped default and what every driver gets without a word.
          *
          * It exists because the map cannot be reached from the environment and the scalar can.
@@ -468,7 +468,7 @@ return [
         'driver_on_error' => mb_strtolower(trim((string) env('VISUAL_FEEDBACK_ABUSE_DRIVER_ON_ERROR', 'open'))), // open|closed
 
         /*
-         * The failure mode of an ADDITIONAL driver, keyed by the same name `driver` selects
+         * The failure mode of an additional driver, keyed by the same name `driver` selects
          * above. `open` is the default for every driver, listed here or not, and is what ships:
          * when that gate's own check throws, the submission goes through on the floor alone —
          * a Cloudflare outage must not take every feedback form on the internet offline.
@@ -517,10 +517,10 @@ return [
         // Which pushery/legal-consent document the `legal-consent` source reads its
         // acknowledgment sentence from. Only used by that source.
         //
-        // `url` above stays REQUIRED with this source: legal-consent registers no public route
+        // `url` above stays required with this source: legal-consent registers no public route
         // that displays a document (deliberately — the page belongs to your app), and a required
         // checkbox whose full text cannot be opened is an uninformed clickwrap. So point `url` at
-        // your own privacy page; this source only replaces the checkbox LABEL with the sentence
+        // your own privacy page; this source only replaces the checkbox label with the sentence
         // that document actually publishes, in the reporter's locale.
         'document_key' => env('VISUAL_FEEDBACK_PRIVACY_DOCUMENT_KEY', 'privacy'),
     ],
@@ -534,7 +534,7 @@ return [
     | boolean) so every channel — not just mail — gets independent queue tuning:
     | its own `connection`, `queue`, `tries` and `backoff`.
     |
-    | `connection` is the name of a QUEUE connection from config/queue.php — the worker
+    | `connection` is the name of a queue connection from config/queue.php — the worker
     | that carries the job — not a database connection. Left unset, the job runs on the
     | application's default queue connection, which is what almost every host wants; set
     | it when report delivery should not share a worker with the rest of the app.
@@ -583,16 +583,16 @@ return [
          * The addresses a per-instance `recipient` mount prop may name, besides `to` itself.
          *
          * The widget can be mounted with its own recipient, so feedback from one page reaches the
-         * team that owns it. That value used to be trusted because the property was `#[Locked]`,
-         * and a lock is the wrong instrument here: it throws during hydration, which on a widget
-         * living in the host's layout answered ordinary navigation with a 419 nobody could catch.
+         * team that owns it. A `#[Locked]` property is the wrong instrument for trusting that
+         * value: a lock throws during hydration, which on a widget living in the host's layout
+         * answers ordinary navigation with a 419 nobody can catch.
          *
-         * So the trust moved to where it can be checked. An address is permitted when it is `to`
+         * So the trust sits where it can be checked. An address is permitted when it is `to`
          * or appears on this list, and nothing else reaches `Mail::to()` — whatever a browser
          * sends. Empty is the shipped state and means "only `to`", which is what an application
          * that never used the prop already had.
          *
-         * A host that DOES use it lists its addresses here. Passing one that is not listed fails
+         * A host that does use it lists its addresses here. Passing one that is not listed fails
          * at the call site with a message naming this key, because that is a developer's mistake
          * and a developer can fix it; the alternative was a value a visitor could rewrite.
          */
@@ -601,7 +601,7 @@ return [
             'address' => env('VISUAL_FEEDBACK_MAIL_FROM_ADDRESS'),
             // Falls back to the application name, as a new Laravel application's `.env.example`
             // does with `MAIL_FROM_NAME="${APP_NAME}"`.
-            // Without a default this key was WORSE than the framework value it overrides: the
+            // Without a default this key was worse than the framework value it overrides: the
             // From header arrived as a bare address, and a report from a product nobody can name
             // reads like an unattended relay rather than like feedback somebody just gave.
             'name' => env('VISUAL_FEEDBACK_MAIL_FROM_NAME', env('APP_NAME')),
@@ -612,16 +612,17 @@ return [
         // How much of the message goes into the subject line when the reporter left the subject
         // field empty — which is the normal case, because that field is optional by design.
         //
-        // Without this the fallback was the bare category, so an inbox of twenty reports read as
-        // "Bug / Bug / Feature / Bug": every line identical, none of them telling you which one
-        // to open first. The composed line is `Category - the first words of the message ...`.
+        // Without this the fallback would be the bare category, so an inbox of twenty reports
+        // would read as "Bug / Bug / Feature / Bug": every line identical, none of them telling
+        // you which one to open first. The composed line is `Category - the first words of the
+        // message ...`.
         //
         // 60 is measured rather than picked. The longest category label this package ships is
         // 16 characters ("Weergaveprobleem", nl), the separator costs 3, so the whole line stays
         // at or under 79 - inside the ~60-80 characters a mail client shows in its list view.
         //
-        // Set it to 0 to keep the old behavior: the category alone, no excerpt.
-        // Tested before it is trusted, not cast. `(int) 'abc'` is `0`, and `0` is a DOCUMENTED
+        // Set it to 0 for the category alone, no excerpt.
+        // Tested before it is trusted, not cast. `(int) 'abc'` is `0`, and `0` is a documented
         // setting here -- the line above says so -- so a bare cast made a typo indistinguishable
         // from a host that meant it, and silently dropped the excerpt.
         'subject_excerpt_length' => filter_var(
@@ -634,7 +635,7 @@ return [
         // Refuse to "deliver" through a transport that accepts a message and drops it — `log`,
         // `array`, or a `failover`/`roundrobin` chain that can fall through to one.
         //
-        // On such a transport `Mailer::send()` succeeds, so the report gets a DELIVERED receipt,
+        // On such a transport `Mailer::send()` succeeds, so the report gets a delivered receipt,
         // fires ReportDelivered, releases its attachments and shows the reporter a success state
         // while nothing left the building. With this on, the channel is skipped and says so in
         // the log instead. Laravel's own default is `env('MAIL_MAILER', 'log')`, so a host lands
@@ -659,7 +660,7 @@ return [
     |
     | The signature is a hex HMAC-SHA256 over "{timestamp}.{rawBody}" — the timestamp,
     | a literal dot, then the exact bytes of the request body — keyed with `secret`.
-    | NOT over the body alone: the timestamp is inside the MAC so a captured request
+    | not over the body alone: the timestamp is inside the MAC so a captured request
     | cannot be replayed later with its own header rewritten. A verifier that hashes
     | the body alone rejects every genuine delivery. The verification recipe is on the
     | Delivery channels page.
@@ -667,12 +668,12 @@ return [
     */
     'webhook' => [
         'url' => env('VISUAL_FEEDBACK_WEBHOOK_URL'),
-        // REQUIRED for the fallback sender, not optional: an empty HMAC key yields a
+        // Required for the fallback sender, not optional: an empty HMAC key yields a
         // signature anybody who knows the URL can reproduce, so a secretless channel
         // reports itself unavailable and is skipped rather than signing with nothing. A
         // receiver that ignores the signature header is satisfied by any string.
         'secret' => env('VISUAL_FEEDBACK_WEBHOOK_SECRET'),
-        // seconds. Floor 1, not 0: for most HTTP clients `0` means WAIT FOREVER, so a typo
+        // seconds. Floor 1, not 0: for most HTTP clients `0` means wait forever, so a typo
         // that fell back to zero would turn a hardening value into a hang.
         'timeout' => filter_var(
             env('VISUAL_FEEDBACK_WEBHOOK_TIMEOUT', 5),
@@ -704,14 +705,14 @@ return [
     | Retention
     |--------------------------------------------------------------------------
     |
-    | Housekeeping, and it takes TWO commands rather than one. `visual-feedback:prune`
+    | Housekeeping, and it takes two commands rather than one. `visual-feedback:prune`
     | reads `reports_days` and `prune_delivered_only`; `orphan_attachments_min_age` is
     | read by `visual-feedback:sweep-orphans` and by nothing else — so tuning it while
     | scheduling only `prune` sweeps no orphan at all. `reports_days` deletes reports
     | older than N days (null = keep forever); a value under one day would delete every
     | report, so `prune` refuses it. `orphan_attachments_min_age` (minutes) must stay
-    | ABOVE the queue retry horizon so a still-delivering report's files are never swept. `prune_delivered_only` keeps undelivered reports until they land —
-    | judged from the delivery snapshot stored on the row, and only for the OTHER
+    | above the queue retry horizon so a still-delivering report's files are never swept. `prune_delivered_only` keeps undelivered reports until they land —
+    | judged from the delivery snapshot stored on the row, and only for the other
     | channels: the database channel writes that snapshot before settling its own
     | receipt, so its own entry always reads `pending` and would hold back every row.
     |
@@ -725,7 +726,9 @@ return [
             FILTER_VALIDATE_INT,
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 1440,
-        'prune_delivered_only' => true,
+        // `true` holds a report back from pruning while one of its channels has not delivered it;
+        // `false` makes `reports_days` a hard ceiling.
+        'prune_delivered_only' => filter_var(env('VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
     ],
 
     /*
@@ -751,8 +754,8 @@ return [
         // Which view tree renders. `auto` serves the WireKit tree when a new enough WireKit is
         // installed and the framework-free tree otherwise; `plain` and `wirekit` force one.
         //
-        // Before this key the WireKit tree was reachable ONLY by publishing it into the host's
-        // resources/views/vendor — so using it meant maintaining a COPY of these templates, and
+        // Before this key the WireKit tree was reachable only by publishing it into the host's
+        // resources/views/vendor — so using it meant maintaining a copy of these templates, and
         // every package update silently left that copy behind. Choosing at runtime keeps the
         // templates in the package where updates reach them; publishing still works and still
         // wins, for a host that genuinely wants to edit them.
@@ -773,9 +776,9 @@ return [
         'fab_icon' => env('VISUAL_FEEDBACK_UI_FAB_ICON', 'message'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
 
-        // Subresource Integrity on the two script tags. OFF by default, and the default is the
+        // Subresource Integrity on the two script tags. Off by default, and the default is the
         // careful answer rather than the lazy one: turning it on says the origin in `assets`
-        // mirrors this release's bundles BYTE FOR BYTE. A CDN that re-minifies, or that still
+        // mirrors this release's bundles byte for byte. A CDN that re-minifies, or that still
         // carries the previous version, then fails the check — the browser drops the script, and
         // a widget whose bundle never loaded renders perfectly and does nothing.
         //

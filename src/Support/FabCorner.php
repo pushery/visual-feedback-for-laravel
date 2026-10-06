@@ -7,11 +7,10 @@ namespace Pushery\VisualFeedback\Support;
 /**
  * The corner the floating trigger sits in, spelled the one way both view trees understand.
  *
- * `ui.position` is read LOGICALLY: `end` is the side a line of text ends on, so a right-to-left
+ * `ui.position` is read logically: `end` is the side a line of text ends on, so a right-to-left
  * page mirrors the trigger the way it mirrors the rest of its layout. WireKit's FAB only speaks
- * that vocabulary. The plain tree used to place the same value physically, so one configuration
- * put the trigger in two different corners of a right-to-left page, depending on which tree
- * served it. Both trees now ask this class, and the corner can no longer differ between them.
+ * that vocabulary. Both trees ask this class, so one configuration cannot put the trigger in two
+ * different corners of a right-to-left page depending on which tree serves it.
  *
  * The four physical spellings the earlier releases documented keep working as their
  * left-to-right reading: `bottom-right` is `bottom-end`. A consumer who never touched the value

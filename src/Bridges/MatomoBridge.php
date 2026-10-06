@@ -20,7 +20,7 @@ class MatomoBridge
     /**
      * The interface the facade resolves through.
      *
-     * CORRECTION. This was written as a bare string with a comment saying an import would make the
+     * Correction. This was written as a bare string with a comment saying an import would make the
      * optional dependency a compile-time one. Rector rewrote it, and Rector is right: `use` is an
      * alias resolved at compile time and `::class` is a string literal, so neither autoloads
      * anything. The class is still never touched in a consumer without the package — which is the
@@ -34,30 +34,29 @@ class MatomoBridge
 
     public function isAvailable(): bool
     {
-        // TWO questions, and the second one is the one that was missing. `class_exists` answers
+        // Two questions, and the second one is the one that matters. `class_exists` answers
         // "is the package installed", and the facade class is installed the moment Composer put
-        // it in the autoloader. It says nothing about whether the facade can RESOLVE — that
+        // it in the autoloader. It says nothing about whether the facade can resolve — that
         // depends on the service provider having registered `Tracker`, which is a separate event
         // and one an application can prevent: `extra.laravel.dont-discover`, a hand-written
         // provider list, or any boot order that skips discovery.
         //
-        // Measured, not reasoned: in an application with the package installed and its provider
-        // absent, `class_exists` is true and `bound()` is false. The old guard therefore said
-        // "available", the facade then threw BindingResolutionException — and because this runs
-        // inside the ReportSubmitted listener, an ANALYTICS gap took the reporter's submission
+        // In an application with the package installed and its provider absent, `class_exists`
+        // is true and `bound()` is false. A guard on `class_exists` alone would say "available",
+        // the facade would then throw BindingResolutionException — and because this runs inside
+        // the ReportSubmitted listener, an analytics gap would take the reporter's submission
         // down with it. That is the wrong failure direction by a wide margin: a lost event is
         // invisible and costs nothing, a lost report is the one thing this package exists to
         // prevent.
         //
-        // It surfaced in the dependency-floor lane, whose fixture boots the shipped tree with
-        // only this package's own providers registered. That lane reproduces a real consumer
-        // configuration rather than an artificial one, which is why the fix belongs here and not
-        // in the fixture.
+        // An application that registers its providers by hand and leaves the analytics
+        // package's own out is an ordinary configuration, not an artificial one, which is why
+        // the check belongs here.
         return class_exists(Matomo::class)
             && Container::getInstance()->bound(self::TRACKER);
     }
 
-    /** Track an ACCEPTED submission — never a rejection, so bot traffic is not faked into analytics. */
+    /** Track an accepted submission — never a rejection, so bot traffic is not faked into analytics. */
     public function recordSubmission(string $category): void
     {
         Matomo::event('visual-feedback', 'submit', $category);

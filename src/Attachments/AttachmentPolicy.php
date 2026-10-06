@@ -9,7 +9,7 @@ use Illuminate\Contracts\Config\Repository;
 /**
  * The single source of truth for what an attachment may be. A hardcoded
  * `accept="image/*,…"` drifts against a separately maintained server MIME list; here the HTML `accept`
- * attribute, the Livewire perimeter rules, and the AttachmentValidator's allowlist are ALL
+ * attribute, the Livewire perimeter rules, and the AttachmentValidator's allowlist are all
  * derived from the one `attachments.mimes` config via this policy, so they can never
  * disagree.
  */
@@ -68,7 +68,7 @@ final readonly class AttachmentPolicy
     }
 
     /**
-     * The HTML `accept` attribute — the SAME allowlist, as MIME types plus dotted
+     * The HTML `accept` attribute — the same allowlist, as MIME types plus dotted
      * extensions so both desktop and mobile file pickers filter correctly.
      */
     public function acceptAttribute(): string
@@ -105,7 +105,7 @@ final readonly class AttachmentPolicy
      * The directory attachments live in, under the configured disk.
      *
      * Three copies of this fallback existed — the widget's store, the delivery cleanup and the
-     * orphan sweep — and they did not AGREE: an empty string counted as a valid directory in one
+     * orphan sweep — and they did not agree: an empty string counted as a valid directory in one
      * and mapped to the default in the others, so the cleanup guarded a root the store had never
      * used. One source, like the caps above.
      *
@@ -149,7 +149,7 @@ final readonly class AttachmentPolicy
     }
 
     /**
-     * A byte count as the megabyte NUMBER both surfaces show — one rounding, one source.
+     * A byte count as the megabyte number both surfaces show — one rounding, one source.
      *
      * The hint at the field and the rejection message are two different sentences about the same
      * cap, so they must not compute it twice. A second rounding is invisible at a whole binary
@@ -164,11 +164,11 @@ final readonly class AttachmentPolicy
     /**
      * The per-file cap as the reporter should read it — "5 MB", "5 Mo" in French.
      *
-     * Here rather than in a view because this class is the ONE source for the caps: `accept`, the
+     * Here rather than in a view because this class is the one source for the caps: `accept`, the
      * validation rules and this string must never be able to disagree, and a second copy of the
      * number in a template is exactly how they would.
      *
-     * NOT `Number::fileSize()`, which hard-codes an English unit array and takes no locale: it
+     * Not `Number::fileSize()`, which hard-codes an English unit array and takes no locale: it
      * renders "5 MB" into the French form whose rejection message correctly says "5 Mo". The unit
      * is a translated line instead, and it is always megabytes — a sub-megabyte cap therefore
      * reads "0.5 MB" rather than "512 KB". That is the deliberate half of the trade: the

@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  * without a stable identity produces duplicate deliveries.
  *
  * Everything it holds is queue-serialization-safe: scalars, arrays, and small value
- * objects. No closures, no Eloquent models, and attachments are storage PATHS, never a
+ * objects. No closures, no Eloquent models, and attachments are storage paths, never a
  * `TemporaryUploadedFile` — the upload pipeline stores first and passes paths, and an
  * architecture test holds that boundary.
  *
@@ -41,7 +41,7 @@ final readonly class Report
         public string $mode,
         public DateTimeImmutable $submittedAt,
         /**
-         * Where the mail channel should send THIS report, overriding `mail.to`. Deliberately
+         * Where the mail channel should send this report, overriding `mail.to`. Deliberately
          * absent from toArray(): it is delivery routing, not report content, and the webhook
          * payload and the database row must not carry a maintainer address.
          */

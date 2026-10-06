@@ -6,8 +6,8 @@ While this package is in its `0.x` line, security fixes are released against the
 
 | Version | Supported |
 |---|---|
-| `0.x` (latest) | :white_check_mark: |
-| older | :x: |
+| `0.x` (latest) | Yes |
+| older | No |
 
 ## Reporting a vulnerability
 
@@ -24,11 +24,13 @@ You can expect an acknowledgment within **3 business days** and an assessment of
 
 ## Dependency updates
 
-Known advisories are flagged by GitHub's Dependabot **alerts** — in the development repository, not here. This repository is a read-only mirror of the released tree, so its own Security tab shows nothing and releases arrive as tags. Updates themselves are reviewed and merged by hand — nothing is auto-merged, because the heavy suite runs on a self-hosted gate rather than on a runner that could vouch for an unattended merge.
+This package declares version ranges, not a lock file: the versions of its dependencies in your application come from your own `composer.lock`. Keep them current with `composer update`, and run `composer audit` to check them against the known advisories.
 
-That is the update path, and it is the weaker half of the two: with no `composer.lock` in the repository, the dependency graph those alerts read sees only the direct requirements, and anything resolved beneath them is invisible to it. The checks below are the ones that read the full resolution. They run on every gate rather than on a schedule, and they are hard failures rather than reports:
+The package checks the ranges it declares, at both ends:
 
 - `composer audit` **fails the build** on a known advisory.
-- The package ships **no `composer.lock`** — a library resolves per consumer — so every gate run resolves fresh against the newest version each constraint allows. A breaking release surfaces here before it reaches you.
-- A separate lane installs and runs the **declared minimums**, so the floor this package publishes is exercised rather than assumed.
-- A weekly lane builds and tests against the **next PHP minor**.
+- Every build resolves fresh against the newest version each constraint allows, so a breaking release of a dependency surfaces here before it reaches you.
+- The **declared minimums** are installed and tested as well, so the floor this package publishes is exercised rather than assumed.
+- The suite also runs against the **next PHP minor**.
+
+This repository is a read-only mirror of the released tree. Releases arrive as tags, and it carries no update pull requests.

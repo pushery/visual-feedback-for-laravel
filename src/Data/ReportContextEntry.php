@@ -8,7 +8,7 @@ namespace Pushery\VisualFeedback\Data;
  * One structured context datum attached to a report (app version, tenant, the profile
  * or record a report is about, …). Every field is a plain string, so an entry is always
  * queue-safe and renders identically in every channel. `label` is the human-readable
- * heading, `value` the stringified datum. `url` is a ready-built link the HOST supplies
+ * heading, `value` the stringified datum. `url` is a ready-built link the host supplies
  * (no route-name coupling — the host builds its own URLs), and `identifier` an optional
  * stable id for the referenced record.
  */

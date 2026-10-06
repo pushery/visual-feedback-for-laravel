@@ -9,10 +9,10 @@ use Pushery\VisualFeedback\Events\RejectionReason;
 
 /**
  * The outcome of a submission. `showsSuccess` drives the UI independently of `accepted`
- * so a honeypot hit renders a DECOY success (nothing was stored, but the bot sees the
+ * so a honeypot hit renders a decoy success (nothing was stored, but the bot sees the
  * same success as a human). A validation or listener rejection shows an error instead.
  *
- * The two flags therefore come apart in BOTH directions, and the second one is new: a honeypot
+ * The two flags therefore come apart in both directions, and the second one is new: a honeypot
  * hit is `accepted: false, showsSuccess: true`, and a report nothing was there to carry is
  * `accepted: true, showsSuccess: false` — real, stored where a store is configured, and not
  * something to thank the reporter for.
@@ -37,7 +37,7 @@ final readonly class SubmissionResult
      * recipient, or a transport that accepts and discards — delivers nowhere. The registry logs
      * it, but a log line is not something the reporter can read.
      *
-     * False does NOT mean the report failed to arrive at its destination; that answer comes later,
+     * False does not mean the report failed to arrive at its destination; that answer comes later,
      * from the receipt a queued job settles. It means nothing was even asked to carry it.
      */
     public static function accepted(Report $report, bool $handedToAChannel = true): self
@@ -62,7 +62,7 @@ final readonly class SubmissionResult
      *
      * `$failure` names the field and carries the message where there is one, so the widget can
      * point at the control that failed instead of at the message box. Without it the widget can
-     * only say "something went wrong", which is what it used to say for every rejection.
+     * only say "something went wrong", for every rejection alike.
      */
     public static function rejected(RejectionReason $reason, ?ValidationFailure $failure = null): self
     {

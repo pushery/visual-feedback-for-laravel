@@ -387,9 +387,8 @@ and the `alt` text, in the capture that area is simply empty. A report about a m
 therefore shows a gap rather than the evidence.
 
 Everything else on a normal page — gradients, `oklch` fills, `box-shadow` and Tailwind's `ring-*`,
-sticky headers, tables, web fonts — is reproduced faithfully, with one exception: an `inset` shadow
-on a rounded element is left out of the capture, because the renderer would paint it as a band
-as wide as the radius.
+sticky headers, tables, web fonts — is reproduced faithfully, an `inset` ring on a rounded element
+included.
 
 **Which properties survive changes with the renderer version, so treat any list as dated.** This
 section used to say the opposite about `box-shadow`: it was painted across the whole element

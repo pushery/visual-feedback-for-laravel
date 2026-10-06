@@ -15,12 +15,12 @@ namespace Pushery\VisualFeedback\Attachments;
  *    displays as `photoexe.jpg`.
  *
  * Every one is stripped here, the length is capped, and an empty result falls back to a
- * generated name. The returned value is BOTH the stored key's name part and the mail
+ * generated name. The returned value is both the stored key's name part and the mail
  * attachment name, so the two can never disagree.
  *
  * The fourth attack is the banal one and it used to walk straight through: writing the
  * extension. Nothing above looks at it, so a file the reporter named `report.html` was stored
- * and mailed under that name — while every acceptance check in the package reads the BYTES
+ * and mailed under that name — while every acceptance check in the package reads the bytes
  * (Livewire's `mimes:` rule resolves the extension from the sniffed MIME, and the
  * AttachmentValidator runs finfo over the stored content). A PNG with HTML appended after IEND
  * is a valid PNG to all of them and an HTML document to the maintainer's browser the moment the
@@ -41,7 +41,7 @@ final class FilenameSanitizer
 
     /**
      * @param  string  $fallback  used when the name sanitizes to nothing (e.g. a generated UUID)
-     * @param  string|null  $extension  the extension derived from the file's CONTENT; it replaces
+     * @param  string|null  $extension  the extension derived from the file's content; it replaces
      *                                  whatever the client wrote. Null leaves the client's
      *                                  extension in place and is only correct where the name never
      *                                  becomes a filename — a caller that stores or mails the
@@ -63,14 +63,19 @@ final class FilenameSanitizer
         // Unicode bidi controls + zero-width marks used for filename spoofing.
         $name = preg_replace('/[\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200B}-\x{200D}\x{FEFF}]/u', '', $name) ?? '';
 
-        $name = trim($name);
+        // A leading dot hides a file on every POSIX filesystem: `ls` and `File::allFiles()` skip
+        // it, so a stored attachment named `.png` leaves what looks like an empty directory to
+        // whoever inspects the disk. A client name that is only an extension (`.html`) would
+        // become exactly that once the extension is pinned, so the leading run of dots goes, and
+        // the spaces between them with it.
+        $name = ltrim(trim($name), '. ');
 
-        // A name that is empty or only dots carries no information — use the fallback.
-        if ($name === '' || preg_match('/^\.+$/', $name) === 1) {
+        // A name that was empty or only dots carries no information — use the fallback.
+        if ($name === '') {
             $name = $fallback;
         }
 
-        // Pinned BEFORE the cap, so the cap's extension-preserving branch works on the extension
+        // Pinned before the cap, so the cap's extension-preserving branch works on the extension
         // that is actually going to be written. Capping first and replacing after could push the
         // result back over the limit whenever the truthful extension is the longer one.
         return $this->cap($this->pinExtension($name, $extension));

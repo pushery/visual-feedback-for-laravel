@@ -8,7 +8,7 @@ use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Support\Str;
 
 /**
- * Resolves a category config key to its human label from lang. Labels live ONLY in
+ * Resolves a category config key to its human label from lang. Labels live only in
  * lang (`visual-feedback::messages.categories.<key>`), never in the config or a domain
  * class, so a mailable never reads categories back off a class, so the
  * label-to-domain circularity is structurally impossible.

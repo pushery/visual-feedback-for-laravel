@@ -4,6 +4,71 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.20.0] - 2026-10-06
+
+### ✨ Added
+
+- **`VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY` sets `retention.prune_delivered_only` without publishing the configuration.** `false` makes `retention.reports_days` a hard ceiling: a report is deleted at that age even while a delivery is still being retried. The default stays `true`, which holds such a report back until its delivery settles.
+
+### ⚡ Performance
+
+- **The report browser lists the modes for its filter from an index on MySQL.** A fourth optional migration adds an index on `mode`. The browser reads the modes and the categories present in the table on every render, and without an index MySQL read the whole table for each list, about 27 ms each at 200 000 reports. With the indexes on `category` and `mode` it reads only those, and counting the reports of one mode takes about half as long.
+
+  **Upgrade:** if you use the report browser and published the package's migrations before, copy the new one, `0001_01_01_000003_add_mode_index_to_visual_feedback_reports_table.php`, from `vendor/pushery/visual-feedback-for-laravel/database/migrations/optional/` into `database/migrations/` with today's date in place of `0001_01_01_000003`, so it runs after the table it indexes, then run `php artisan migrate`. Do not publish the tag again: where `database.migrations.update_date_on_publish` is on, as it is in the Laravel skeleton since version 11, that writes every migration of the tag a second time under a new date, and `migrate` stops at the table that already exists. If you published the migrations before 0.19.0, take `0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php` the same way.
+
+### 🐛 Fixed
+
+- **An inset shadow on a rounded element comes back in a DOM-stage screenshot.** 0.19.0 left the inset shadows of an element with a `border-radius` out of the capture, because the renderer it replaced painted them as a band as wide as the radius. The bundled renderer draws such a ring right in Blink and WebKit, so a rounded input with `ring-1 ring-inset`, or a card with an inner highlight, keeps it in the screenshot.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **An attachment whose name starts with a dot is stored and mailed without the dot.** A file uploaded as `.html` was stored as `.png` once its extension was taken from its content, and `ls` and `File::allFiles()` skip such a file as hidden, so the report's directory looked empty to anyone inspecting the disk. Leading dots are now dropped: `.html` is stored as `html.png`, and `.hidden.png` as `hidden.png`.
+- **A NUL byte in a report no longer cuts its message short in the database channel on PostgreSQL.** PostgreSQL stores a text value only up to its first NUL byte and reports no error, so a message, subject or guest field that carried one was stored truncated while mail and webhook delivered all of it. A metadata value with one was stored, but every `->>` query over it failed. The byte is now removed from the free-text fields and from the collected metadata before the report is built, so every channel carries the same text.
+- **The reports table is found when it sits in a later schema of a PostgreSQL `search_path`.** With `search_path` set to `tenant, public` and the table in `public`, the package looked for the table only in `tenant`, the first schema of the path, and took its store for absent: the database channel skipped every write, `visual-feedback:prune` and `visual-feedback:forget` did nothing, the report browser showed no table, and `visual-feedback:sweep-orphans` deleted the attachments of stored reports once they were older than `orphan_attachments_min_age`. The table is now looked up the way a query finds it, along the whole `search_path`.
+- **The screenshot renderer is fetched again when its bytes change.** The two bundles the page loads carry a token of their published bytes in their URL, and the renderer, which the capture bundle loads at capture time, carried none: a browser that had cached it kept that copy after an upgrade and paired it with the new capture bundle, and with `assets_integrity` on the capture failed its integrity check. The capture tag now hands over the renderer's own token as `data-renderer-token`, and the renderer is requested under it.
+
+  **Upgrade:** re-publish the assets with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **A report's attachments stay while a channel still delivers it, even when the cache loses their counter.** The counter that decides when the files of a report sent to several channels are deleted lives in the cache. When the cache evicted it in the moment between checking it and counting it down, the database and Memcached stores answered with `false` and Redis, the file and the array store with `-1`, and both were read as the last channel settling: the files were deleted while another channel could still need them. A counter that vanished now leaves the files to `visual-feedback:sweep-orphans`, as a counter that is missing at the check already did.
+- **The screen-share offer reads the page's Permissions-Policy where a browser answers for it under `document.permissionsPolicy`.** The check that withholds the screen share on a page served with `display-capture=()` asked only `document.featurePolicy`, the older name, while the capture's own check already asked the newer one first. In a browser that offers only `document.permissionsPolicy`, such a page was offered a screen share the browser then refused.
+
+  **Upgrade:** nothing to do, unless you serve the published assets: re-publish them with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **The report browser's filters no longer zoom the page in on an iPhone.** On a host whose text is smaller than 16px, the mode, category and date filters of the plain view tree inherited that size, and Safari on iOS zooms the whole page in when a field below 16px takes focus, and does not zoom back out. They keep 16px now, as the panel's fields do. The WireKit tree's filters already did.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **A long link in a report no longer runs out of the report browser's detail box.** The message keeps the reporter's line breaks and broke lines only at white space, so a link or another long unbroken token ran past the edge of its box on a narrow screen. It wraps inside the box now, in both view trees.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **The done button keeps its distance from "send another" when the two do not fit on one line.** On a phone, longer labels such as the German ones put the done button under its neighbor on the success screen, and in the plain view tree it sat flush against it. Both buttons have space above them now, in both view trees.
+
+  **Upgrade:** nothing to do, unless you published the views: re-publish them with `php artisan vendor:publish --tag=visual-feedback-views --force`, after saving any edits of your own.
+
+- **A long line in the report mail wraps on a phone.** The subject and the message are set as code blocks, and the mail themes Laravel ships have no rule for them, so a mail client kept the line in one piece and a long link ran off the edge of a narrow screen. The report mail now uses your configured `mail.markdown.theme` plus one rule that lets those lines wrap.
+
+  **Upgrade:** nothing to do. The rule lives in the new view `mail/theme.blade.php`; if you published the views, the package's copy serves it until you publish it as well.
+
+- **A report is still delivered while the cache is down.** The delivery bookkeeping, the receipts and the attachment counter, lives in the cache, and it was written before any channel took the report, without a guard: with the cache unreachable the submission failed before the mail, webhook or database job was queued, and the reporter saw an error. The bookkeeping is now written as far as the cache allows, a failed write is reported, and every channel still queues its job. Files of such a report are collected by `visual-feedback:sweep-orphans`.
+
+- **A fixed element inside a positioned page frame appears where it was seen.** The DOM-rendered screenshot pins every fixed header, banner or button at its place on the screen, and placed it from the nearest positioned ancestor instead of the page: inside a frame with `position: relative`, it landed shifted by the frame's offset, often outside the picture. It is placed from the page now.
+
+- **A report is not mailed or posted twice when the cache fails right after the delivery.** The mail and webhook jobs write their bookkeeping to the cache after sending, and a cache that refused it failed the job, so the queue's retry sent the report again, up to the channel's `tries`. The job now ends once the report is out, and a new `SettleDelivery` job on the same connection and queue retries the bookkeeping with the channel's `tries` and `backoff`.
+
+  **Upgrade:** nothing to do. While the cache is down, `ReportDelivered` fires when that job gets through, which can be well after the delivery.
+
+### 🔒 Security
+
+- **The redaction attribute covers what a marked region paints outside its own box.** The black box covered the region's own box, and a screenshot showed what lay outside it: a descendant positioned elsewhere on the page, an image placed outside the region, text running over its edge, and the children of a `display: contents` wrapper, which has no box of its own. A marker inside an open shadow root was not found at all, and with `screenshot.flatten_custom_elements` off, a marked custom element with a shadow root kept its content. On the first stage, which photographs the live page, a region inside an open popover, a modal dialog or a fullscreen element was drawn over its black box, and a region that moved while the screen-share picker was open slid out from under it. Each of these is blacked out now. The first stage measures the regions again when the browser hands over the picture.
+
+  **Upgrade:** nothing to do. A marker inside a closed shadow root stays out of reach for script; mark its host instead.
+
+### 📚 Documentation
+
+- **SECURITY.md speaks to your application.** Its section on dependency updates says that the versions in your application come from your own `composer.lock`, how to keep them current and check them with `composer audit`, and which checks the package runs on the ranges it declares. CONTRIBUTING.md names no file that the public repository does not carry.
+- **The comments in the shipped source and views say what the code does.** Comments that told the history of a line now state the behavior and the reason for it, emphasis written in capitals reads as ordinary sentences, and the `suggest` entries in `composer.json` say what each floor stands for and what each bridge uses: the webhooks bridge needs the facade and the two bindings it checks for, and the legal-consent bridge only reads. Nothing changes in behavior, and a view you published keeps its old comments until you publish it again.
+
 ## [0.19.0] - 2026-10-05
 
 ### ✨ Added
@@ -1111,7 +1176,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.17.0...v0.18.0

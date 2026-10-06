@@ -18,10 +18,10 @@ Two consequences, and neither of them is about the quality of the contribution:
   next release rebuilds the branch from the private tree, so a merge here would be
   overwritten and a patch that is only here would never reach Packagist. The maintainers
   would have to close it, and that wastes work that was offered in good faith.
-- **The tests are not in the published tree.** `tests/`, `phpunit.xml.dist` and the build
-  tooling are development files and are deliberately not part of the release, so a checkout
-  of the public repository has nothing to run a suite against. That is why there is no
-  "run the suite" step below.
+- **The tests are not in the published tree.** The test suite, its configuration and the
+  build tooling are development files and are deliberately not part of the release, so a
+  checkout of the public repository has nothing to run a suite against. That is why there is
+  no "run the suite" step below.
 
 ## Reporting an issue
 

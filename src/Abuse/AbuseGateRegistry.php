@@ -10,19 +10,18 @@ use Pushery\VisualFeedback\Contracts\AbuseGate;
 use Pushery\VisualFeedback\Support\Settings;
 
 /**
- * Where an additional abuse driver attaches — the registration point the composite was missing.
+ * Where an additional abuse driver attaches — the registration point of the composite.
  *
- * `abuse.driver` was documented as "selects the gate" and selected nothing: the provider handed
- * AbuseGateManager a hard-coded empty list, and `Settings::abuseDriver()` had no caller anywhere in
- * src/. So a `driver=botgate` install ran on the floor alone, silently, exactly as a `driver=typo`
- * install did. This closes that: the configured driver is looked up here, and a
- * driver that names no registered gate says so in the log instead of disappearing.
+ * `abuse.driver` is documented as "selects the gate", and this is where it does: the configured
+ * driver is looked up here, and a driver that names no registered gate says so in the log
+ * instead of disappearing. Without the lookup a `driver=botgate` install would run on the floor
+ * alone, as silently as a `driver=typo` install.
  *
- * Deliberately the same shape as ChannelRegistry — a Closure FACTORY per key, instantiated only
+ * Deliberately the same shape as ChannelRegistry — a Closure factory per key, instantiated only
  * when the configuration actually asks for it, so a registered-but-unselected driver costs nothing
  * and cannot touch a service it does not need.
  *
- * The floor is NOT in here and never will be. BuiltinAbuseGate runs unconditionally underneath
+ * The floor is not in here and never will be. BuiltinAbuseGate runs unconditionally underneath
  * whatever this returns, which is why an empty return is always safe: it means the
  * floor alone, never no protection.
  */
@@ -59,7 +58,7 @@ final class AbuseGateRegistry
      * neither value can remove protection; `none` is the explicit way to decline an additional
      * driver even when one is registered.
      *
-     * Keyed BY DRIVER NAME, because the manager needs it: the failure mode of an added gate is
+     * Keyed by driver name, because the manager needs it: the failure mode of an added gate is
      * configured per driver (`abuse.drivers.<name>.on_error`), and a bare list cannot say which
      * setting belongs to which gate. One entry today — `abuse.driver` selects a single driver —
      * and a map rather than a pair so a second one costs no signature change.

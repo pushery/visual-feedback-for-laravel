@@ -6,8 +6,8 @@ namespace Pushery\VisualFeedback\Channels\Webhook;
 
 /**
  * The signed-webhook contract for the built-in HTTP fallback. The signature
- * binds the send-time timestamp INTO the HMAC, so a captured body cannot be replayed under a
- * fresh timestamp, and it is computed over the EXACT raw bytes that are sent (never a
+ * binds the send-time timestamp into the HMAC, so a captured body cannot be replayed under a
+ * fresh timestamp, and it is computed over the exact raw bytes that are sent (never a
  * re-encoded array — that is the classic webhook-signature break). A receiver reproduces it
  * with the shared secret and compares with hash_equals(), then rejects any timestamp outside
  * its own replay window. Header names + algorithm are constants here so the documented

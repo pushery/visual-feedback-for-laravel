@@ -27,7 +27,7 @@ trait ResolvesReportStorage
         return new AttachmentPolicy($config)->disk();
     }
 
-    /** The package's own attachments directory — the ONLY tree the orphan sweep is allowed to touch. */
+    /** The package's own attachments directory — the only tree the orphan sweep is allowed to touch. */
     private function attachmentsDirectory(Config $config): string
     {
         // One source for the root — see AttachmentPolicy::directory(). $config stays in the

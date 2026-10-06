@@ -6,11 +6,11 @@ namespace Pushery\VisualFeedback\Channels;
 
 use Illuminate\Contracts\Bus\Dispatcher as Bus;
 use Illuminate\Contracts\Config\Repository as Config;
-use Illuminate\Support\Facades\Schema;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Contracts\RetainsReport;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportToDatabase;
+use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
  * The optional database delivery channel. It writes the report to the
@@ -43,12 +43,12 @@ final readonly class DatabaseChannel implements ReportChannel, RetainsReport
     /** Available only when the opt-in table exists — a missing table is a defined skip, not a crash. */
     public function isAvailable(): bool
     {
-        return Schema::hasTable($this->table());
+        return TableLookup::exists($this->table());
     }
 
     public function dispatch(Report $report): void
     {
-        $this->receipts->record($report->id, $this->key(), DeliveryStatus::Pending);
+        $this->receipts->recordPending($report->id, $this->key());
 
         $job = new SendReportToDatabase(
             report: $report,
@@ -57,7 +57,7 @@ final readonly class DatabaseChannel implements ReportChannel, RetainsReport
         );
 
         // Connection before queue, matching the order a host reads them in the config file.
-        // This is a QUEUE connection, so it decides which worker carries the job — a host
+        // This is a queue connection, so it decides which worker carries the job — a host
         // that leaves it unset keeps the application default, which is the common case.
         $connection = $this->config->get('visual-feedback.channels.database.connection');
 

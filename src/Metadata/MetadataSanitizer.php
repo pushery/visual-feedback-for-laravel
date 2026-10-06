@@ -8,12 +8,12 @@ use Illuminate\Contracts\Config\Repository;
 
 /**
  * Reduces raw, client-collected browser metadata to the server-enforced safe subset.
- * The reporter's browser sends this, so it is UNTRUSTED — this is the enforcement, not
+ * The reporter's browser sends this, so it is untrusted — this is the enforcement, not
  * a suggestion. It keeps only the configured allowlist of keys, only scalar values,
  * scrubs invalid UTF-8 (so a later json_encode in the delivery job can never throw),
  * accepts only http/https for URL-shaped keys, truncates every string to its cap (a
- * separate, tighter cap for the user agent), lets the SERVER's user agent override the
- * client's, and NEVER lets the IP address through.
+ * separate, tighter cap for the user agent), lets the server's user agent override the
+ * client's, and never lets the IP address through.
  */
 final readonly class MetadataSanitizer
 {
@@ -58,10 +58,10 @@ final readonly class MetadataSanitizer
         $clean = [];
 
         foreach ($this->allowedKeys() as $key) {
-            // RESERVED keys are the server's alone. `privacy_notice_*` records which published
+            // Reserved keys are the server's alone. `privacy_notice_*` records which published
             // legal document an acknowledgment belongs to, and it is written after this method
             // returns, from a server-side read. Stripped here unconditionally rather than relying
-            // on the allowlist: the allowlist belongs to the CONSUMING application, so a consumer
+            // on the allowlist: the allowlist belongs to the consuming application, so a consumer
             // that adds one of these keys to `metadata.collect` would otherwise let a browser
             // supply its own provenance — and a forged one would look exactly like a real one.
             if (str_starts_with($key, self::RESERVED_PREFIX)) {
@@ -74,10 +74,10 @@ final readonly class MetadataSanitizer
                 continue;
             }
 
-            // The user agent is server-authoritative when we have the request's own value:
+            // The user agent is server-authoritative when the request's own value is at hand:
             // a client can spoof its UA string, the transport layer cannot.
             if ($key === 'user_agent' && $serverUserAgent !== null) {
-                $clean[$key] = mb_substr($this->scrubUtf8($serverUserAgent), 0, $userAgentMax);
+                $clean[$key] = mb_substr($this->storable($serverUserAgent), 0, $userAgentMax);
 
                 continue;
             }
@@ -92,7 +92,7 @@ final readonly class MetadataSanitizer
             }
 
             if (is_string($value)) {
-                $value = $this->scrubUtf8($value);
+                $value = $this->storable($value);
 
                 // A URL-shaped key that is not an http(s) URL is dropped entirely, so a
                 // `javascript:`/`data:` payload can never ride into the stored report.
@@ -148,16 +148,15 @@ final readonly class MetadataSanitizer
     /**
      * Drop invalid UTF-8 byte sequences.
      *
-     * This is the EARLY fix, and it is the right place for the one input that reaches it: the
+     * This is the early fix, and it is the right place for the one input that reaches it: the
      * `User-Agent` header, the only value on the widget's path that is not already carried
      * through Livewire's own JSON transport.
      *
-     * The note that stood here said json_encode "throws on every retry and wedges the
-     * channel". It did neither — it returned false, a `(string)` cast made that `''`, and the
-     * delivery went out empty and settled DELIVERED. A reader who believed the old sentence would
-     * have concluded the downstream was loud and this scrub redundant. Both jobs now pass
-     * JSON_THROW_ON_ERROR, so an unencodable report settles FAILED rather than silently empty —
-     * and this scrub still belongs here, because failing early beats failing at the far end.
+     * json_encode does not throw on a malformed string by default: it returns false, a
+     * `(string)` cast makes that `''`, and the delivery would go out empty and settle delivered.
+     * Both jobs pass JSON_THROW_ON_ERROR, so an unencodable report settles failed rather than
+     * silently empty — and this scrub still belongs here, because failing early beats failing at
+     * the far end.
      */
     private function scrubUtf8(string $value): string
     {
@@ -166,6 +165,19 @@ final readonly class MetadataSanitizer
         }
 
         return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+    }
+
+    /**
+     * A value every store keeps as it is: valid UTF-8, without NUL bytes.
+     *
+     * A NUL byte is valid UTF-8 and survives the scrub above, but PostgreSQL cannot hold it. The
+     * metadata column is `json`, which takes the byte as `\u0000` and then fails every `->>`
+     * read of the value with an untranslatable character error. The byte carries nothing the
+     * report needs.
+     */
+    private function storable(string $value): string
+    {
+        return str_replace("\0", '', $this->scrubUtf8($value));
     }
 
     /**

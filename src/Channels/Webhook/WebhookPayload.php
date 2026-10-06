@@ -9,12 +9,12 @@ use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Data\ReportContextEntry;
 
 /**
- * The webhook payload — a MINIMIZED, external-safe projection of a Report.
- * The receiver is potentially a third party, so this DELIBERATELY omits the report's
+ * The webhook payload — a minimized, external-safe projection of a Report.
+ * The receiver is potentially a third party, so this deliberately omits the report's
  * `attachments` (storage paths into the host's private disk) and carries no file binaries:
  * nothing here is a private path or an attachment blob. The reporter block is configurably
  * reduced (`webhook.include_reporter`) to just `is_guest` when the host does not want
- * reporter PII leaving the app. Used by BOTH delivery paths (platform + HTTP fallback), so
+ * reporter PII leaving the app. Used by both delivery paths (platform + HTTP fallback), so
  * the minimization holds regardless of transport.
  */
 final readonly class WebhookPayload
@@ -50,7 +50,7 @@ final readonly class WebhookPayload
             'reporter' => $includeReporter
                 ? $report->reporter->toArray()
                 : ['is_guest' => $report->reporter->isGuest],
-            // NO 'attachments' key — storage paths / binaries never leave in a webhook body.
+            // No 'attachments' key — storage paths / binaries never leave in a webhook body.
         ];
     }
 }

@@ -13,19 +13,19 @@ use RuntimeException;
  * The built-in signed HTTP webhook sender — the hardened fallback used when the
  * pushery/webhooks platform is not installed. Hardening, not a note:
  *
- *  - sends ONLY to the configured `webhook.url` (never a caller/tenant-supplied URL);
- *  - REFUSES redirects — Laravel's client follows them by default, so a config URL could
+ *  - sends only to the configured `webhook.url` (never a caller/tenant-supplied URL);
+ *  - refuses redirects — Laravel's client follows them by default, so a config URL could
  *    otherwise bounce onto an attacker-controlled host (a poor man's SSRF);
  *  - sets explicit connect + request timeouts from `webhook.timeout`;
- *  - REFUSES to sign with an absent or empty `webhook.secret` — an empty HMAC key produces a
+ *  - refuses to sign with an absent or empty `webhook.secret` — an empty HMAC key produces a
  *    signature the whole internet can recompute, not a broken one (see secret());
- *  - signs the EXACT raw bytes it sends (withBody, not a re-encoded array), so a receiver
+ *  - signs the exact raw bytes it sends (withBody, not a re-encoded array), so a receiver
  *    recomputes over the body it actually received rather than over a re-serialization of
  *    it — note the MAC input is "{timestamp}.{rawBody}", not the body alone;
  *  - ignores the response body.
  *
  * Per-tenant / dynamic-URL SSRF hardening (scheme allowlist, private / link-local IP
- * rejection) is a HOST responsibility for a host that overrides the URL per tenant — it is
+ * rejection) is a host responsibility for a host that overrides the URL per tenant — it is
  * documented, deliberately not attempted here for a single static config URL.
  */
 final readonly class HttpWebhookSender
@@ -36,9 +36,9 @@ final readonly class HttpWebhookSender
     ) {}
 
     /**
-     * The fully-configured, signed request — built but NOT sent. This is the testable seam:
+     * The fully-configured, signed request — built but not sent. This is the testable seam:
      * Http::fake() cannot prove redirect refusal (it ignores redirect options), so the
-     * no-redirect + timeout guarantees are asserted on getOptions() of THIS request instead.
+     * no-redirect + timeout guarantees are asserted on getOptions() of this request instead.
      */
     public function request(string $reportId, string $body, string $timestamp): PendingRequest
     {
@@ -76,7 +76,7 @@ final readonly class HttpWebhookSender
     }
 
     /**
-     * The signing key — REFUSED rather than substituted when it is absent, blank or not a string.
+     * The signing key — refused rather than substituted when it is absent, blank or not a string.
      *
      * This used to fall back to '', which reads like a harmless default and is the opposite of
      * one. `hash_hmac()` produces the same digest for a null key and an empty string, and every

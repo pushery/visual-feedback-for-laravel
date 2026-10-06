@@ -18,9 +18,9 @@ namespace Pushery\VisualFeedback\Data;
  * rather than a published document — a notice source that has no document still has a sentence, and
  * a record must never suggest otherwise.
  *
- * `acceptanceFingerprint` is legal-consent's OWN value, computed by its hasher over the content
- * hash AND the wording. It is never recomputed here: the bare content hash covers the document
- * BODY while the guest reads the WORDING, and rebuilding the combined hash locally is the "second
+ * `acceptanceFingerprint` is legal-consent's own value, computed by its hasher over the content
+ * hash and the wording. It is never recomputed here: the bare content hash covers the document
+ * body while the guest reads the wording, and rebuilding the combined hash locally is the "second
  * hasher" legal-consent's own docblock calls not-a-guard.
  */
 final readonly class PrivacyNoticeWording
@@ -48,7 +48,7 @@ final readonly class PrivacyNoticeWording
     /**
      * The provenance to store with a report, or an empty array for the built-in sentence.
      *
-     * Keys are RESERVED: MetadataSanitizer strips this prefix unconditionally, so a client can
+     * Keys are reserved: MetadataSanitizer strips this prefix unconditionally, so a client can
      * never supply one — not even when a consuming application adds the key to `metadata.collect`.
      *
      * @return array<string, string>

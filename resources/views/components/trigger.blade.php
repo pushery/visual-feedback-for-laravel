@@ -7,7 +7,7 @@
 @props([
     'label' => null,
 ])
-{{-- Master switch. A host places this trigger in ITS own layout, so the widget cannot take it
+{{-- Master switch. A host places this trigger in its own layout, so the widget cannot take it
      away by rendering nothing itself — the trigger has to ask too, or an operator who switched
      the package off is left with a button that opens an empty dialog. `visual-feedback.enabled`
      is documented in the shipped config as "the widget renders nothing"; this is part of what

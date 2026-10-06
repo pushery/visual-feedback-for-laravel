@@ -15,7 +15,7 @@ use Pushery\VisualFeedback\Contracts\ReportChannel;
  * channel extension point: `VisualFeedback::extend('slack', fn () => new SlackChannel(...))`
  * registers a custom delivery channel that then rides the normal submit → dispatch flow.
  *
- * Channels for issue trackers and chat tools are deliberately NOT v1 scope — the way
+ * Channels for issue trackers and chat tools are deliberately not v1 scope — the way
  * to add them is exactly this extend() seam, not a hardcoded special case.
  */
 final readonly class VisualFeedback

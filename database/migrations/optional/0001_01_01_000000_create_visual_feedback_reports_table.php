@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * The optional DatabaseChannel table. It lives in `database/migrations/optional/`,
- * NOT `database/migrations/`, so it is NEVER auto-loaded — a consumer gets it only by publishing
+ * not `database/migrations/`, so it is never auto-loaded — a consumer gets it only by publishing
  * the `visual-feedback-migrations` tag and running migrate. Every string column the package sizes
  * carries its width here, because SQLite does not enforce lengths: an over-long value would
  * otherwise only fail in a MySQL/PostgreSQL production (the string-enum-vs-varchar trap). Three
@@ -26,15 +26,15 @@ use Illuminate\Support\Facades\Schema;
  * runtime cap would silently ignore a column you legitimately widened. Raise one without widening its column here and the
  * validator accepts the value, the row write answers `22001`, and the report reaches every other
  * channel while the reporter still sees the success screen. SQLite will not warn you: it does not
- * enforce lengths, so a local suite stays green and only PostgreSQL or MySQL falls over.
+ * enforce lengths, so a write that PostgreSQL or MySQL refuses succeeds there.
  * The package's own suite holds the shipped defaults against these widths, so the pair cannot
- * drift apart here — but only the SHIPPED defaults: once this file is yours, the pairing is too.
+ * drift apart here — but only the shipped defaults: once this file is yours, the pairing is too.
  * `message` (mediumText) and `user_agent` (truncated at the write site, the way
  * `metadata.user_agent_max` is allowed to exceed its column) are outside the pairing.
  *
- * Cross-engine notes: `message` is mediumText — MySQL `text` caps at 64 KB BYTES, and 50 000
+ * Cross-engine notes: `message` is mediumText — MySQL `text` caps at 64 KB bytes, and 50 000
  * multibyte characters blow that (PG/SQLite would not, so only MySQL would fall over). The
- * reporter is DENORMALIZED (no FK to the host users table, whose PK type and name are unknown).
+ * reporter is denormalized (no FK to the host users table, whose PK type and name are unknown).
  * JSON columns use portable `json()`, never Postgres-only `jsonb()`.
  */
 return new class extends Migration

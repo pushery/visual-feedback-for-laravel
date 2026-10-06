@@ -1,18 +1,18 @@
 {{--
-    The admin report mail body. ALL user-influenced content renders INERT:
+    The admin report mail body. All user-influenced content renders inert:
       - the free text (message, subject) sits in a fenced code block whose delimiter is computed
-        from the content — MailCell::fence(). A HARDCODED ``` fence does not make text inert:
+        from the content — MailCell::fence(). A hardcoded ``` fence does not make text inert:
         CommonMark closes on the first line with at least as many backticks as opened it, so a
-        reporter typing three backticks ended the block and everything after it rendered as live
-        Markdown. Measured, not theorized — a link injected that way reached the rendered mail as
-        a real <a href>. The fence is now one backtick longer than the longest run in the content;
+        reporter typing three backticks would end the block and everything after it would render
+        as live Markdown, a link injected that way included, as a real <a href>. The fence is one
+        backtick longer than the longest run in the content;
       - context values and the technical-details cells go through MailCell (pipes escaped so a
         `Bob | Alice` value cannot shift the table columns — the "Undefined array key 1"
         crash — and newlines folded so a value cannot end a row/list item early);
       - Blade's {{ }} HTML-escapes those cells on top, and CommonMark does not auto-link bare URLs.
 
-    THE TWO FENCED VALUES ARE ECHOED RAW, AND THAT IS DELIBERATE — they are the one place in this
-    body where Blade escaping made things WORSE. A Markdown mailable does not echo through e():
+    The two fenced values are echoed raw, and that is deliberate — they are the one place in this
+    body where Blade escaping made things worse. A Markdown mailable does not echo through e():
     Markdown::render() installs `new EncodedHtmlString(%s)` as the echo format, which is right for
     prose (CommonMark resolves the entity again, so `A &amp; B` renders as `A & B`) and wrong
     inside a fence, where the spec says an entity is literal text. So every `&`, `<`, `>` and `"`
@@ -51,18 +51,18 @@
 
 {{-- Who reported it, when, and from which trigger.
 
-     Name and email used to be omitted here, on the argument that the envelope carries them. It
-     carries ONE of them, conditionally: Reply-To is the reporter's EMAIL, only while
+     Name and email are listed here although the envelope seems to carry them. It
+     carries one of them, conditionally: Reply-To is the reporter's email, only while
      `mail.reply_to_reporter` is on and only when they gave an address — and `guests.require_email`
-     ships false, so most guests give none. The NAME has no carrier at all. It is asked for and
+     ships false, so most guests give none. The name has no carrier at all. It is asked for and
      validated at 150 characters, and a host running the mail channel alone persists the report
      nowhere: what this template omits is gone the moment the mail is sent, per report.
 
      Every reporter-typed value here goes through MailCell::text(), not ::cell(). These sit in a
      live Markdown position — a bold line, a list item — and text() also escapes emphasis and code
-     spans, where cell() stops at links, images and the table's pipes. Measured before either
-     escape existed: a phone value of `[click me](http://evil.example)` reached the rendered mail
-     as a real anchor. --}}
+     spans, where cell() stops at links, images and the table's pipes. Without either escape, a
+     phone value of `[click me](http://evil.example)` reaches the rendered mail as a real
+     anchor. --}}
 **{{ __('visual-feedback::messages.mail.reporter') }}**
 
 - **{{ __('visual-feedback::messages.mail.reporter_type') }}:** {{ $report->reporter->isGuest ? __('visual-feedback::messages.mail.reporter_guest') : __('visual-feedback::messages.mail.reporter_member') }}

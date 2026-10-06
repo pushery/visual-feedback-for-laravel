@@ -21,7 +21,7 @@ use Pushery\VisualFeedback\Support\EnvFlag;
  * The mail delivery channel: it records a pending receipt and enqueues the channel's own
  * SendReportMail job, tuned per `channels.mail` (queue / tries / backoff) and rendered in the
  * configured mail locale — never the random worker locale. It is available when a recipient is
- * configured AND the configured mailer can actually put a message on the wire. The terminal
+ * configured and the configured mailer can actually put a message on the wire. The terminal
  * delivered/failed receipt, the lifecycle events and the attachment refcount flow through the
  * ReportDeliveryTracker from inside the job; here the receipt is marked pending.
  */
@@ -44,12 +44,12 @@ final readonly class MailChannel implements ReportChannel
     }
 
     /**
-     * Available with a configured recipient AND a transport that delivers.
+     * Available with a configured recipient and a transport that delivers.
      *
-     * The second half is the one that was missing, and it cost a report in production: `mail.to`
-     * was set, `MAIL_MAILER` was not, so the message went into `laravel.log` and every seam
-     * downstream reported success, DELIVERED receipt included. A mailer that accepts and drops
-     * has exactly as much "where to" as an empty `mail.to`.
+     * The second half matters as much as the first. With `mail.to` set and `MAIL_MAILER` not, the
+     * message goes into `laravel.log` and every seam downstream reports success, delivered receipt
+     * included. A mailer that accepts and drops has exactly as much "where to" as an empty
+     * `mail.to`.
      */
     public function isAvailable(): bool
     {
@@ -63,7 +63,7 @@ final readonly class MailChannel implements ReportChannel
     }
 
     /**
-     * NEVER ASKED WHILE THE APPLICATION IS RUNNING ITS TESTS, and that carve-out is what makes
+     * Never asked while the application is running its tests, and that carve-out is what makes
      * the check shippable rather than a nicety.
      *
      * Under a test harness the answer is `array` by construction — Testbench sets it, and so does
@@ -73,10 +73,10 @@ final readonly class MailChannel implements ReportChannel
      * wrong with it. Breaking every consumer's tests to report a production defect is a worse
      * trade than the defect.
      *
-     * The environment is read off the APPLICATION, not off `config('app.env')`. Measured on this
-     * tree: under the harness those two disagree — the container says `testing` and the config
-     * says `local`, because Testbench sets `$app['env']` directly. The config would have answered
-     * the wrong question with a straight face.
+     * The environment is read off the application, not off `config('app.env')`. Under Testbench
+     * those two disagree — the container says `testing` and the config says `local`, because
+     * Testbench sets `$app['env']` directly — and the config would answer the wrong question with
+     * a straight face.
      *
      * `mail.require_deliverable_transport` turns it off for the deliberate case: a developer on
      * `MAIL_MAILER=log` who wants to read the rendered report in the log file rather than have the
@@ -114,7 +114,7 @@ final readonly class MailChannel implements ReportChannel
 
     public function dispatch(Report $report): void
     {
-        $this->receipts->record($report->id, $this->key(), DeliveryStatus::Pending);
+        $this->receipts->recordPending($report->id, $this->key());
 
         $job = new SendReportMail(
             report: $report,
@@ -125,7 +125,7 @@ final readonly class MailChannel implements ReportChannel
         );
 
         // Connection before queue, matching the order a host reads them in the config file.
-        // This is a QUEUE connection, so it decides which worker carries the job — a host
+        // This is a queue connection, so it decides which worker carries the job — a host
         // that leaves it unset keeps the application default, which is the common case.
         $connection = $this->config->get('visual-feedback.channels.mail.connection');
 
@@ -171,13 +171,12 @@ final readonly class MailChannel implements ReportChannel
             // A per-report recipient overrides `mail.to` — the widget can be mounted with
             // one on a page whose feedback belongs to a different team.
             //
-            // NOTE: THIS PARAGRAPH SAID "#[Locked] mount prop … can neither be set from the browser",
-            // and the lock is gone: it threw during hydration and answered ordinary navigation
-            // with a 419. The value CAN now be written into the snapshot, and it still cannot move
-            // a report: the widget permits only `mail.to` or an address the host declared under
-            // `mail.allowed_recipients`, and answers null for anything else — which is this line's
-            // fallback. The address check at the boundary is unchanged, so a header-injecting
-            // newline still never reaches here.
+            // The value is not locked -- a lock throws when a request writes it and answers with a
+            // 419, which reached ordinary navigation -- so it can be written into the snapshot,
+            // and it still cannot move a report: the widget permits only `mail.to` or an address
+            // the host declared under `mail.allowed_recipients`, and answers null for anything
+            // else, which is this line's fallback. The address is also checked at the boundary,
+            // so a header-injecting newline never reaches here.
             'to' => $report->recipient ?? (is_string($mail['to'] ?? null) ? $mail['to'] : null),
             'from' => [
                 'address' => is_string($from['address'] ?? null) ? $from['address'] : null,
@@ -188,7 +187,7 @@ final readonly class MailChannel implements ReportChannel
             'disk' => $disk,
             // Read here rather than in the mailable, because this class is the one place the
             // mail configuration is turned into a value the queue can carry. A mailable that
-            // reached for config() itself would resolve it in the WORKER, whose configuration is
+            // reached for config() itself would resolve it in the worker, whose configuration is
             // not necessarily the one the report was accepted under.
             'subject_excerpt_length' => is_numeric($excerpt) ? max(0, (int) $excerpt) : 60,
         ];
@@ -225,16 +224,14 @@ final readonly class MailChannel implements ReportChannel
     /**
      * Fold a browser language tag onto a locale that can actually be rendered.
      *
-     * THE DOCBLOCK ABOVE SAID "folded from the metadata" WHILE THE VALUE WAS PASSED THROUGH
-     * RAW, AND THAT COST THE FEATURE ITS ORDINARY CASE. The tag comes from `navigator.language`,
-     * which is BCP-47 and carries a region for most reporters — `de-DE`, `pt-BR`, `en-US`. Laravel
-     * does not strip a region: it looks for `de-DE`, does not find it, and falls straight to
-     * `fallback_locale`. Measured on this tree: `trans($key, [], 'de')` is "Nachricht" and
-     * `trans($key, [], 'de-DE')` is "Message". So `mail.locale=reporter` rendered ENGLISH for
-     * every reporter whose browser sends a region — which is nearly all of them — while the one
-     * test covering the feature passed a bare `pt` and stayed green.
+     * The tag comes from `navigator.language`, which is BCP-47 and carries a region for most
+     * reporters — `de-DE`, `pt-BR`, `en-US`. Laravel does not strip a region: it looks for
+     * `de-DE`, does not find it, and falls straight to `fallback_locale`, so
+     * `trans($key, [], 'de')` is "Nachricht" while `trans($key, [], 'de-DE')` is "Message".
+     * Passed through raw, the tag would render `mail.locale=reporter` in the fallback language for
+     * every reporter whose browser sends a region, which is nearly all of them.
      *
-     * The exact tag is tried FIRST and that ordering is load-bearing rather than tidy: `pt-BR`
+     * The exact tag is tried first and that ordering is load-bearing rather than tidy: `pt-BR`
      * and `pt-PT` are different translations, so a host that publishes `pt-BR` must win over the
      * base. Only when nothing renders in the full tag is the region dropped.
      *

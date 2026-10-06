@@ -6,38 +6,38 @@
     of raw controls. Lives under wirekit/ only — the plain tree keeps its own markup inline.
 --}}
 @php
-    // WHICH control carries the invalid state -- decided once, so the eight call sites below
+    // Which control carries the invalid state -- decided once, so the eight call sites below
     // cannot drift apart, and null whenever the failure was not the reporter's doing.
     //
-    // `$failedField` alone would be wrong here. It is a FOCUS TARGET: a listener veto, a rate
+    // `$failedField` alone would be wrong here. It is a focus target: a listener veto, a rate
     // limit and the master switch being off all point it at the message box while the message
     // the reporter wrote is fine. Marking that control invalid would tell a screen reader the
     // text is wrong because the widget is switched off. `$failedFieldInvalid` is the server's
     // answer to the other question, decided where the rejection reason is still known.
 @endphp
 @php($vfInvalidField = $failedFieldInvalid ? $failedField : null)
-{{-- NOTE. The marking below is written as BOUND attributes (`:aria-invalid="… ? … : null"`),
-     not as the `@if` the plain tree uses. A Blade directive inside a COMPONENT tag's
+{{-- Note. The marking below is written as bound attributes (`:aria-invalid="… ? … : null"`),
+     not as the `@if` the plain tree uses. A Blade directive inside a component tag's
      attribute list breaks the component parser, and it breaks it quietly: the tag still
-     renders, and the props after the directive are dropped. Measured here — the message
-     field lost its label while the attribute itself appeared correctly, so a guard that
-     only counted markings stayed green over eight broken tests. A bound attribute whose
-     expression is null is omitted, which is the behavior this needs anyway. --}}
+     renders, and the props after the directive are dropped: the message field, for one,
+     loses its label while the attribute itself appears correctly, so counting the markings
+     does not show it. A bound attribute whose expression is null is omitted, which is the
+     behavior this needs anyway. --}}
 {{-- Status region: success + "report another", with focus moved to the button on success. --}}
 <div role="status" aria-live="polite"
     x-effect="vfFocusReportAnother()">
     @if ($submitted)
         {{-- The kit draws this, not the package: `intent="success"` brings the tint, border,
              radius, icon and dark mode from the same tokens every other alert in a WireKit
-             application uses. The glyph the package used to paint by hand is the component's
-             own icon now, so there is one success mark in the tree rather than two that drift.
-             IMPORTANT. `role="presentation"` is deliberate and it is the whole reason this is not a
-             one-word change. The kit sets its OWN role -- `alert` for danger, `status`
+             application uses. The glyph is the component's own icon, so there is one success
+             mark in the tree rather than two that drift.
+             Important. `role="presentation"` is deliberate and it is the whole reason this is not a
+             one-word change. The kit sets its own role -- `alert` for danger, `status`
              otherwise -- through `merge()`, which keeps a caller-supplied role and drops its
              own. Without that word this line would be a `status` region nested inside the
              `status` region around it, and a screen reader can announce a nested live region
-             twice. The announcement stays on the OUTER element for the reason the region
-             exists at all: a live region must be in the DOM BEFORE its content changes, and
+             twice. The announcement stays on the outer element for the reason the region
+             exists at all: a live region must be in the DOM before its content changes, and
              this alert only exists once `$submitted` is true. Same at all six sites, and the
              suite holds it: one live role per region. --}}
         <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success">{{ __('visual-feedback::messages.widget.success') }}</x-wirekit::alert>
@@ -48,7 +48,7 @@
              one who is finished reaches for the mouse or presses Escape. Tab finds "Done"
              immediately after, so neither is buried.
 
-             The x in the modal header is a WINDOW gesture; this is a step of the flow, and
+             The x in the modal header is a window gesture; this is a step of the flow, and
              inline there is no header at all -- that surface had no way to end the flow before
              this button existed.
 
@@ -69,7 +69,7 @@
 @unless ($submitted)
     {{-- `novalidate` is the plain tree's twin, and it is what makes every rejection in this
          form the package's own. Two things would otherwise be answered by the browser, in the
-         BROWSER's language rather than in the reporter's:
+         browser's language rather than in the reporter's:
 
            - the guest email field is a native type="email" (WireKit emits `type` in both of
              input.blade.php's render branches), so a mistyped address is caught natively;
@@ -80,11 +80,8 @@
          `x-on:submit.capture` — the reporter never reaches the package's own seven-locale
          line, and `failedField` never points focus at the control.
 
-         THIS COMMENT SAID "Nothing else in either tree carries `required`, so this is not
-         about empty fields", AND IT WAS ALREADY WRONG WHEN IT WAS WRITTEN: the plain tree
-         carried `required` on both controls. It stayed wrong in a more useful way afterwards,
-         because this tree carried it on NEITHER — which is the defect it was hiding, not a
-         reason the sentence was true. --}}
+         Both trees carry `required` on these two controls, so an empty field is part of this
+         too, not only a mistyped address. --}}
     <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
         {{-- In modal mode the heading lives in <x-wirekit::modal.header>, which owns the id the
              dialog's aria-labelledby points at; rendering it twice would announce it twice. The
@@ -95,11 +92,11 @@
             <x-wirekit::heading level="2" id="visual-feedback-heading" tabindex="-1">{{ __('visual-feedback::messages.widget.heading') }}</x-wirekit::heading>
         @endunless
 
-        {{-- Honeypot: off-screen, hidden from AT, never tab-reachable. --}}
+        {{-- Honeypot: off-screen, hidden from at, never tab-reachable. --}}
         <div class="visual-feedback-honeypot" aria-hidden="true"
-            {{-- CORRECTION. This said the class carries NO rule in this tree because it publishes no
+            {{-- Correction. This said the class carries no rule in this tree because it publishes no
                  stylesheet of its own. Both halves are wrong: `visual-feedback::style` has a
-                 WireKit block and `.visual-feedback-honeypot` is the FIRST rule in it.
+                 WireKit block and `.visual-feedback-honeypot` is the first rule in it.
 
                  The attribute is still not redundant, and here that is load-bearing rather than
                  belt-and-braces: a visible honeypot is filled in by real reporters, and a
@@ -163,7 +160,7 @@
             :label="__('visual-feedback::messages.widget.category_label')"
             {{-- Required because the server says so, not because the form looks better with a
                  star: `SubmitReport` validates `category` as `required` unconditionally, so a
-                 reporter who leaves it alone is rejected either way. It is NOT in
+                 reporter who leaves it alone is rejected either way. It is not in
                  `$requiredFields` -- that list is the four fields an operator can switch
                  between optional and required, and this one is never optional. --}}
             required
@@ -179,15 +176,15 @@
 
         {{-- Code-point counter, app-locale formatted (matches the plain tree + server).
 
-             The two values are kept APART on purpose. `count` moves with the keystroke because
+             The two values are kept apart on purpose. `count` moves with the keystroke because
              the visible tally has to; `announced` lags it by 700 ms because the live region must
              not. One element carrying both is the established character-counter anti-pattern —
              it announces on every key — and it is what this tree used to render while the plain
-             tree had already been fixed. The throttle is on the CONTENT, never on the
+             tree had already been fixed. The throttle is on the content, never on the
              `aria-live` attribute: a region that appears in the same tick as its first text can
              have that first announcement swallowed. --}}
         {{-- A scalar object literal rather than one Blade-encoded array: `@js()` on a scalar
-             renders a plain literal, but on an ARRAY it renders `JSON.parse('…')`, and `JSON` is
+             renders a plain literal, but on an array it renders `JSON.parse('…')`, and `JSON` is
              an identifier Alpine's CSP evaluator cannot resolve. --}}
         <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
             <x-wirekit::textarea
@@ -198,9 +195,9 @@
                 x-on:input="measure($event.target.value)"
                 :placeholder="__('visual-feedback::messages.widget.message_placeholder')" />
             <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
-            {{-- Off-screen live region, concealed TWICE and deliberately.
+            {{-- Off-screen live region, concealed twice and deliberately.
 
-                 CORRECTION. This said "this tree publishes no stylesheet of its own", and that has not
+                 Correction. This said "this tree publishes no stylesheet of its own", and that has not
                  been true for some time: `visual-feedback::style` carries a WireKit block, and
                  `.visual-feedback-sr-only` has a rule in it. The sentence mattered, because it
                  is the reason nobody added the missing rules to that block for so long — a
@@ -209,13 +206,13 @@
                  The inline style stays regardless, and the real reason is the inverse of the old
                  one: the rule is the primary concealment, and the attribute is what survives a
                  host that has not included the stylesheet at all. Without both, this region
-                 renders as a second VISIBLE counter. --}}
+                 renders as a second visible counter. --}}
             <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"
                 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);"></span>
         </div>
 
         @if ($screenshotEnabled)
-            {{-- Screenshot capture — the SAME tree-agnostic JS module (capture.js), capture
+            {{-- Screenshot capture — the same tree-agnostic JS module (capture.js), capture
                  cascade and swappable uploader seam as the plain tree, rendered with WireKit
                  token-styled buttons. All status text comes from lang, never the JS bundle.
                  Each terminal state names its successor control via x-ref, so the keyboard
@@ -240,22 +237,22 @@
 
                 {{-- Progress + terminal status → aria-live (the Alpine state is the only source).
 
-                     A `div`, not the `p` this used to be, and that is a correctness fix rather
-                     than taste: the attached-screenshot line below is a kit alert now, the kit
-                     renders it as a `div`, and a `div` inside a `p` is invalid HTML that the
-                     parser REPAIRS by closing the paragraph early. The alert would have landed
-                     outside the live region that announces it, and the elements after it would
-                     have moved, which is the overlap a reporter sees beside the retake button. --}}
+                     A `div`, not a `p`, and that is correctness rather than taste: the
+                     attached-screenshot line below is a kit alert, the kit renders it as a
+                     `div`, and a `div` inside a `p` is invalid HTML that the parser repairs by
+                     closing the paragraph early. The alert would land outside the live region
+                     that announces it, and the elements after it would move into the retake
+                     button. --}}
                 <div class="visual-feedback-capture-status" aria-live="polite">
                     <span x-show="status === 'capturing'">{{ __('visual-feedback::messages.widget.screenshot_capturing') }}</span>
                     <span x-show="status === 'uploading'">{{ __('visual-feedback::messages.widget.screenshot_uploading') }}</span>
                     {{-- The `attached` claim is the one piece of this status line that a server-side
                     rejection can falsify: `WithFileUploads::_finishUpload()` dispatches
-                    `upload:finished` BEFORE it calls the `updated` hook, so the Alpine
+                    `upload:finished` before it calls the `updated` hook, so the Alpine
                     promise resolves and sets `status = 'attached'` even when the perimeter
                     refused the file. Without this guard the aria-live region says
                     "screenshot attached" while the role="alert" region beside it says the
-                    file is too large. The retake button below is deliberately NOT wrapped:
+                    file is too large. The retake button below is deliberately not wrapped:
                     it is the recovery path, and its label is an offer rather than a claim. --}}
                     @unless ($errors->has('screenshot'))
                         <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success"
@@ -265,41 +262,38 @@
 
                 {{-- Preview before submit: discard (never uploaded), retake, or attach.
 
-                     The class marks this as the OPEN POINT while the capture is neither attached
+                     The class marks this as the open point while the capture is neither attached
                      nor discarded. The sentence that says so is at the end of the form, and a
                      sentence naming a state without showing which part of the screen it means
                      leaves the reader to search for it. The border is not the only carrier -- the
                      sentence stays exactly as it was, and the border is added to it. --}}
                 <div class="visual-feedback-captured-pending" x-show="status === 'captured'">
-                    {{-- `x-if`, NOT the `x-show` on the container, and the difference is a request per page
+                    {{-- `x-if`, not the `x-show` on the container, and the difference is a request per page
                          view. `x-show` sets `display:none` and leaves the element in the DOM, so before the
-                         first capture every page carrying the widget held an image element whose `src` was empty.
-                         An empty `src` resolves against the PAGE URL: the browser fetches the HTML document
+                         first capture every page carrying the widget would hold an image element whose `src` is
+                         empty. An empty `src` resolves against the page URL: the browser fetches the HTML document
                          as an image and throws it away, `naturalWidth` stays 0, and every browser checker
-                         reads it as broken. A consumer's suite went red on 54 pages from this one element.
+                         reads it as broken, on every page that carries the widget.
 
                          The condition is `previewUrl` rather than the status, because that is the thing
                          being asserted: the image exists exactly when it has a source.
 
-                         AND ONLY THE IMAGE MOVES. The reported fix wrapped the whole block, which would
-                         have taken `x-ref="captured"` with it -- and the capture component focuses
-                         `$refs[status]` on every status change, so the successor control is reachable after
-                         the reporter presses the one being swapped out. `vfFocusIfLost` returns silently on
-                         a missing element, so that regression would be invisible: no error, no failing arm,
-                         just focus dropping to <body> for anyone on a keyboard.
+                         And only the image moves. Wrapping the whole block would take `x-ref="captured"`
+                         with it -- and the capture component focuses `$refs[status]` on every status change,
+                         so the successor control is reachable after the reporter presses the one being
+                         swapped out. `vfFocusIfLost` returns silently on a missing element, so that loss
+                         would be invisible: no error, just focus dropping to <body> for anyone on a keyboard.
 
-                         `loading="lazy"` is gone with it, and for two releases this sentence was
-                         true while the attribute was still three lines below it. It never worked here --
-                         a lazy image inside a `display:none` parent is never requested at all -- and an
-                         element that only exists once it is needed has nothing left to defer.
+                         No `loading="lazy"` either. It cannot work here -- a lazy image inside a
+                         `display:none` parent is never requested at all -- and an element that only exists
+                         once it is needed has nothing left to defer.
 
-                         The parent really does go `display:none` while this element is still rendered,
-                         which is what kept it biting: `x-if` switches on `previewUrl`, the container
-                         switches on `status`, and `attach()` sets `status = 'attached'` without ever
-                         nulling `previewUrl` -- only `discard()` reaches `reset()`. So after attaching,
-                         the image sat inside a hidden container, was never requested, and read as broken
-                         to anything that checks `naturalWidth`. Same measurement as before the `x-if`,
-                         one page later. --}}
+                         The parent really does go `display:none` while this element is still rendered:
+                         `x-if` switches on `previewUrl`, the container switches on `status`, and `attach()`
+                         sets `status = 'attached'` without ever nulling `previewUrl` -- only `discard()`
+                         reaches `reset()`. So after attaching, the image sits inside a hidden container,
+                         where a lazy one would never be requested and would read as broken to anything that
+                         checks `naturalWidth`. --}}
                     <template x-if="previewUrl">
                         <img class="visual-feedback-preview" :src="previewUrl"
                             alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" decoding="async">
@@ -316,9 +310,9 @@
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
 
-                {{-- A capture failure is VISIBLE with retry, not a silent console.warn.
+                {{-- A capture failure is visible with retry, not a silent console.warn.
 
-                     The region is unconditional and the ALERT inside it carries the `x-show`,
+                     The region is unconditional and the alert inside it carries the `x-show`,
                      unlike the server-rendered region below: this one's text is always in the
                      markup and Alpine decides whether it is seen. `x-show` writes
                      `display:none` as an inline style, which outranks any stylesheet, so the
@@ -348,8 +342,8 @@
              step. --}}
         {{-- `id` is a declared prop here, not a bag attribute, and it lands on the native
              `<input type="file" class="sr-only">` the label points at — sr-only is focusable,
-             so it is a real focus target. Without it the id is `wk-upload-<random>`: NEW ON
-             EVERY RENDER, so it could never have been named by anything. `name` is left off
+             so it is a real focus target. Without it the id is `wk-upload-<random>`: new on
+             every render, so it could never have been named by anything. `name` is left off
              deliberately — the component only emits `name="…[]"` when it is given one, and the
              plain tree's file input carries none either. --}}
         <x-wirekit::file-upload
@@ -358,7 +352,7 @@
             multiple
             :accept="$acceptAttribute"
             :hint="$attachmentLimit"
-            {{-- WireKit's remove label is `__('Remove :name')` from ITS namespace, so without this
+            {{-- WireKit's remove label is `__('Remove :name')` from its namespace, so without this
                  the button announced itself in WireKit's language, not the widget's — and the
                  widget ships seven locales. The prop arrived in WireKit 2.20. --}}
             :removeLabel="__('visual-feedback::messages.widget.remove_file', ['name' => ':name'])"
@@ -378,33 +372,32 @@
             @endif
         </div>
 
-        {{-- Error region. Two things are keyed on the failure COUNTER rather than on `failed`:
+        {{-- Error region. Two things are keyed on the failure counter rather than on `failed`:
              that flag flips false→true inside one round-trip, so a repeat failure looks unchanged
              to Alpine and would move nothing.
 
              Focus goes to the control the failure belongs to, and the text is the reason the
-             pipeline gave. Both used to be blunt: any failure showed one generic line and pointed
-             at the message box, so a typo in the email sent the reporter to the text they had
-             written correctly. --}}
-        {{-- The id stays on the REGION, never on the alert inside it: it is the focus target
+             pipeline gave, so a typo in the email does not send the reporter to the text they
+             wrote correctly. --}}
+        {{-- The id stays on the region, never on the alert inside it: it is the focus target
              `vfFocusFailedField()` falls back to, and a target that only exists while the
              failure is on screen is missing exactly when focus is moved to it. --}}
-        {{-- IMPORTANT. THE BOX SUMMONS, THE FIELD EXPLAINS -- and it is one or the other, never both.
-             This line used to print `$failedMessage` unconditionally, which in THIS tree put the
-             identical sentence on screen twice: every control above takes the same string through
-             `:error`, and the kit paints it under the field. Reported from a consumer against
-             0.11.0 over both engines and both viewports, roughly 310 px apart on a desktop and 350
-             on a phone -- far enough not to read as one message, near enough to be in view at
-             once, so it reads as two problems and the reader goes looking for the second one.
+        {{-- Important. The box summons, the field explains -- and it is one or the other, never both.
+             Printing `$failedMessage` here unconditionally would put the identical sentence on
+             screen twice in this tree: every control above takes the same string through
+             `:error`, and the kit paints it under the field. The two copies stand roughly 310 px
+             apart on a desktop and 350 on a phone -- far enough not to read as one message, near
+             enough to be in view at once, so it reads as two problems and the reader goes looking
+             for the second one.
 
-             The plain tree never had this: it has no per-field message slot, so its controls point
-             at THIS region with `aria-describedby` and the sentence exists once. The kit does have
+             The plain tree has no per-field message slot, so its controls point
+             at this region with `aria-describedby` and the sentence exists once. The kit does have
              one, and the nearer copy is the more useful of the two -- it sits at the control the
              reporter has to change -- so that is the one that keeps the reason.
 
              `$vfInvalidField` is the right condition rather than `$failed`, and the difference is
              load-bearing: a listener veto, a rate limit and the master switch being off all fail
-             with NO field marked, and there the box is the only place the reason can be. It keeps
+             with no field marked, and there the box is the only place the reason can be. It keeps
              it. --}}
         <div class="visual-feedback-error visual-feedback-alert"
             id="visual-feedback-error" role="alert" aria-live="assertive"
@@ -435,7 +428,7 @@
         {{-- The star the required controls carry, spelled out. A red mark with no key is a
              convention, and a convention only works for the people who already know it.
 
-             It is NOT aria-hidden. A screen reader announces a required control from the
+             It is not aria-hidden. A screen reader announces a required control from the
              attribute itself, so this sentence is not what carries the information for that
              reader -- but it is ordinary page text, it costs nothing to hear, and hiding it
              would be the package deciding that one audience gets an explanation the other

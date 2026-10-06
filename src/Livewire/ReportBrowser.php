@@ -11,32 +11,32 @@ use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
+use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
  * A minimal browser over the reports table — deliberately minimal, and deliberately optional.
  *
  * The package's stated position is "bring your own admin": the table is public API and a host
- * that wants a rich console builds one. This exists for the host that wants to READ its
+ * that wants a rich console builds one. This exists for the host that wants to read its
  * feedback without building anything, and it covers what such a host actually needs — filter,
  * detail with the screenshot, and delete with the files cleaned up — rather than a subset that
  * sends them off to write the rest themselves.
  *
- * THREE THINGS MAKE IT SAFE TO SHIP AT ALL, and each is a decision rather than a default:
+ * Three things make it safe to ship at all, and each is a decision rather than a default:
  *
- * 1. IT IS UNREACHABLE UNTIL A HOST ROUTES IT. The package registers the component but no
+ * 1. It is unreachable until a host routes it. The package registers the component but no
  *    route. Livewire components are addressable by name over the update endpoint, which is why
  *    the authorization below is not a formality — see `livewire-audit`, and this repository's
  *    own audit lineage: a component reachable by name is a component that must check.
  *
- * 2. AUTHORIZATION IS FAIL-CLOSED AND RE-CHECKED PER ACTION. The gate name is the package's;
- *    its DEFINITION is the host's, and this package deliberately does not define it. An
+ * 2. Authorization is fail-closed and re-checked per action. The gate name is the package's;
+ *    its definition is the host's, and this package deliberately does not define it. An
  *    undefined gate denies in Laravel, so a host that installs the package and does nothing
  *    else has an endpoint that answers 403 — not one that answers with its users' feedback.
  *
@@ -51,7 +51,7 @@ use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
  *    view, and a published view that still calls them keeps working, because Livewire renders
  *    a component's view bound to the component.
  *
- * 3. THE TABLE IS OPTIONAL, SO THIS IS TOO. Without the opt-in migration there is nothing to
+ * 3. The table is optional, so this is too. Without the opt-in migration there is nothing to
  *    browse, and the component says so instead of throwing — the same shape DatabaseChannel
  *    already uses for the same condition.
  */
@@ -144,7 +144,7 @@ final class ReportBrowser extends Component
     }
 
     /**
-     * Delete one report AND its attachment files.
+     * Delete one report and its attachment files.
      *
      * Files first, then the row — the same order `visual-feedback:prune` uses, and for the same
      * reason: a row deleted first leaves paths nobody can resolve any more, and the files leak
@@ -211,13 +211,13 @@ final class ReportBrowser extends Component
      */
     private function tableExists(): bool
     {
-        return $this->reportsTableExists ??= Schema::hasTable($this->reportsTable(app(Config::class)));
+        return $this->reportsTableExists ??= TableLookup::exists($this->reportsTable(app(Config::class)));
     }
 
     /**
      * The distinct categories present in the data, for the filter.
      *
-     * Read from the ROWS rather than from configuration on purpose: a report keeps the category
+     * Read from the rows rather than from configuration on purpose: a report keeps the category
      * it was filed under, so a category removed from config still exists in the table — and a
      * filter built from config alone could not reach those rows at all.
      *
@@ -267,14 +267,14 @@ final class ReportBrowser extends Component
     /**
      * A displayable URL for one attachment, or null when there is none to give.
      *
-     * Null is the common and CORRECT answer: the attachments disk is private in every shipped
+     * Null is the common and correct answer: the attachments disk is private in every shipped
      * configuration, and a private disk has no public URL. This deliberately does not invent
      * one — no signed route, no streaming controller, no `storage:link` assumption. Adding any
      * of those would put a package-owned download endpoint in front of a host's private files,
      * which is a far larger decision than "let me look at my feedback" and is exactly the sort
      * of thing a host should build deliberately if they want it.
      *
-     * So the detail pane shows the PATH when it cannot show the picture. That is honest and
+     * So the detail pane shows the path when it cannot show the picture. That is honest and
      * still useful — it is what a host needs to fetch the file with their own tooling.
      */
     private function attachmentUrl(string $path): ?string
@@ -282,15 +282,15 @@ final class ReportBrowser extends Component
         $config = app(Config::class);
         $disk = $this->attachmentsDisk($config);
 
-        // THE DECIDER IS THE DISK'S CONFIGURED `url`, NOT WHETHER url() THROWS.
+        // The decider is the disk's configured `url`, not whether url() throws.
         // The first version of this method asked the adapter and treated a RuntimeException as
-        // "no url". Measured: Laravel's local driver does NOT throw — it falls back to
-        // `/storage/<path>`, which resolves only if the host ran `storage:link` AND the file
+        // "no url". Measured: Laravel's local driver does not throw — it falls back to
+        // `/storage/<path>`, which resolves only if the host ran `storage:link` and the file
         // lives under the public disk root. On the shipped private disk that URL is a 404, so
         // the browser would have rendered a broken image and called it a preview.
         //
         // Reading the configuration answers the question that actually matters: did the host
-        // DECLARE this disk publicly addressable. A disk with no `url` is private by the host's
+        // declare this disk publicly addressable. A disk with no `url` is private by the host's
         // own configuration, and the detail pane shows the path instead — which is honest and
         // is what they need to fetch the file with their own tooling.
         if (! is_string($config->get("filesystems.disks.{$disk}.url"))) {

@@ -94,7 +94,7 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
         $tracker->settleDelivered($this->report, 'database');
     }
 
-    /** Retries exhausted → the ONE terminal failure path for this channel. */
+    /** Retries exhausted → the one terminal failure path for this channel. */
     public function failed(Throwable $exception): void
     {
         Container::getInstance()->make(ReportDeliveryTracker::class)
@@ -123,7 +123,7 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
      * json_encode returns false for a value it cannot encode and the `(string)` cast wrote `''`
      * into the column. The row then looked intact — message and reporter columns carry the
      * report — while the JSON column held an empty string, which on MySQL's real `json` type is
-     * not even a legal value. Throwing lets the queue retry and settle FAILED, which is a state
+     * not even a legal value. Throwing lets the queue retry and settle failed, which is a state
      * somebody can see.
      */
     private function json(mixed $value): string

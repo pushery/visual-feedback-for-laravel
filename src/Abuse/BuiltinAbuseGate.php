@@ -16,24 +16,24 @@ use Throwable;
 
 /**
  * The always-on abuse floor: a filled honeypot, a too-fast fill,
- * and a per-hour rate limit — none of which cost a real human anything. This runs under EVERY
+ * and a per-hour rate limit — none of which cost a real human anything. This runs under every
  * driver (beneath botgate, not instead of it), so a challenge-provider outage or a
  * misconfiguration can never remove all protection.
  *
- * The rate limiter is hit on EVERY attempt, before any other verdict — so a failing attempt
+ * The rate limiter is hit on every attempt, before any other verdict — so a failing attempt
  * (honeypot, too-fast, later a validation error) still burns a token. Hitting the
  * limiter only after a successful store — the obvious ordering — lets an attacker make unlimited
  * failing attempts at full server cost.
  *
- * A third limit sits beside the per-subject two and counts the INSTANCE: `abuse.global_rate_limit`,
+ * A third limit sits beside the per-subject two and counts the instance: `abuse.global_rate_limit`,
  * one bucket with no subject in it. The per-subject limits are what a distributed sender walks
  * around — a thousand addresses each under the guest limit are a thousand reports an hour, and on
  * the mail channel a thousand messages with attachments — so the instance cap is the one that
  * bounds what an attack costs rather than what one attacker gets.
  *
- * `on_error` applies ONLY here (the builtin path) and ONLY to the limiters, which are the only
+ * `on_error` applies only here (the builtin path) and only to the limiters, which are the only
  * part of this gate that does I/O. `closed` refuses the submission when the limiter backend
- * errors; `open` — the SHIPPED default — lets it past the LIMITS, and the honeypot and the time
+ * errors; `open` — the shipped default — lets it past the limits, and the honeypot and the time
  * trap still run.
  *
  * That last clause is the whole point, and it is why the catch is scoped to the limiter call
@@ -75,10 +75,10 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         // The silent bot floor: a filled honeypot or a fill faster than a human could manage.
         // No cache, no disk, no network — there is nothing here for an outage to break, and
         // nothing above may discard either verdict on a broken limiter's behalf.
-        // THREE CAUSES SHARE ONE REASON, AND ONE OF THEM IS NOT A BOT. `RejectionReason::
+        // Three causes share one reason, and one of them is not a bot. `RejectionReason::
         // Honeypot` is what a host's listener sees for a filled honeypot, for a fill faster than
-        // a human manages, AND for a submission that carries no open time at all -- and the third
-        // is a broken INTEGRATION, not traffic: an adapter that never stamps the open time turns
+        // a human manages, and for a submission that carries no open time at all -- and the third
+        // is a broken integration, not traffic: an adapter that never stamps the open time turns
         // every submission into a decoy success, silently, and the only signal the host gets
         // reads like bot volume.
         //
@@ -91,7 +91,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
      * The half of this gate that costs nothing to ask: a filled honeypot, a fill faster than a
      * human manages, a submission that cannot say when its form was opened.
      *
-     * SEPARATE SO IT CAN BE ASKED EARLY, and the reason is a cost a bot decides. The widget
+     * Separate so it can be asked early, and the reason is a cost a bot decides. The widget
      * stores attachments and the screenshot before `check()` runs — deliberately, because calling
      * this gate twice would burn a second rate-limit token against the reporter's own quota, and
      * splitting the submission entrance in two would put a seam into the one transport-agnostic
@@ -104,7 +104,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
      * before storing; `check()` calls it after the rate limit, so the ordinary path is unchanged
      * and no verdict is reached twice.
      *
-     * It is deliberately NOT on the `AbuseGate` contract. A third-party gate may have nothing
+     * It is deliberately not on the `AbuseGate` contract. A third-party gate may have nothing
      * that is free to evaluate, and requiring one would either force a meaningless implementation
      * or make the early call a promise the interface cannot keep. The widget asks for this class,
      * and any other gate simply keeps today's ordering.
@@ -118,14 +118,14 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         $minimum = $this->settings->minFillSeconds();
         $elapsed = $attempt->elapsedSeconds();
 
-        // FAIL-CLOSED on a missing open time, and this is the half that has to move together
+        // Fail-closed on a missing open time, and this is the half that has to move together
         // with the widget: a submission that cannot say when its form was opened is not a
         // submission the trap can judge, so while the trap is armed it is refused rather than
         // waved through. Read the other way round — null meaning "the trap does not apply" —
         // an attacker skips the trap entirely by omitting one field.
         //
         // `$minimum > 0` is the whole condition, because `min_fill_seconds = 0` is the
-        // documented way to switch the trap OFF. A host that turned it off must not start
+        // documented way to switch the trap off. A host that turned it off must not start
         // getting rejections from it.
         if ($minimum > 0 && $elapsed === null) {
             return AbuseDecision::reject(RejectionReason::Honeypot, detail: 'open_time_missing');
@@ -166,8 +166,8 @@ final readonly class BuiltinAbuseGate implements AbuseGate
      * The rate limit's verdict, or null when the attempt is under the limit and the rest of the
      * floor should decide.
      *
-     * Counts THIS attempt first — even one about to be rejected — so failing attempts still burn
-     * a token. A backend error is resolved HERE rather than by an outer catch, because an outer
+     * Counts this attempt first — even one about to be rejected — so failing attempts still burn
+     * a token. A backend error is resolved here rather than by an outer catch, because an outer
      * catch cannot tell "the limiter is down" from "the honeypot check threw" and therefore has
      * to throw both verdicts away.
      */
@@ -194,7 +194,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
             return AbuseDecision::reject(RejectionReason::RateLimited, visible: true);
         }
 
-        // ONLY NOW, AND THE ORDER IS LOAD-BEARING. The instance bucket is hit for attempts that
+        // Only now, and the order is load-bearing. The instance bucket is hit for attempts that
         // got past their own limit, never for ones that did not — otherwise a single address could
         // burn the whole application's ceiling by hammering a form it is already locked out of,
         // and a cap built against a distributed bot would hand a lone one a way to silence every
@@ -233,8 +233,8 @@ final readonly class BuiltinAbuseGate implements AbuseGate
                 : AbuseDecision::reject(RejectionReason::GlobalRateLimited, visible: true);
         }
 
-        // Exactly the attempt that REACHES the cap, so this fires once per window and does it one
-        // report BEFORE anything is refused. An operator who reacts fast enough loses nothing, and
+        // Exactly the attempt that reaches the cap, so this fires once per window and does it one
+        // report before anything is refused. An operator who reacts fast enough loses nothing, and
         // a signal that can wake somebody up is only worth having if it does not repeat a thousand
         // times an hour. Every refusal after this is still observable as ReportRejected.
         if ($hits === $cap) {
@@ -262,20 +262,21 @@ final readonly class BuiltinAbuseGate implements AbuseGate
     /**
      * The address the guest bucket is keyed on: IPv4 whole, IPv6 truncated to its /64.
      *
-     * THE FULL IPv6 ADDRESS MADE THE GUEST LIMIT MEANINGLESS, AND IT COST AN ATTACKER NOTHING.
+     * The full IPv6 address would make the guest limit meaningless, at no cost to an attacker.
      * A residential IPv6 assignment is at least a /64 -- 2^64 addresses the same person may use --
      * and changing the interface identifier per request needs no proxy, no botnet and no
      * cooperation from anyone: one `ip addr add` and every request lands in its own 5/hour bucket.
-     * Measured before the change: `2001:db8:1:2::1`, `::2` and `::ffff:ffff:ffff:ffff` hashed to
-     * three unrelated keys while sharing one /64.
+     * Keyed whole, `2001:db8:1:2::1`, `::2` and `::ffff:ffff:ffff:ffff` hash to three unrelated keys
+     * while sharing one /64.
      *
      * /64 is the boundary because it is the boundary the internet hands out. Truncating further
-     * would fold unrelated customers of one ISP into a shared bucket; truncating less is what this
-     * did. IPv4 is left whole -- a /24 there is a neighborhood, not a household.
+     * would fold unrelated customers of one ISP into a shared bucket; truncating less reopens the
+     * hole above. IPv4 is left whole -- a /24 there is a neighborhood, not a household.
      *
      * That includes an IPv4 address written as IPv6. A dual-stack listener reports an IPv4 client
-     * as `::ffff:a.b.c.d`, and the /64 of every such address is `::/64`, so all of them shared one
-     * bucket. A mapped address is keyed on its IPv4 form, the same key the plain form gets. The
+     * as `::ffff:a.b.c.d`, and the /64 of every such address is `::/64`, so truncated like any other
+     * they would all share one bucket. A mapped address is keyed on its IPv4 form, the same key the
+     * plain form gets. The
      * deprecated IPv4-compatible form (`::a.b.c.d`) is not mapped: no current stack reports it,
      * and its prefix also holds the loopback `::1`.
      *

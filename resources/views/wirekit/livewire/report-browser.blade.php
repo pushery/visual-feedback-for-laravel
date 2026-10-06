@@ -1,11 +1,11 @@
 {{-- The same browser through WireKit components, so it inherits the host's design tokens.
 
-     Component signatures were read from the INSTALLED WireKit via its MCP rather than from
+     Component signatures were read from the installed WireKit via its MCP rather than from
      memory — `table` and its subcomponents, `attachment`, `data-list`, `empty-state`. That is
      the house rule for this tree and it is not ceremony: a prop that moved between minors is
      invisible until the page renders wrong.
 
-     No `x-` directive here either — which is NOT the same as being outside the CSP question, and
+     No `x-` directive here either — which is not the same as being outside the CSP question, and
      this comment claimed it was. A `wire:` action expression is contextualized to
      `$wire.<expression>` and evaluated by Alpine, so it meets the same grammar. See the plain
      tree's header for the full correction. --}}
