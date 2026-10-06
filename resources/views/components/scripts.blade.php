@@ -1,15 +1,15 @@
 {{--
     <x-visual-feedback::scripts /> — loads the capture bundle and hands the client its config.
 
-    Place it once IN YOUR LAYOUT, before </body> — the same layout the widget goes in. Per-page
+    Place it once in your layout, before </body> — the same layout the widget goes in. Per-page
     placement reads like a saving (the capture bundle only on feedback-bearing pages) and buys a
-    problem under `wire:navigate`: a page first reached BY a navigation runs its body scripts
+    problem under `wire:navigate`: a page first reached by a navigation runs its body scripts
     after Alpine has already walked the new body, so the capture island is initialized before the
     component it names exists. The bundle repairs that itself, but a repair is a fallback, not a
     plan — a layout tag pays the cost once, on the first page, and needs none of it.
 
-    ALL visible text comes from the widget's Blade/lang, never this bundle — the config island
-    carries only BEHAVIOR (locale, capture clamps, redact attribute), no user-facing strings, so
+    All visible text comes from the widget's Blade/lang, never this bundle — the config island
+    carries only behavior (locale, capture clamps, redact attribute), no user-facing strings, so
     the committed dist/ can never fall behind the 7 locales. The base URL is the `ui.assets`
     config or the published `vendor/visual-feedback` path.
 
@@ -22,7 +22,7 @@
     $assetBase = rtrim((string) (config('visual-feedback.ui.assets') ?: asset('vendor/visual-feedback')), '/');
     $nonce = app(\Pushery\VisualFeedback\Support\CspNonce::class)->resolve($nonce);
 
-    // Subresource Integrity, and ONLY where it can mean something: the bundles have to be coming
+    // Subresource Integrity, and only where it can mean something: the bundles have to be coming
     // from an origin this application does not own. Served from the host's own `public/` they are
     // same-origin already and the digest would be checking a file against itself.
     //
@@ -44,42 +44,41 @@
     // browser or CDN cache. CSP is untouched — a `script-src` source expression matches on the
     // path, never on the query.
     //
-    // It is the CONTENT HASH of the published file where there is one to read, and the package
+    // It is the content hash of the published file where there is one to read, and the package
     // version only where there is not. The decision lives in PublishedBundle, which explains why:
     // a version describes `vendor/` while the bytes being served come from `public/`, and a
     // consuming application reported those two disagreeing on a live page.
     $cacheToken = fn (string $bundle): string => app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->cacheToken($bundle);
 
     // The token above solves "republished but still cached". This line answers the other failure
-    // shape: NOT republished at all, so `public/` still holds the previous release's bundle. It
-    // measures server-side out of `vendor/`, which is why it works on the FIRST request after an
+    // shape: not republished at all, so `public/` still holds the previous release's bundle. It
+    // measures server-side out of `vendor/`, which is why it works on the first request after an
     // upgrade — a client-side stamp would be executed by the stale copy itself. It reads nothing
     // from disk unless APP_DEBUG is on, and renders no inline script: a policy that admits the
     // bundles by path alone, with no nonce, would refuse one.
     app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfUnusable();
 @endphp
-{{-- Master switch. The host places this tag in ITS own layout, so the widget cannot take it away
+{{-- Master switch. The host places this tag in its own layout, so the widget cannot take it away
      by rendering nothing itself — this component has to ask too, exactly as the fab and the
      trigger do, or an operator who switched the package off still ships the whole renderer. --}}
 @if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
-{{-- THE STYLESHEET, IF THE LAYOUT DID NOT ALREADY ASK FOR IT — and this is a self-heal, not a
+{{-- The stylesheet, if the layout did not already ask for it — and this is a self-heal, not a
      second documented way to install the widget. Keep writing @include('visual-feedback::style')
      in your <head>; that is where it belongs and it is where it will not flash.
 
-     Across the applications embedding this widget, 6 of 11 carried the
-     widget and this very tag, and not the include. They shipped it unstyled — no positioning for
-     the floating panel, no dialog styling, and no concealment rule for the honeypot, which lives
-     in that sheet. Nothing was red anywhere. The widget renders, opens and sends; it just looks
-     like nothing else on the page.
+     A layout that carries the widget and this very tag, and not the include, ships it unstyled —
+     no positioning for the floating panel, no dialog styling, and no concealment rule for the
+     honeypot, which lives in that sheet. Nothing fails anywhere. The widget renders, opens and
+     sends; it just looks like nothing else on the page.
 
-     AND THE FIX COULD NOT HAVE REACHED THEM ANY OTHER WAY. The file the missing line belongs
-     in is the host's own layout, which no upgrade touches — every affected application would
-     have had to be edited by hand, one at a time, after somebody counted them. Emitting it from
-     a package-owned template is what makes an upgrade enough.
+     And nothing else reaches such a layout. The file the missing line belongs in is the host's
+     own layout, which no upgrade touches — every affected application would have to be edited
+     by hand, one at a time. Emitting it from a package-owned template is what makes an upgrade
+     enough.
 
      Two costs, both accepted deliberately. This renders before </body> rather than in the head,
      so a host relying on the self-heal gets a brief unstyled frame — visibly worse than the
-     include, and enormously better than never. And a host that includes the sheet BELOW this tag
+     include, and enormously better than never. And a host that includes the sheet below this tag
      gets it twice; the rules are identical and idempotent, so the duplicate is inert.
 
      The log line is not decoration: without it the self-heal would quietly make the missing line
@@ -99,7 +98,7 @@
 <script type="application/json" data-visual-feedback-config>{!! json_encode($clientConfig, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_THROW_ON_ERROR) !!}</script>
 {{-- `strategy = off` is documented as "disables the screenshot entirely", and the widget keeps
      that promise: at `off` it renders no `x-data="visualFeedbackCapture(…)"` island at all, so
-     nothing on the page needs the renderer. At `native` it DOES render one — the bundle is the
+     nothing on the page needs the renderer. At `native` it does render one — the bundle is the
      only thing that registers that component — so the tag stays there even though html2canvas
      can never run. Saving the renderer at `native` means shipping the ESM entry instead, which
      is a different delivery contract, not a condition on this line.
@@ -109,13 +108,13 @@
      (`defer` does not apply to a cloned element), so the bundle would be re-parsed per
      navigation and leave one more `alpine:init` listener — and its whole module scope —
      retained on `window` each time. --}}
-{{-- The widget bundle, ALWAYS — it is what registers the Alpine components the templates bind
+{{-- The widget bundle, always — it is what registers the Alpine components the templates bind
      to, and under Alpine's CSP build a component that is not registered means the element is
      never initialized at all: an empty scope, and every directive on it dead, with only the browser
      console to show for it.
      Unconditional for that reason and affordable because of its size, under 12 KB. --}}
 <script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($cacheToken('visual-feedback-widget.iife.js')) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
+<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-renderer-token="{{ $cacheToken('visual-feedback-renderer.iife.js') }}" @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @endif
 @endif

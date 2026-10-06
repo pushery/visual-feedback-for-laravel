@@ -7,15 +7,17 @@ namespace Pushery\VisualFeedback\Channels;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Config\Repository as Config;
 use LogicException;
+use Pushery\VisualFeedback\Support\RedactedFailure;
+use Throwable;
 
 /**
- * Per-report delivery receipts, in the CACHE — so "which channel delivered this report?" is
+ * Per-report delivery receipts, in the cache — so "which channel delivered this report?" is
  * answerable even for a mail-only consumer with no database table. This fixes the single-column
  * approach, where one `email_sent_at` stays NULL forever: each report UUID holds a receipt map
  * `{channel: pending|delivered|failed}`, existing independently of which channels are active. A
  * single column could never express mail=delivered while webhook=failed; a map can.
  *
- * The optional database row (DatabaseChannel) is a SEPARATE, richer copy; this
+ * The optional database row (DatabaseChannel) is a separate, richer copy; this
  * cache store is the always-present source of truth. TTL tracks the report retention window.
  *
  * Writers do not share a cache value. The request records `pending` for a channel while a worker
@@ -38,6 +40,23 @@ final readonly class ReceiptStore
     {
         $this->cache->put($this->statusKey($reportId, $channel), $status->value, $this->ttlSeconds());
         $this->list($reportId, $channel);
+    }
+
+    /**
+     * Record that a channel has taken the report, as far as the cache can say so.
+     *
+     * The pending receipt tells a reader that a delivery is under way, and the channel's terminal
+     * settle writes the receipt that counts. A channel records it before it queues its job, so a
+     * store that throws here would stop the job from being queued, and a cache outage would cost
+     * the report itself. A failed write is reported and passed over.
+     */
+    public function recordPending(string $reportId, string $channel): void
+    {
+        try {
+            $this->record($reportId, $channel, DeliveryStatus::Pending);
+        } catch (Throwable $exception) {
+            report(RedactedFailure::standIn($exception));
+        }
     }
 
     /**

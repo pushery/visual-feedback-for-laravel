@@ -19,8 +19,8 @@ use Pushery\VisualFeedback\VisualFeedbackServiceProvider;
  * Reading `config('visual-feedback.foo.bar')` directly would then yield null or that value and
  * silently behave as if the feature were off/unlimited.
  *
- * Every read here therefore has a safe code default, and the SECURITY-relevant reads
- * (abuse limits, attachment caps, error handling) degrade CLOSED: a missing or invalid
+ * Every read here therefore has a safe code default, and the security-relevant reads
+ * (abuse limits, attachment caps, error handling) degrade closed: a missing or invalid
  * key never yields a laxer value than the documented default. Cosmetic reads may
  * default open. This is the mechanism behind the config drift-absicherung.
  */
@@ -109,20 +109,19 @@ final readonly class Settings
     }
 
     /**
-     * Say why `auto` serves the plain tree although the package IS installed, and answer no.
+     * Say why `auto` serves the plain tree although the package is installed, and answer no.
      *
-     * The refusal used to be silent, and a silent degradation is the worse kind: a host whose
-     * WireKit was too old for this tree got the plain one, with the larger stylesheet, and nothing
-     * in the log said why. It surfaced only where a test happened to look for a WireKit marker.
+     * A silent refusal would be the worse kind of degradation: a host whose WireKit is too old
+     * for this tree gets the plain one, with the larger stylesheet, and nothing in the log would
+     * say why.
      *
      * It is asked on every boot, from the view paths, and under PHP-FPM every request boots, as
      * every artisan call and scheduler tick does. So the line is written once a day per installed
      * version: the first boot claims a cache key with add(), which only an absent key takes, and
      * every later boot that day stays quiet. A cache that cannot be reached at boot lets the line
-     * through rather than hide it. The package name is a parameter for the same reason
-     * `packageSatisfiesWireKitFloor()` takes one: the suite's own vendor tree always carries a
-     * WireKit new enough, and an installed package below the floor is what reaches the warning
-     * honestly.
+     * through rather than hide it. The package name is a parameter, as in
+     * `packageSatisfiesWireKitFloor()`, so the warning can be reached with any installed package
+     * below the floor, not only with an old WireKit.
      */
     public function warnPlainTree(string $package): bool
     {
@@ -153,10 +152,10 @@ final readonly class Settings
      * rather than bounding it: no trigger, no form, and a submit from a guest session refused.
      * Everything under `abuse` is a limit on traffic that is still allowed to arrive.
      *
-     * Ships OFF, unlike `abuse.global_rate_limit` beside it, and the difference is who it can
+     * Ships off, unlike `abuse.global_rate_limit` beside it, and the difference is who it can
      * hurt. A ceiling that is too low costs an install some reports on its worst day; turning
      * this on for a host that never asked would delete their entire guest audience silently. A
-     * default may be restrictive about VOLUME and must not be restrictive about WHO.
+     * default may be restrictive about volume and must not be restrictive about who.
      *
      * An unreadable value reads as off for the same reason: `false` is the documented default, so
      * degrading to it is degrading to what the file promises.
@@ -176,16 +175,16 @@ final readonly class Settings
     }
 
     /**
-     * The configured abuse driver, as a name — NOT validated against a fixed list.
+     * The configured abuse driver, as a name — not validated against a fixed list.
      *
-     * It used to be whitelisted to `builtin|botgate|none`, which quietly made the extension point
+     * A whitelist such as `builtin|botgate|none` would quietly make the extension point
      * impossible: a host registering its own gate under any other key could never select it,
-     * because this degraded the name to `builtin` before AbuseGateRegistry ever saw it.
+     * because the name would degrade to `builtin` before AbuseGateRegistry ever saw it.
      *
-     * The safety intent behind that whitelist is kept, and moved to where it can actually be
-     * checked: a name with no registered gate yields the floor alone AND a warning
+     * The safety intent behind such a whitelist is kept where it can actually be checked: a name
+     * with no registered gate yields the floor alone and a warning
      * (AbuseGateRegistry::additional()), which is strictly louder than degrading in silence. No
-     * value of this setting can reduce protection — the registry only ever ADDS gates on top of a
+     * value of this setting can reduce protection — the registry only ever adds gates on top of a
      * floor that is unconditional.
      */
     public function abuseDriver(): string
@@ -200,7 +199,7 @@ final readonly class Settings
      *
      * Null is the default and the state of every install that wires no challenge, so "no view" has
      * to be the cheap, silent path rather than an error. A non-string is treated as null for the
-     * same reason a missing key is: this decides what gets RENDERED, and a broken value must not
+     * same reason a missing key is: this decides what gets rendered, and a broken value must not
      * take the form down with it.
      */
     public function challengeView(): ?string
@@ -225,7 +224,7 @@ final readonly class Settings
     /**
      * The instance-wide per-hour cap, counted across every reporter and every address. `0` is off.
      *
-     * THE TWO LIMITS ABOVE COUNT PER SUBJECT, AND A DISTRIBUTED SENDER NEVER MEETS EITHER. A
+     * The two limits above count per subject, and a distributed sender never meets either. A
      * thousand addresses that each stay under the guest limit produce a thousand reports an hour
      * between them, and on the mail channel every one of those is a message with its attachments
      * at a provider that bills per message and per byte. Nothing in this package bounded that.
@@ -233,7 +232,7 @@ final readonly class Settings
      * Note the asymmetry with `positiveInt()`, which every other cap here uses: `0` is honored as
      * "switched off" rather than discarded as invalid, because an operator has to be able to
      * decline a ceiling they know is wrong for them. Everything unreadable still falls back to the
-     * shipped cap, and so does an ABSENT key — which is the case that matters, because a config
+     * shipped cap, and so does an absent key — which is the case that matters, because a config
      * file published before this key existed cannot be distinguished from one that omits it on
      * purpose, and the installs most exposed to the bill are the ones that never read a changelog.
      */
@@ -251,8 +250,8 @@ final readonly class Settings
     }
 
     /**
-     * Whether the builtin driver lets a submission through when its OWN check errors.
-     * Only an explicit `open` opens it; a missing key degrades CLOSED.
+     * Whether the builtin driver lets a submission through when its own check errors.
+     * Only an explicit `open` opens it; a missing key degrades closed.
      */
     public function abuseOpensOnError(): bool
     {
@@ -260,33 +259,32 @@ final readonly class Settings
     }
 
     /**
-     * Whether an ADDITIONAL driver lets a submission through when its own check throws.
+     * Whether an additional driver lets a submission through when its own check throws.
      *
      * Separate from `abuseOpensOnError()` above, and the defaults point opposite ways on purpose.
-     * The builtin floor degrades CLOSED on a missing key, because its own failure is a cache
+     * The builtin floor degrades closed on a missing key, because its own failure is a cache
      * outage on this host. An added gate is a third party's: a Turnstile outage would otherwise
      * silence every feedback form that uses it, so the shipped default stays `open`.
      *
-     * A host who pays per delivered report wants the other trade, and could not have it before.
-     * `closed` is that: while the driver does not answer, submissions are refused rather than
-     * waved through with only the floor underneath.
+     * A host who pays per delivered report wants the other trade, and `closed` is that: while
+     * the driver does not answer, submissions are refused rather than waved through with only
+     * the floor underneath.
      */
     public function additionalGateOpensOnError(string $driver): bool
     {
         $configured = $this->config()->get("visual-feedback.abuse.drivers.{$driver}.on_error")
             // The scalar default, for the case the map structurally cannot serve. `drivers` is
             // keyed by a name the host chooses, and no environment variable can express a map —
-            // so a consumer who does not publish the configuration had no way to harden the one
-            // driver they run. Reported from a consuming application that had just been given the
-            // instance ceiling for free BY not publishing, and would have had to give that up to
-            // change this one word.
+            // so without it a consumer who does not publish the configuration would have no way
+            // to harden the one driver they run, short of publishing the whole file and giving up
+            // every default it would otherwise follow, for this one word.
             //
             // The map still wins wherever it speaks: a published `'turnstile' => ['on_error' =>
             // 'closed']` is the finer instrument and the reason the map exists. This only answers
             // when the map is silent about this driver.
             ?? $this->config()->get('visual-feedback.abuse.driver_on_error');
 
-        // Anything that is not the explicit word stays OPEN, which is the shipped behavior. This
+        // Anything that is not the explicit word stays open, which is the shipped behavior. This
         // is the one place in this class where an unreadable value degrades permissive, and it is
         // deliberate: a typo in a per-driver key must not take a consumer's form offline.
         return $configured !== 'closed';
@@ -306,10 +304,10 @@ final readonly class Settings
     /**
      * How one of the configurable form fields is meant to behave: `off`, `optional` or `required`.
      *
-     * ONE vocabulary and ONE place, and that is the whole point of this method. Until 0.9.0 the
+     * One vocabulary and one place, and that is the whole point of this method. Until 0.9.0 the
      * same question was answered twice in two different shapes: `fields.<f>.enabled` decided
      * whether `subject` and `phone` appeared at all, while `guests.require_name` / `require_email`
-     * decided whether name and email were mandatory — and NOTHING decided whether those two
+     * decided whether name and email were mandatory — and nothing decided whether those two
      * appeared, because the view rendered them for every guest unconditionally. A host who wanted
      * the email box gone had no key to set.
      *
@@ -321,7 +319,7 @@ final readonly class Settings
      *   4. the field's own default
      *
      * Step 1 normally wins outright, because the shipped config always sets `mode` — including
-     * for a host who only ever set the OLD environment variable, since that file folds it in.
+     * for a host who only ever set the old environment variable, since that file folds it in.
      * Steps 2 and 3 exist for a consumer who published the config before 0.9.0 and whose file
      * therefore has no `mode` key at all. The section merge would fill one in from the shipped
      * file; for a field such a file describes in the older keys, the provider clears it again.
@@ -357,8 +355,8 @@ final readonly class Settings
             return self::FIELD_REQUIRED;
         }
 
-        // `enabled === true` is checked LAST of the three and it is not redundant: without it a
-        // host who published an older config and switched the phone field ON would fall through
+        // `enabled === true` is checked last of the three and it is not redundant: without it a
+        // host who published an older config and switched the phone field on would fall through
         // to the shipped default, which for that field is `off` — their setting silently undone
         // by the very code meant to honor it. Caught by the control arm beside the `false` one,
         // which is there precisely because reading a boolean at all satisfies the `false` case.

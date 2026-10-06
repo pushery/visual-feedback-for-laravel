@@ -7,14 +7,14 @@ namespace Pushery\VisualFeedback\Channels;
 use Illuminate\Contracts\Cache\Repository as Cache;
 
 /**
- * The per-report attachment refcount, backed by the CACHE — the optional
+ * The per-report attachment refcount, backed by the cache — the optional
  * reports table cannot carry it (a mail-only, DB-less consumer still needs cleanup). It is
- * ARMED once with the number of transient channels that will deliver the report, and each
- * channel DECREMENTS it exactly once when it terminally settles; the file cleanup runs when
+ * armed once with the number of transient channels that will deliver the report, and each
+ * channel decrements it exactly once when it terminally settles; the file cleanup runs when
  * the count reaches zero. The decrement is atomic (Cache::decrement) because two channel jobs
  * finishing on different workers at the same instant is the normal case, not an edge.
  *
- * The counter is only ever ARMED for the all-transient case (see ReportDeliveryTracker); a
+ * The counter is only ever armed for the all-transient case (see ReportDeliveryTracker); a
  * missing key therefore means "no refcount cleanup applies" — a persistent holder is present,
  * or the counter was already released. Its TTL comfortably outlives the longest queue retry
  * horizon; the age-based orphan sweep is the named backstop for a cache eviction.
@@ -36,12 +36,20 @@ final readonly class AttachmentRefcount
         return $this->cache->has($this->key($reportId));
     }
 
-    /** Atomic terminal decrement; returns the remaining count. */
-    public function decrement(string $reportId): int
+    /**
+     * Atomic terminal decrement: the remaining count, or null when the store holds no counter.
+     *
+     * A store answers the decrement of a missing key in one of two ways: Redis, the file and the
+     * array store create it at -1, the database and Memcached stores return false. Either way the
+     * counter is gone, which means what a missing key means everywhere else in this class: no
+     * refcount cleanup applies, and the orphan sweep collects the files. Read as the last channel
+     * settling, it would delete the attachments while another channel may still need them.
+     */
+    public function decrement(string $reportId): ?int
     {
         $remaining = $this->cache->decrement($this->key($reportId));
 
-        return is_int($remaining) ? $remaining : 0;
+        return is_int($remaining) && $remaining >= 0 ? $remaining : null;
     }
 
     public function release(string $reportId): void

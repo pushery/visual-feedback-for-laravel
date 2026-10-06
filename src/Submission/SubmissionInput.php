@@ -11,7 +11,7 @@ use Pushery\VisualFeedback\Data\Reporter;
 /**
  * The transport-agnostic input to the submit pipeline. The Livewire component (or any
  * future frontend adapter) does the UI-bound work — temp uploads, screenshot capture,
- * storing files — and hands the service PATHS, so the service never touches a
+ * storing files — and hands the service paths, so the service never touches a
  * TemporaryUploadedFile or any Livewire type. Attachments and the screenshot are
  * already-stored storage paths by the time they reach here.
  */
@@ -21,7 +21,7 @@ final readonly class SubmissionInput
      * @param  list<ReportContextEntry>  $context
      * @param  array<string, scalar|null>  $metadata
      * @param  list<string>  $attachmentPaths  already-stored storage paths
-     * @param  array<string, mixed>  $challenge  client-supplied challenge data, UNTRUSTED and unenforced
+     * @param  array<string, mixed>  $challenge  client-supplied challenge data, untrusted and unenforced
      */
     public function __construct(
         public string $category,
@@ -37,7 +37,7 @@ final readonly class SubmissionInput
         /**
          * The reporter's address, and the guest rate limit is keyed on it.
          *
-         * NULL IS NOT "no limit" — it is a SHARED bucket. Every attempt that arrives without an
+         * NULL is not "no limit" — it is a shared bucket. Every attempt that arrives without an
          * address counts against one `unknown` key, so a second adapter that does not fill this
          * puts all of its guests on one 5/hour allowance between them. That is the deliberate
          * direction: a transport that cannot say who is calling gets the strictest treatment
@@ -53,7 +53,7 @@ final readonly class SubmissionInput
          * the built-in floor ignores it entirely. The gate that asked for it is the only thing
          * that knows what it means, and the only thing that may trust it.
          *
-         * APPENDED LAST on purpose. This constructor is the seam a future frontend adapter calls,
+         * Appended last on purpose. This constructor is the seam a future frontend adapter calls,
          * and inserting a parameter into the middle of it silently re-points every positional
          * argument after the insertion. `ReportAttempt` appends for the same reason.
          *
@@ -61,7 +61,7 @@ final readonly class SubmissionInput
          */
         public array $challenge = [],
         /**
-         * The categories THIS call site offered, when it offered something other than the
+         * The categories this call site offered, when it offered something other than the
          * configured list.
          *
          * The widget's `categories` mount prop is documented as "the category list this widget
@@ -70,7 +70,7 @@ final readonly class SubmissionInput
          * rendered a labeled option the pipeline rejected on every submit, with a message about
          * an invalid selection and no way for the reporter to get past it.
          *
-         * SERVER-AUTHORED, and that is what makes trusting it safe. The mount prop is sealed
+         * Server-authored, and that is what makes trusting it safe. The mount prop is sealed
          * (see `ReportWidget::$sealedProps`), so a browser cannot widen it after mount, and any
          * other caller of this pipeline is server code by definition. Empty means "use the
          * configured list", which is what every caller that offers no list of its own passes.
@@ -79,7 +79,7 @@ final readonly class SubmissionInput
          */
         public array $allowedCategories = [],
         /**
-         * The mode of each optional field as THIS call site resolved it: `off`, `optional` or
+         * The mode of each optional field as this call site resolved it: `off`, `optional` or
          * `required`, keyed by field name.
          *
          * The widget's `fields` mount prop wins over the configuration, so the form a reporter

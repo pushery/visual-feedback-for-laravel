@@ -13,7 +13,7 @@ use RuntimeException;
  * Server-side screenshot validation. A screenshot that travels its own path bypasses attachment
  * validation entirely: the only limit left is Livewire's 12-MiB default, with no MIME check, and
  * the file is stored under a hardcoded `image/png` label that nothing ever sniffed. Here
- * the stored screenshot goes through the SAME kind of caps as any attachment:
+ * the stored screenshot goes through the same kind of caps as any attachment:
  *
  *  - a real PNG check (finfo on the bytes, never the filename or client MIME);
  *  - the `screenshot.max_bytes` byte cap;
@@ -102,13 +102,13 @@ final readonly class ScreenshotValidator
      * The server-sniffed MIME type of the bytes (content magic, never the extension).
      *
      * The twin of AttachmentValidator::sniff(), and it carries the same omission for the same
-     * reason: the handle is NOT closed. finfo_open returns an OBJECT since PHP 8.1, freed when
+     * reason: the handle is not closed. finfo_open returns an object since PHP 8.1, freed when
      * $finfo leaves scope, so finfo_close() has had nothing to do here for three major versions —
      * and PHP 8.5 deprecates the function outright.
      *
-     * That deprecation is invisible to this suite: Laravel's error handler routes E_DEPRECATED to
-     * the "deprecations" log channel and returns, so phpunit.xml.dist's failOnDeprecation never
-     * receives it and the php-next lane on 8.5 cannot go red on it either.
+     * Under Laravel that deprecation surfaces nowhere: the error handler routes E_DEPRECATED to
+     * the "deprecations" log channel and returns, so a test run with failOnDeprecation never
+     * receives it either.
      */
     private function sniff(string $content): string
     {

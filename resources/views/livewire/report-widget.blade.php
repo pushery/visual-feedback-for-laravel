@@ -1,8 +1,8 @@
 @php
-    // WHICH control carries the invalid state -- decided once, so the eight call sites below
+    // Which control carries the invalid state -- decided once, so the eight call sites below
     // cannot drift apart, and null whenever the failure was not the reporter's doing.
     //
-    // `$failedField` alone would be wrong here. It is a FOCUS TARGET: a listener veto, a rate
+    // `$failedField` alone would be wrong here. It is a focus target: a listener veto, a rate
     // limit and the master switch being off all point it at the message box while the message
     // the reporter wrote is fine. Marking that control invalid would tell a screen reader the
     // text is wrong because the widget is switched off. `$failedFieldInvalid` is the server's
@@ -12,25 +12,24 @@
 <div
     {{-- Browser metadata collector. Untrusted by design — the server MetadataSanitizer
          enforces the allowlist, caps, http(s)-only URLs and never-IP. It is measured
-         FRESH at open and again at submit (never frozen at page load — a viewport or
+         fresh at open and again at submit (never frozen at page load — a viewport or
          scroll change between the two would otherwise ship stale data). darkMode reads
          the app appearance (`.dark`/`.light` on <html>) before the OS preference, so a
          light app on a dark OS is not mislabeled. `user_agent` is deliberately omitted
          here — the server overrides it with the request's own, unspoofable value. --}}
-    {{-- Everything that used to live in this attribute now lives in the bundle, as a
-         registered Alpine component. Not a CSP variant of the template — the SAME form serves
-         both Alpine builds, and it is three lines instead of sixty-three.
+    {{-- The logic of this attribute lives in the bundle, as a registered Alpine component. Not
+         a CSP variant of the template — the same form serves both Alpine builds.
 
-         The move was forced: an object literal with method shorthand, `const`, `if`, `return`,
+         The attribute cannot hold it: an object literal with method shorthand, `const`, `if`, `return`,
          default parameters, arrow functions and bare `document`/`window` is outside the CSP
          grammar on six independent counts, and a rejected `x-data` leaves the element with an
          empty scope — every directive beneath it then does nothing, with only the browser console
          to show for it. --}}
     x-data="visualFeedbackWidget()"
-    {{-- Single open handler for ALL three trigger paths (built-in FAB, standalone
+    {{-- Single open handler for all three trigger paths (built-in FAB, standalone
          <x-visual-feedback::fab> / <x-visual-feedback::trigger>, and a host's own
-         $dispatch('visual-feedback:open')). Each dispatches this window event; here we
-         re-measure metadata and open the native modal. --}}
+         $dispatch('visual-feedback:open')). Each dispatches this window event; the handler here
+         re-measures metadata and opens the native modal. --}}
     x-on:visual-feedback:open.window="vfOpen()"
 >
     @if ($showFab)
@@ -41,7 +40,7 @@
     {{-- The panel. In modal mode it is a real modal <dialog> (top layer, focus-trapped by the
          browser); in inline mode it is that same element with `open` on it.
 
-         That is NOT the same as in-flow, which this comment claimed until the layout was
+         That is not the same as in-flow, which this comment claimed until the layout was
          measured: the UA stylesheet gives every <dialog> `position: absolute` and only
          `dialog:modal` `position: fixed`. An open inline dialog therefore contributes nothing
          to its container's height and centers itself in the viewport rather than in its own
@@ -55,7 +54,7 @@
         @else
             {{-- Preserve the native modal (top-layer) state across Livewire morphs: the
                  form inside re-renders on submit, but the dialog element's own open state
-                 is NOT morphed away, so the success stays visible. Without this the server
+                 is not morphed away, so the success stays visible. Without this the server
                  (which renders the dialog closed) would drop the JS-opened state. --}}
             wire:ignore.self
         @endif
@@ -97,9 +96,9 @@
 
         @unless ($submitted)
             {{-- Re-measure metadata in the capture phase, before Livewire's own submit
-                 handler fires, so the report carries the state AT submit — not at open. --}}
+                 handler fires, so the report carries the state at submit — not at open. --}}
             <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
-                {{-- The modal's opening focus is ANCHORED here, not left to the UA. Without an
+                {{-- The modal's opening focus is anchored here, not left to the UA. Without an
                      autofocus target the browser picks the first focusable descendant — today
                      the close button, which tells a screen-reader user nothing about what just
                      opened. Focusing the heading announces the dialog by name first. Modal only:
@@ -112,15 +111,15 @@
                 {{-- Honeypot: off-screen, hidden from assistive tech, never tab-reachable.
                      Bots fill it; a non-empty value is silently rejected by the pipeline. --}}
                 <div class="visual-feedback-honeypot" aria-hidden="true"
-                    {{-- BOTH mechanisms, deliberately, and neither is redundant.
+                    {{-- Both mechanisms, deliberately, and neither is redundant.
                          The inline style is what hides this on an installation that never
-                         included the stylesheet. The CLASS is what hides it when a content
+                         included the stylesheet. The class is what hides it when a content
                          security policy allows the stylesheet (nonce or hash) but forbids
-                         style ATTRIBUTES -- `style-src-attr 'none'` is ordinary hardening,
+                         style attributes -- `style-src-attr 'none'` is ordinary hardening,
                          and under it an attribute-only concealment is simply dropped.
                          What is at stake is not cosmetic: an exposed honeypot is filled in
-                         by real reporters, and a honeypot hit shows the success screen ON
-                         PURPOSE. Both sides then believe a report was delivered that
+                         by real reporters, and a honeypot hit shows the success screen on
+                         purpose. Both sides then believe a report was delivered that
                          nobody will ever see. --}}
                     style="position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px;">
                     <label>
@@ -133,12 +132,12 @@
                      wire:ignore is load-bearing, not defensive — a challenge widget is third-party
                      DOM with its own JavaScript, and Livewire's morphing would tear it out from
                      under itself on the next update. That is the failure everyone wiring one of
-                     these by hand hits first. The region is OURS (spacing, position in the form);
+                     these by hand hits first. The region is the widget's (spacing, position in the form);
                      the markup inside is the host's.
 
                      `overflow-x:auto` is not cosmetic. Measured in a real browser at a 320px
                      viewport: the form gives this region 238px, and a Turnstile widget is 300px
-                     wide by specification. Without it the widget overflows by 64px, the PAGE does
+                     wide by specification. Without it the widget overflows by 64px, the page does
                      not scroll, and the right-hand part of a challenge a reporter has to solve is
                      simply unreachable. The style is inline rather than in the package stylesheet
                      because the WireKit tree does not load that sheet.
@@ -195,18 +194,18 @@
                 @endif
 
                 {{-- The counter's locale comes from the app (never a hardcoded literal
-                     such as 'de-DE'), so the thousands separator matches the
+                     such as 'de-de'), so the thousands separator matches the
                      reporter's language. --}}
                 {{-- A scalar object literal, spelled out rather than handed over as one
                      Blade-encoded array: `@js()` on a scalar renders a plain literal, but on an
-                     ARRAY it renders `JSON.parse('…')` — and `JSON` is an identifier Alpine's
+                     array it renders `JSON.parse('…')` — and `JSON` is an identifier Alpine's
                      CSP evaluator cannot resolve. --}}
                 <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
                     <label for="visual-feedback-message">
                         {{ __('visual-feedback::messages.widget.message_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                     </label>
                     {{-- `required` states what the server already enforces (SubmitReport's rules),
-                         which until now the control never said: the reporter learned it from the
+                         so the reporter learns it from the control rather than from the
                          rejection. Safe here and nowhere near a native validation bubble in the
                          browser's own language — the form carries `novalidate`, so every rejection
                          still comes back through this package's own seven locales. --}}
@@ -217,15 +216,15 @@
                          match the server's mb_strlen validation, so client and server judge
                          the exact same length; Intl.NumberFormat(appLocale) for the display.
 
-                         It used to be ONE element that was both the visible counter and an
-                         `aria-live` region rewritten on every keystroke — the established
-                         anti-pattern for a character counter, and the reason GOV.UK's own
-                         component debounces its status region instead. Two elements now: the
+                         Not one element that is both the visible counter and an `aria-live`
+                         region rewritten on every keystroke — the established anti-pattern for
+                         a character counter, and the reason GOV.UK's own component debounces
+                         its status region instead. Two elements: the
                          visible tally updates live for the eye and is out of the accessibility
                          tree, and a separate off-screen region takes the value only once typing
                          has paused. The region is never toggled on and off — an `aria-live`
                          element that appears in the same tick as its text can have that first
-                         change swallowed, which is why the throttle is on the CONTENT. --}}
+                         change swallowed, which is why the throttle is on the content. --}}
                     <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
                     {{-- The inline style is the same concealment as the stylesheet rule, for a host
                          that has not included the stylesheet: without it this region renders as a
@@ -237,8 +236,8 @@
                 @if ($screenshotEnabled)
                     {{-- Screenshot capture. The tree-agnostic JS module (capture.js) drives
                          the state machine; this tree renders it. $wire.upload is the swappable
-                         uploader seam. The reporter SEES the PNG (preview) and can discard or
-                         retake BEFORE submit — a GDPR-transparency requirement. All status text
+                         uploader seam. The reporter sees the PNG (preview) and can discard or
+                         retake before submit — a GDPR-transparency requirement. All status text
                          comes from lang, never the JS bundle. --}}
                     {{-- Every capture step swaps the visible control, and the one being swapped
                          out is the one the keyboard user just pressed. Each terminal state names
@@ -246,9 +245,9 @@
                          transient states (capturing, uploading) name nothing and are simply
                          skipped, and the next terminal state picks focus back up. --}}
                     {{-- No arguments: `@js()` renders an array as `JSON.parse('…')`, and `JSON` is
-                         an identifier the CSP evaluator cannot resolve. The audit substitutes
-                         `@js(…)` away before parsing, so it would have called that green. The
-                         settings ride on the element instead, as data the evaluator never reads,
+                         an identifier the CSP evaluator cannot resolve, although the Blade source
+                         only shows `@js(…)`. The settings ride on the element instead, as data
+                         the evaluator never reads,
                          and the component's init() takes them from its own element: the first
                          element on the page with a config attribute could be one the page's
                          users wrote. The uploader seam and the stage callback live in init() as
@@ -277,11 +276,11 @@
                             <span x-show="status === 'uploading'">{{ __('visual-feedback::messages.widget.screenshot_uploading') }}</span>
                             {{-- The `attached` claim is the one piece of this status line that a server-side
                             rejection can falsify: `WithFileUploads::_finishUpload()` dispatches
-                            `upload:finished` BEFORE it calls the `updated` hook, so the Alpine
+                            `upload:finished` before it calls the `updated` hook, so the Alpine
                             promise resolves and sets `status = 'attached'` even when the perimeter
                             refused the file. Without this guard the aria-live region says
                             "screenshot attached" while the role="alert" region beside it says the
-                            file is too large. The retake button below is deliberately NOT wrapped:
+                            file is too large. The retake button below is deliberately not wrapped:
                             it is the recovery path, and its label is an offer rather than a claim. --}}
                             @unless ($errors->has('screenshot'))
                                 <span class="visual-feedback-success" x-show="status === 'attached'"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.screenshot_attached') }}</span>
@@ -290,35 +289,32 @@
 
                         {{-- Preview before submit: discard (never uploaded), retake, or attach. --}}
                         <div class="visual-feedback-captured-pending" x-show="status === 'captured'">
-                            {{-- `x-if`, NOT the `x-show` on the container, and the difference is a request per page
+                            {{-- `x-if`, not the `x-show` on the container, and the difference is a request per page
                                  view. `x-show` sets `display:none` and leaves the element in the DOM, so before the
-                                 first capture every page carrying the widget held an image element whose `src` was empty.
-                                 An empty `src` resolves against the PAGE URL: the browser fetches the HTML document
+                                 first capture every page carrying the widget would hold an image element whose `src` is
+                                 empty. An empty `src` resolves against the page URL: the browser fetches the HTML document
                                  as an image and throws it away, `naturalWidth` stays 0, and every browser checker
-                                 reads it as broken. A consumer's suite went red on 54 pages from this one element.
+                                 reads it as broken, on every page that carries the widget.
 
                                  The condition is `previewUrl` rather than the status, because that is the thing
                                  being asserted: the image exists exactly when it has a source.
 
-                                 AND ONLY THE IMAGE MOVES. The reported fix wrapped the whole block, which would
-                                 have taken `x-ref="captured"` with it -- and the capture component focuses
-                                 `$refs[status]` on every status change, so the successor control is reachable after
-                                 the reporter presses the one being swapped out. `vfFocusIfLost` returns silently on
-                                 a missing element, so that regression would be invisible: no error, no failing arm,
-                                 just focus dropping to <body> for anyone on a keyboard.
+                                 And only the image moves. Wrapping the whole block would take `x-ref="captured"`
+                                 with it -- and the capture component focuses `$refs[status]` on every status change,
+                                 so the successor control is reachable after the reporter presses the one being
+                                 swapped out. `vfFocusIfLost` returns silently on a missing element, so that loss
+                                 would be invisible: no error, just focus dropping to <body> for anyone on a keyboard.
 
-                                 `loading="lazy"` is gone with it, and for two releases this sentence was
-                                 true while the attribute was still three lines below it. It never worked here --
-                                 a lazy image inside a `display:none` parent is never requested at all -- and an
-                                 element that only exists once it is needed has nothing left to defer.
+                                 No `loading="lazy"` either. It cannot work here -- a lazy image inside a
+                                 `display:none` parent is never requested at all -- and an element that only exists
+                                 once it is needed has nothing left to defer.
 
-                                 The parent really does go `display:none` while this element is still rendered,
-                                 which is what kept it biting: `x-if` switches on `previewUrl`, the container
-                                 switches on `status`, and `attach()` sets `status = 'attached'` without ever
-                                 nulling `previewUrl` -- only `discard()` reaches `reset()`. So after attaching,
-                                 the image sat inside a hidden container, was never requested, and read as broken
-                                 to anything that checks `naturalWidth`. Same measurement as before the `x-if`,
-                                 one page later. --}}
+                                 The parent really does go `display:none` while this element is still rendered:
+                                 `x-if` switches on `previewUrl`, the container switches on `status`, and `attach()`
+                                 sets `status = 'attached'` without ever nulling `previewUrl` -- only `discard()`
+                                 reaches `reset()`. So after attaching, the image sits inside a hidden container,
+                                 where a lazy one would never be requested and would read as broken to anything that
+                                 checks `naturalWidth`. --}}
                             <template x-if="previewUrl">
                                 <img class="visual-feedback-preview" :src="previewUrl"
                                     alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" decoding="async">
@@ -335,9 +331,9 @@
                             {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                         </button>
 
-                        {{-- A capture failure is VISIBLE with retry, not a silent console.warn.
+                        {{-- A capture failure is visible with retry, not a silent console.warn.
 
-                             Both alert classes are UNCONDITIONAL here, unlike the server-rendered
+                             Both alert classes are unconditional here, unlike the server-rendered
                              regions below: this one's text is always in the markup and `x-show`
                              decides whether it is seen. `x-show` writes `display:none` inline,
                              which outranks the stylesheet, so the box cannot leak out while the
@@ -356,7 +352,7 @@
                     </div>
                 @endif
 
-                {{-- Attachments. The file input is VISIBLE and focusable — the native
+                {{-- Attachments. The file input is visible and focusable — the native
                      keyboard path (Enter/Space opens the picker) — not a hidden-input-over-
                      zone that only works for touch. `accept` is derived from the
                      server allowlist, so it can never drift from what validation permits. --}}
@@ -373,7 +369,7 @@
                         wire:model="attachments"
                     >
 
-                    {{-- The caps in words, BEFORE the reporter picks. They were server-side only:
+                    {{-- The caps in words, before the reporter picks. They were server-side only:
                          pick five files where four are allowed and the rejection was the first you
                          heard of it. `aria-describedby` rather than loose text, so a
                          screen reader reads the limit as part of the field. After a files error
@@ -407,7 +403,7 @@
                                 {{-- The key is the file's own temporary name, never the loop index.
                                      Removing an entry re-indexes the rest, so an index key made the
                                      morph keep the focused button alive while its meaning silently
-                                     moved to the NEXT file — press Enter twice and two different
+                                     moved to the next file — press Enter twice and two different
                                      files are gone, with nothing announced in between. --}}
                                 <li class="visual-feedback-file" wire:key="vf-file-{{ $file->getFilename() }}">
                                     <span class="visual-feedback-file-name">{{ $file->getClientOriginalName() }}</span>
@@ -418,7 +414,7 @@
                                              one that slid into its place, or to the file input when
                                              the list is now empty.
 
-                                             The container is captured BEFORE the round trip, and
+                                             The container is captured before the round trip, and
                                              that is the whole point: removing this row detaches
                                              this very button, so `$el.closest(…)` afterwards is
                                              null and the handler dies on a TypeError before it ever
@@ -436,15 +432,15 @@
                 </div>
 
                 {{-- Error region: always present, initially empty (assertive so failures
-                     interrupt). On failure focus goes to the field the failure BELONGS to, and
-                     the effect keys on the failure COUNTER rather than on the boolean: `failed`
+                     interrupt). On failure focus goes to the field the failure belongs to, and
+                     the effect keys on the failure counter rather than on the boolean: `failed`
                      goes false→true within one round-trip, so a second failure in a row would
                      look unchanged to Alpine and move nothing. --}}
                 {{-- The failed field names its own control, so focus lands where the problem is.
-                     This used to be a two-way choice — privacy, or the message box for everything
-                     else — so a reporter with a typo in their email was pointed at the message
-                     they had written correctly. An unknown field still falls back
-                     to the message box rather than dropping focus on <body>. --}}
+                     Not a two-way choice — privacy, or the message box for everything else —
+                     which would point a reporter with a typo in their email at the message they
+                     wrote correctly. An unknown field falls back to the message box rather than
+                     dropping focus on <body>. --}}
                 <div @class([
                     'visual-feedback-error',
                     'visual-feedback-alert',
@@ -455,7 +451,7 @@
                 </div>
 
                 {{-- Guest privacy acknowledgment — required only when a notice URL is configured.
-                     `required` can be stated unconditionally INSIDE this branch because the branch
+                     `required` can be stated unconditionally inside this branch because the branch
                      is the same condition the server checks: PrivacyNotice::required() is literally
                      `url() !== null`, and submit() rejects on exactly that. The two cannot drift.
                      Like the message field it is safe next to `novalidate` — no native bubble, no
@@ -465,7 +461,7 @@
                         <input id="visual-feedback-privacy" @if ($vfInvalidField === 'privacy') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="checkbox" wire:model="privacyAcknowledged" required>
                         {{-- The link is what makes the acknowledgment informed, so it stays the
                              anchor whatever the wording says. `$privacyNoticeWording` is the
-                             PUBLISHED sentence when a source supplies one; it is plain text that
+                             published sentence when a source supplies one; it is plain text that
                              legal-consent never sanitizes, so it is escaped here like any other
                              untrusted string.
 

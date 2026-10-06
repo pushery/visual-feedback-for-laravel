@@ -9,11 +9,11 @@ use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Database\ConnectionResolverInterface as ConnectionResolver;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Facades\Schema;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Privacy\ErasedReporters;
+use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
  * The DSAR erasure: delete every stored report of a reporter and its attachment files.
@@ -116,7 +116,7 @@ final class ForgetReporter extends Command
 
         $table = $this->reportsTable($config);
 
-        if (! Schema::hasTable($table)) {
+        if (! TableLookup::exists($table)) {
             $this->info((string) __('visual-feedback::messages.console.forget.no_table'));
             $this->warnAboutCopiesOutOfReach($platform);
 

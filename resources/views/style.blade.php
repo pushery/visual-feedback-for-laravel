@@ -1,6 +1,6 @@
 {{--
-    The widget's stylesheet, for BOTH view trees — framework-free, no Tailwind, no build step.
-    Include it ONCE in your layout <head>, whichever tree you serve:
+    The widget's stylesheet, for both view trees — framework-free, no Tailwind, no build step.
+    Include it once in your layout <head>, whichever tree you serve:
 
         @include('visual-feedback::style')
 
@@ -21,25 +21,23 @@
     gave `Vite::useCspNonce()`.
 --}}
 @php
-    // Recorded OUTSIDE the branch below: the host wrote the include either way, and which tree
-    // serves decides what this file CONTAINS, never whether it was asked for. Marking inside the
+    // Recorded outside the branch below: the host wrote the include either way, and which tree
+    // serves decides what this file contains, never whether it was asked for. Marking inside the
     // branch would report a WireKit host as having forgotten a line it did write.
     app(\Pushery\VisualFeedback\Support\StylesheetPresence::class)->markRendered();
     $nonce = app(\Pushery\VisualFeedback\Support\CspNonce::class)->resolve($nonce ?? null);
 @endphp
 {{-- A smaller sheet when the WireKit tree is the one rendering, not an absent one: the @else
-     branch at the foot of this file. This comment used to say "nothing at all", which was true
-     when it was written and stopped being true when that branch was added. Most of what the
-     plain tree needs is dead weight
-     against the application's own design tokens, and would fight them — but tokens position no
+     branch at the foot of this file. Most of what the plain tree needs is dead weight against
+     the application's own design tokens, and would fight them — but tokens position no
      floating panel, style no dialog and conceal no honeypot.
 
      The guard is here rather than in the host's layout because `ui.variant` defaults to `auto`:
-     installing WireKit now switches the tree WITHOUT the host touching their layout, so an
+     installing WireKit now switches the tree without the host touching their layout, so an
      @include they wrote once would otherwise start shipping CSS for a tree that is no longer
      being served.
 
-     It asks which tree RESOLVES, not which one is configured, and those are different after the
+     It asks which tree resolves, not which one is configured, and those are different after the
      documented umbrella publish: that tag copies the plain templates into the host's
      resources/views/vendor, Laravel puts that path first, and the plain tree then serves while
      `ui.variant` still says wirekit. Reading the config answer there silenced this stylesheet
@@ -55,16 +53,16 @@
         --vf-bg: #ffffff;
         --vf-fg: #111827;
         --vf-muted: #6b7280;
-        {{-- One border value for BOTH schemes: 3.82:1 on the light surface and 3.84:1 on the
+        {{-- One border value for both schemes: 3.82:1 on the light surface and 3.84:1 on the
            dark one, so the 1px boundary of an input, the file dropzone and a remove button
            clears the 3:1 WCAG 1.4.11 floor either way. The conventional light gray (#d1d5db)
            measured 1.47:1 — a boundary nobody with low vision can find. Because one value
-           carries both schemes, the dark block below does NOT override it. --}}
+           carries both schemes, the dark block below does not override it. --}}
         --vf-border: #7b8390;
         --vf-accent: #2563eb;
         --vf-accent-fg: #ffffff;
         --vf-error: #b91c1c;
-        {{-- The one tone that says a thing WORKED. Measured on the surface it sits on rather than
+        {{-- The one tone that says a thing worked. Measured on the surface it sits on rather than
            picked: 5.02:1 on #ffffff and 8.42:1 on the dark #1f2937, so both clear the 4.5:1 AA
            floor for body text. Per-scheme like --vf-error and unlike --vf-border, because a
            single green cannot carry both. --}}
@@ -89,10 +87,10 @@
             --vf-fg: #f9fafb;
             --vf-muted: #9ca3af;
             {{-- The accent carries two jobs that pull against each other on the dark surface:
-               it is the FILL under a white label (needs 4.5:1 against #ffffff) and it is the
+               it is the fill under a white label (needs 4.5:1 against #ffffff) and it is the
                focus ring and the button boundary (needs 3:1 against --vf-bg). The window
-               between those is narrow — #2f6fe4 sits in it at 4.65:1 and 3.16:1. The lighter
-               blue this used to be (#3b82f6) rendered the white label at 3.68:1. --}}
+               between those is narrow — #2f6fe4 sits in it at 4.65:1 and 3.16:1, where the
+               lighter #3b82f6 renders the white label at 3.68:1. --}}
             --vf-accent: #2f6fe4;
             --vf-accent-fg: #ffffff;
             --vf-error: #f87171;
@@ -109,7 +107,7 @@
     {{-- Single-action FAB: fixed, ≥ 44px AAA target, composes the iOS safe-area insets. --}}
     .visual-feedback-fab {
         {{-- Tell the UA which scheme this surface is painted in. The tokens above flip
-           themselves dark, but anything the BROWSER draws — link color, the native "Choose
+           themselves dark, but anything the browser draws — link color, the native "Choose
            file" button, the checkbox, the select popup, the default focus ring — stays in
            light-scheme colors unless it is told. Untold, the privacy link rendered at
            1.56:1 on the dark dialog. It is set on the package's own surfaces, never on
@@ -140,7 +138,7 @@
     }
     .visual-feedback-fab:focus-visible { outline: 3px solid var(--vf-accent); outline-offset: 2px; }
 
-    {{-- The corner is LOGICAL, in this tree as in the WireKit one: `end` is the side a line of
+    {{-- The corner is logical, in this tree as in the WireKit one: `end` is the side a line of
        text ends on, so a right-to-left page mirrors the trigger the way it mirrors the rest of
        its layout. The safe-area insets are physical, so each direction names the one on its own
        side; a browser without :dir() drops that rule and keeps the left-to-right pairing, which
@@ -153,23 +151,23 @@
     .visual-feedback-fab--top-end,      .visual-feedback-fab--top-right    { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); inset-inline-end: calc(var(--vf-gap) + var(--vf-safe-end)); }
     .visual-feedback-fab--top-start,    .visual-feedback-fab--top-left     { top: calc(var(--vf-gap) + env(safe-area-inset-top, 0px)); inset-inline-start: calc(var(--vf-gap) + var(--vf-safe-start)); }
 
-    {{-- Native <dialog>: the browser gives us the top layer, focus trap, Esc-to-close and
-       focus return to the trigger for free — we only style the surface. --}}
+    {{-- Native <dialog>: the browser provides the top layer, focus trap, Esc-to-close and
+       focus return to the trigger, so this sheet only styles the surface. --}}
     .visual-feedback-dialog {
         color-scheme: light dark;   {{-- see the FAB rule above — it inherits to every control inside --}}
-        {{-- border-box, or the width below is only the CONTENT: the 1.5rem padding and the 1px
+        {{-- border-box, or the width below is only the content: the 1.5rem padding and the 1px
            border are then added on top and the panel is 50px wider than it says. On a 320px
            phone that is the difference between fitting and the page scrolling sideways. --}}
         box-sizing: border-box;
         {{-- The UA centers a modal <dialog> with `margin: auto`, and Tailwind's preflight
            (`*, ::after, ::before, ::backdrop { margin: 0 }`) takes it away — so in a Tailwind
-           host, which is most Laravel apps, the panel lands in the top-left CORNER. Measured
+           host, which is most Laravel apps, the panel lands in the top-left corner. Measured
            in a real WireKit app: top/left 0 instead of 130/384 at 1280x900. Restated here for
            the same reason box-sizing, padding and border above are restated: this stylesheet
            may not assume it is the last word on the element. --}}
         margin: auto;
         width: min(32rem, calc(100vw - 2rem));
-        {{-- dvh, not vh. On a phone `vh` is the viewport with the browser UI RETRACTED, so a
+        {{-- dvh, not vh. On a phone `vh` is the viewport with the browser UI retracted, so a
            dialog sized in vh is taller than the space actually on screen while the URL bar is
            showing — its submit button sits under the chrome and the reporter cannot reach it.
            The vh line stays as the fallback for engines without dvh.
@@ -195,11 +193,11 @@
        `position: fixed`. An absolutely positioned panel does three things at once, and the width
        is the least of them:
 
-         - it contributes NOTHING to its container's height, so whatever the host puts after the
+         - it contributes nothing to its container's height, so whatever the host puts after the
            form is overlaid by it;
-         - with no positioned ancestor it resolves against the INITIAL containing block, so the
+         - with no positioned ancestor it resolves against the initial containing block, so the
            UA's `inset-inline: 0` plus the `margin: auto` restated above center it in the
-           VIEWPORT — measured 632px to the left of its own 264px sidebar at a 1280px viewport,
+           viewport — measured 632px to the left of its own 264px sidebar at a 1280px viewport,
            i.e. across the main column, not merely overhanging its own;
          - only then does `100vw` in the width above track the viewport instead of the column.
 
@@ -212,7 +210,7 @@
         width: min(32rem, 100%);
     }
 
-    {{-- ONE focus indicator for every control in the panel. Named selectors used to cover
+    {{-- One focus indicator for every control in the panel. Named selectors used to cover
        three of them, which left the first and last tab stop — the close button and submit —
        on whatever ring the UA happened to draw, and left every screenshot button bare. A
        descendant rule cannot be outgrown: a control added later is covered the day it
@@ -250,7 +248,7 @@
     {{-- The list this replaced named `text` and `email` and was outgrown the same way the buttons
        above were: `tel` (the opt-in phone field) matched nothing at all, so it rendered borderless
        and at the UA's 13.333px — under the iOS threshold the comment below exists to hold, in a
-       configuration this package offers and documents. Excluding the three types that must NOT be
+       configuration this package offers and documents. Excluding the three types that must not be
        stretched to a field is a rule the next input type cannot fall out of: a checkbox and a
        radio are their own control, a file input carries its own dropzone rule below, and a hidden
        one renders nothing. The `:not()` chain lifts specificity from (0,2,1) to (0,5,1); nothing
@@ -300,13 +298,13 @@
         margin: 0;
     }
 
-    {{-- …and the 44x44 of WCAG 2.5.5 comes from the LABEL, because a label activates its control.
+    {{-- …and the 44x44 of WCAG 2.5.5 comes from the label, because a label activates its control.
        Three declarations carry that, and each is load-bearing:
 
          - `min-height: 44px` with `align-items: center` makes the row itself 44px tall whatever
            the host's line height is;
          - `gap: 1.25rem` beside the 1.5rem box puts the first glyph of the acknowledgment at
-           44px, so the column to the LEFT of it is a contiguous 44x44 region that ticks the box.
+           44px, so the column to the left of it is a contiguous 44x44 region that ticks the box.
            That column is what the reporter actually has: the acknowledgment text is the privacy
            anchor (deliberately — the link is what makes the acknowledgment informed), and a tap
            on interactive content runs no label activation behavior, it navigates;
@@ -342,21 +340,20 @@
        next to a field, and --vf-muted is the one tone the contrast sweep already holds at
        AA in both schemes. A new color here would be a new thing to prove. --}}
     .visual-feedback-hint,
-    {{-- The capture progress line. Muted DELIBERATELY, and the choice matters as much as the
+    {{-- The capture progress line. Muted deliberately, and the choice matters as much as the
        success rule below it: `capturing` and `uploading` report progress, `attached` reports a
        result, and tinting all three would make the color mean "something is happening" and stop
        it meaning success anywhere. --}}
     .visual-feedback-capture-status { display: block; margin-top: 0.25rem; font-size: 0.8125rem; color: var(--vf-muted); }
 
-    {{-- The two sentences that say something WORKED: "Screenshot attached" and the thank-you after
-       a submit. Both rendered as ordinary body text -- the second one in a bare <p>, the first
-       under a class with no rule in either tree -- so the message indistinguishable from the hint
-       above it was the one confirming the reporter's screenshot had arrived. --}}
+    {{-- The two sentences that say something worked: "Screenshot attached" and the thank-you after
+       a submit. As ordinary body text -- the second one in a bare <p>, the first under a class
+       with no rule -- the message confirming the reporter's screenshot has arrived would be
+       indistinguishable from the hint above it. --}}
     .visual-feedback-success {
-        {{-- ONE BOX SHAPE FOR BOTH DIRECTIONS, and the asymmetry it replaces was the finding.
-           This rule used to be color plus weight and nothing else, while the error alert below
-           carried a margin, padding, a border, a radius and a reading-edge stripe. On the screen
-           that made "screenshot attached" read as a marginal note and the failure as an alarm,
+        {{-- One box shape for both directions. Color plus weight and nothing else, beside an
+           error alert with a margin, padding, a border, a radius and a reading-edge stripe, would
+           make "screenshot attached" read as a marginal note and the failure as an alarm,
            although both are the same class of statement: the state changed, look here.
 
            The spacing, padding, radius and stripe are copied from the alert deliberately rather
@@ -383,7 +380,7 @@
         margin-inline-end: 0.375rem;
     }
 
-    {{-- The honeypot's concealment, as a RULE rather than only as an attribute.
+    {{-- The honeypot's concealment, as a rule rather than only as an attribute.
        The markup carries both. A content security policy that allows this stylesheet through a
        nonce or hash while forbidding style attributes -- `style-src-attr 'none'`, ordinary
        hardening -- drops the attribute and keeps this, and that difference is not cosmetic: an
@@ -410,7 +407,7 @@
        nearly the same size as the hint "up to 5 files, 5 MB each" two lines above it. A reporter
        scanning the form read the second as advice and the first as more advice.
 
-       Painted from a CLASS the server sets, never from `:not(:empty)`. Every one of these
+       Painted from a class the server sets, never from `:not(:empty)`. Every one of these
        regions is a live region that must exist before it has anything to say, so all four are in
        the markup on every render, holding the newline and indentation Blade leaves behind --
        and `:empty` does not match an element containing whitespace. A box drawn on that
@@ -447,7 +444,7 @@
 
     {{-- The required-field legend, muted like every other note in this form, with the star in the
        tone the controls use for theirs. Two colors on one line and only one of them is the
-       point: the star has to read as the SAME mark the fields carry, or the legend explains a
+       point: the star has to read as the same mark the fields carry, or the legend explains a
        symbol the reporter never saw. --}}
     .visual-feedback-required-legend {
         display: block;
@@ -457,7 +454,7 @@
     }
 
     .visual-feedback-required-mark {
-        {{-- `--vf-error`, the token this tree already paints the invalid border with, and NOT a
+        {{-- `--vf-error`, the token this tree already paints the invalid border with, and not a
            second red of its own: the legend explains the mark the fields carry, so the two have
            to be the same tone in both schemes. It has a dark-scheme value, which a literal
            would not. --}}
@@ -477,7 +474,7 @@
     {{-- The capture block's own separation from the field above it.
 
        The rhythm in this tree comes from `label { margin-top }`, which works for every group
-       that STARTS with a label -- and the screenshot block does not: it opens with a button. So
+       that starts with a label -- and the screenshot block does not: it opens with a button. So
        it sat flush against the message field, measured at 0px in a browser, which is exactly the
        "no space around the screenshot area" half of the report. Fixing it through the label rule
        was not open: there is no label to hang it on. --}}
@@ -492,7 +489,7 @@
        flush against the green "screenshot attached" box exactly as it did in the WireKit tree.
        Reported there, present in both.
 
-       It gets a class rather than a structural selector because the OTHER tree already needs one
+       It gets a class rather than a structural selector because the other tree already needs one
        and the two must not answer the question differently: `EveryBareCaptureButtonHasSpacing`
        derives the buttons from the rendered markup and asks each for a class with a rule, in both
        trees. A `.visual-feedback-screenshot > button` here would pass that arm only by accident
@@ -501,11 +498,19 @@
         margin-top: 0.5rem;
     }
 
+    {{-- The two ways out of the success screen are bare siblings as well. Where their labels do
+       not fit on one line, as in German on a phone, the done button wraps under "send another"
+       and needs space above it, as both have in the other tree. --}}
+    .visual-feedback-dialog .visual-feedback-report-another,
+    .visual-feedback-dialog .visual-feedback-done {
+        margin-top: 0.5rem;
+    }
+
     {{-- The control the server marked invalid, for the reporter who can see it.
-       Until this rule existed the error state was audible and invisible: `aria-invalid` told a
-       screen reader which field was wrong while a sighted reporter had only the shared alert
-       line and no idea which of eight controls it meant.
-       Keyed on the ATTRIBUTE rather than a class, so it follows the server's verdict exactly and
+       Without this rule the error state is audible and invisible: `aria-invalid` tells a
+       screen reader which field is wrong while a sighted reporter has only the shared alert
+       line and no idea which of eight controls it means.
+       Keyed on the attribute rather than a class, so it follows the server's verdict exactly and
        cannot drift from it -- and it therefore stays off for a rate limit or a disabled widget,
        which is the same discrimination the marking itself makes. The outline is drawn beside the
        border rather than replacing it, so a reporter who overrides --vf-border keeps both. --}}
@@ -532,13 +537,13 @@
     }
 
     {{-- The capture preview. This class had no rule anywhere in the package, and an <img> with no
-       max-width lays itself out at its INTRINSIC size: the shipped default (scale 2, viewport
+       max-width lays itself out at its intrinsic size: the shipped default (scale 2, viewport
        only) makes a 640x1136 PNG on a 320px phone and a 2560x1600 one at 1280x800 — rendered at
        640 CSS px inside a 232px column, and at 2560 inside a 510px one. The panel then scrolls in
        both axes and the reporter sees about a third of the picture whose entire purpose is that
        they see what they are about to send. A Tailwind host hides this behind preflight's
        `img { max-width: 100% }`; this is the tree that has no preflight, so the rule belongs
-       here. Deliberately NO max-height: a cap was measured shrinking a portrait capture to
+       here. Deliberately no max-height: a cap was measured shrinking a portrait capture to
        128x227 in a 232px column, which works against the same purpose from the other side. --}}
     .visual-feedback-preview {
         display: block;
@@ -623,7 +628,7 @@
         cursor: pointer;
     }
 
-    {{-- ── The panel's SECONDARY buttons ───────────────────────────────────────────────
+    {{-- ── The panel's secondary buttons ───────────────────────────────────────────────
        Capture, attach, discard, retake, done, report another. Every one of them was a bare
        `<button type="button">` with no rule anywhere, so each rendered in whatever chrome the
        engine's own stylesheet supplies -- and that chrome is not the same chrome.
@@ -631,7 +636,7 @@
        Measured in both engines, the capture button in the open panel:
 
          Blink    border rgb(118, 118, 118) on buttonface -- passes the 3:1 non-text threshold
-         WebKit   border 2px outset rgb(192, 192, 192) on white -- 1.82:1, and it FAILS
+         WebKit   border 2px outset rgb(192, 192, 192) on white -- 1.82:1, and it fails
 
        Dark mode is worse and it is the same cause: the engine keeps its light button surface
        while the label inherits the panel's dark-scheme foreground, so the text came back white
@@ -694,6 +699,9 @@
         background: var(--vf-bg);
         color: var(--vf-fg);
         font: inherit;
+        {{-- The iOS threshold the panel's fields hold for the same reason: below 16px Safari
+           zooms the whole page in when a filter takes focus, and does not zoom back out. --}}
+        font-size: max(1rem, 16px);
     }
 
     {{-- The same fixed height as the panel's select, for the same reason: WebKit ignores the
@@ -701,8 +709,8 @@
     .visual-feedback-browser-field select { height: 44px; }
 
     {{-- The frame is the containing block of what the table positions absolutely, such as the
-       hidden heading of the actions column. Without it that heading sat at the far end of a table
-       wider than the screen, outside the frame, and widened the page. --}}
+       hidden heading of the actions column. Without it that heading would sit at the far end of a
+       table wider than the screen, outside the frame, and widen the page. --}}
     .visual-feedback-browser-scroll {
         position: relative;
         overflow-x: auto;
@@ -788,8 +796,11 @@
         gap: var(--vf-gap);
     }
 
+    {{-- A long unbroken token, a link most often, wraps inside the box rather than running out of
+       it: `pre-wrap` breaks only at white space. --}}
     .visual-feedback-browser-message {
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
     }
 
     {{-- The preview is a full-page capture and by far the heaviest thing here. The box keeps
@@ -808,28 +819,26 @@
     }
 </style>
 @else
-{{-- The WireKit tree gets LAYOUT only, and that is the whole difference from the block above.
+{{-- The WireKit tree gets layout only, and that is the whole difference from the block above.
 
-     What the guard is for is COLOR and design: a second set of --vf-* colors, borders and radii
+     What the guard is for is color and design: a second set of --vf-* colors, borders and radii
      would fight the application's own tokens, and that is why this stylesheet silences itself
-     for that tree. It does not follow that the tree needs no CSS at all, and for four releases
-     it read as though it did. The WireKit tree emits the same class names, so without this block
-     `.visual-feedback-preview-actions` lost `display: flex` and its gap, and the
-     Attach / Discard / Retake row rendered with no space between the buttons at all. A consumer
-     photographed four such places and filed it.
+     for that tree. It does not follow that the tree needs no CSS at all. The WireKit tree emits
+     the same class names, so without this block `.visual-feedback-preview-actions` loses
+     `display: flex` and its gap, and the Attach / Discard / Retake row renders with no space
+     between the buttons at all.
 
      Every value below is a WireKit token with the plain tree's own number as its fallback, so a
      host who tunes their spacing scale takes this along and one who never loaded WireKit's CSS
      still gets the spacing rather than none.
 
-     AND THE HONEYPOT RULE IS HERE NOW. Both trees hide that field two ways -- an inline
-     `style` attribute and this class -- because a policy that forbids style ATTRIBUTES
+     The honeypot rule is here too. Both trees hide that field two ways -- an inline `style`
+     attribute and this class -- because a policy that forbids style attributes
      (`style-src-attr 'none'`, which any `style-src` without an attribute clause implies) drops
-     the first one. On the plain tree the class caught it; on the WireKit tree there was nothing
-     to catch it, and the documentation said so and told the host to write the rule themselves.
-     A visible honeypot is filled in by real people, and a honeypot hit is answered with the
-     success screen on purpose -- so their report is thanked for and discarded. That is the one
-     failure here worth more than a margin. --}}
+     the first one, and then the class is all that hides it, in either tree. A visible honeypot
+     is filled in by real people, and a honeypot hit is answered with the success screen on
+     purpose -- so their report would be thanked for and discarded. That is the one failure here
+     worth more than a margin. --}}
 @if ($nonce !== null)
 <style nonce="{{ $nonce }}">
 @else
@@ -856,19 +865,11 @@
         clip-path: inset(50%);
     }
 
-    {{-- The row under the preview. Without `display: flex` the three buttons are inline boxes
-       with a word space between them, which is why this one reads as broken rather than tight. --}}
-    {{-- The row under the preview. Without `display: flex` the three buttons are inline boxes
-       with a word space between them, which is why this one reads as broken rather than tight.
-
-       The step above it is the FORM's step, not a smaller one of its own. The block used to run
-       0.75rem / 0.5rem / 0.5rem over its three parts while every direct child of the form got
-       1rem, and the button row was the one that read as cramped -- it sits between two things
-       that are spaced a third wider than it is. --}}
     {{-- The report browser's message keeps the reporter's line breaks, as in the plain tree. The
-         kit's text component collapses white space. --}}
+         kit's text component collapses white space, and a long unbroken token wraps as there. --}}
     .visual-feedback-browser-message {
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
     }
 
     {{-- The hidden heading of the actions column is positioned absolutely, and its cell is its
@@ -879,6 +880,12 @@
         position: relative;
     }
 
+    {{-- The row under the preview. Without `display: flex` the three buttons are inline boxes
+       with a word space between them, which is why this one reads as broken rather than tight.
+
+       The step above it is the form's step, not a smaller one of its own: a row spaced tighter
+       than every direct child of the form reads as cramped, because it sits between two things
+       spaced wider than it is. --}}
     .visual-feedback-preview-actions {
         display: flex;
         flex-wrap: wrap;
@@ -932,7 +939,7 @@
     {{-- The height cap, and the media query around it is the whole point.
 
        An unconditional `max-height` was proposed once and rejected on a measurement: on an iPhone
-       SE profile it shrank a PORTRAIT capture to 128x227 inside a 232px column -- 55% of the space
+       SE profile it shrank a portrait capture to 128x227 inside a 232px column -- 55% of the space
        it had -- because capping the height of a `contain` image pulls its width along. That is the
        worst place to lose it: this preview is the step where a reporter sees what they are about
        to send.
@@ -959,19 +966,18 @@
         color: var(--color-wk-text-muted, #6b7280);
     }
 
-    {{-- THE BOX IS THE KIT'S NOW, and what is left here is only the gap above it.
+    {{-- The box is the kit's, and what this rule adds is the gap above it and a fallback.
 
-       This rule used to paint a full success box of its own -- border, left rule, radius, tone,
-       weight -- built to match the alert "from the same token scale". Matching by hand is exactly
-       the drift the alert component exists to prevent, and it showed: the two were a token release
-       apart, so the success box and the danger box beside it stopped being the same shape.
+       A success box of the package's own -- border, left rule, radius, tone, weight -- matched
+       to the alert by hand from the same token scale would drift from it with the next token
+       release, and the success box and the danger box beside it would stop being the same shape.
+       That drift is what the alert component exists to prevent.
 
        The appearance comes from <x-wirekit::alert intent="success">, and these declarations are
-       the FALLBACK beneath it, in `:where()` so they carry zero specificity and lose to the kit
+       the fallback beneath it, in `:where()` so they carry zero specificity and lose to the kit
        wherever its utilities are compiled. A host without a Tailwind build -- the case this
-       stylesheet exists for -- would otherwise get a confirmation with no box at all. The glyph
-       rule is gone with the glyph: the kit draws its own icon and the package no longer paints a
-       second one beside it. --}}
+       stylesheet exists for -- would otherwise get a confirmation with no box at all. There is no
+       glyph rule: the kit draws its own icon, and the package paints no second one beside it. --}}
     :where(.visual-feedback-success) {
         margin-block-start: var(--space-wk-sm, 0.5rem);
         padding: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
@@ -983,25 +989,25 @@
     }
 
     {{-- The buttons that are bare siblings of a paragraph, a link or a status box, and therefore
-       had no selector at all -- not even one a host could have hung their own rule on.
+       have no selector of their own -- not even one a host could hang their own rule on.
 
-       NOTE: this comment used to say THREE, and it was wrong by one for as long as it existed: the
-       retake button that stands alone under the capture status is the same shape and was not
-       listed, so it sat flush against the green "screenshot attached" box in both trees. A
-       hand-written enumeration only answers for the cases it names. `EveryBareCaptureButtonHasSpacing`
-       derives the set from the rendered markup instead, so the fifth is caught without this list
-       being right. --}}
+       The retake button that stands alone under the capture status is one of them and the
+       easiest to miss: without a rule it sits flush against the green "screenshot attached" box
+       in both trees. The done button beside "report another" is another: where the two labels
+       do not fit on one line, as in German on a phone, it wraps under its neighbor and needs the
+       same space above it. --}}
     .visual-feedback-capture,
     .visual-feedback-submit,
     .visual-feedback-retake,
-    .visual-feedback-report-another {
+    .visual-feedback-report-another,
+    .visual-feedback-done {
         margin-block-start: var(--space-wk-sm, 0.5rem);
     }
 
     {{-- ── Vertical rhythm ─────────────────────────────────────────────────────────────
        The gap between one field group and the next. The plain tree has carried this since it
        existed, as `label { margin-top: 0.75rem }`; this tree renders WireKit components instead
-       of labels of its own, and so had NO rule for it -- every group sat flush against the one
+       of labels of its own, and so had no rule for it -- every group sat flush against the one
        above, and a label read as the caption of the field before it rather than of the field
        after it. That is why the reported symptom is about grouping and not about tightness:
        with no space anywhere, the eye pairs each label with the wrong control.
@@ -1018,21 +1024,21 @@
         margin-block-start: var(--space-wk-md, 1rem);
     }
 
-    {{-- ...and the two children that must not COUNT in that rhythm, because they take no room.
+    {{-- ...and the two children that must not count in that rhythm, because they take no room.
 
        Measured in the live dialog: the honeypot is 1px tall and the challenge slot is 0px while
        no provider renders into it, and each still collected a full step. With no guest fields on
        screen that put two steps plus the panel padding between the header and the first field --
        the gap the report is about.
 
-       `:empty` is not enough for the honeypot: it HAS children, it is just positioned out of the
+       `:empty` is not enough for the honeypot: it has children, it is just positioned out of the
        flow, so it is named directly. The challenge slot is an ordinary block that is empty until a
        host injects something, but `:empty` is only half the question there: an invisible provider
        fills it with elements that take no room, and the slot is then not empty and still zero
        high. The widget measures it and sets `data-visual-feedback-collapsed` while it has no
        height (watchChallengeHeight in js/widget.js), so its spacing returns the moment it shows.
 
-       The margin is removed from the element AFTER them as well: the owl selector spaces a child
+       The margin is removed from the element after them as well: the owl selector spaces a child
        from its predecessor, so skipping a zero-height predecessor means the next visible element
        must not inherit a step from it either. That is what the second selector does. --}}
     .visual-feedback-panel form > .visual-feedback-honeypot,
@@ -1048,25 +1054,25 @@
     {{-- Every rejection the reporter can see, in a box that reads as one.
        Owner directive: an error message is always in the red box.
 
-       This tree had no error styling AT ALL -- not even the tint the plain tree gives every
+       This tree had no error styling at all -- not even the tint the plain tree gives every
        `[role="alert"]` -- so "something went wrong, please try again" rendered in body color at
        body weight, indistinguishable from the attachment caps a few lines above it.
 
-       Painted from a CLASS the server sets, never from `:not(:empty)`: all four alert regions
+       Painted from a class the server sets, never from `:not(:empty)`: all four alert regions
        are live regions that must be in the markup before they have anything to say, and they
        therefore always contain Blade's leftover whitespace, which `:empty` does not match.
 
-       WireKit's own danger tokens, not a palette of ours -- `--color-wk-danger-text` is the
+       WireKit's own danger tokens, not a palette of this package's -- `--color-wk-danger-text` is the
        tone that design system already proves against its surfaces, and inventing a second red
        here is how a widget stops looking like the app it is embedded in. The fallbacks are the
        plain tree's own error tone, so a host that loads this tree without WireKit's stylesheet
        still gets a red box rather than an unpainted one. --}}
-    {{-- THE BOX IS THE KIT'S, and this is the FALLBACK underneath it -- which is why it is wrapped
+    {{-- The box is the kit's, and this is the fallback underneath it -- which is why it is wrapped
        in `:where()`.
 
        The first attempt deleted these declarations outright, on the reasoning that a hand copy of
        the alert component's shape drifts from it. True, and it broke something the browser suite
-       caught: WireKit's own box is Tailwind utilities that the CONSUMING APP compiles. A host
+       caught: WireKit's own box is Tailwind utilities that the consuming app compiles. A host
        without a Tailwind build -- the case this stylesheet exists for, and the one the demo
        reproduces -- got a refusal with no border at all.
 

@@ -18,10 +18,10 @@ use Illuminate\Contracts\Filesystem\Filesystem;
  *
  * Two invariants, and the second is the important one:
  *
- * - a directory is removed only when it holds NOTHING — no files and no subdirectories. A report
+ * - a directory is removed only when it holds nothing — no files and no subdirectories. A report
  *   may carry several attachments, and while each lives in its own hash directory, "looks empty"
- *   must never be inferred from the one path we happened to delete.
- * - the configured ROOT is never removed, however empty it gets. It is the consumer's directory,
+ *   must never be inferred from the one path that happened to be deleted.
+ * - the configured root is never removed, however empty it gets. It is the consumer's directory,
  *   possibly shared, and re-creating it is not this class's business. Nor is anything outside it:
  *   a path that does not sit under the root is skipped rather than trusted.
  */
@@ -38,12 +38,12 @@ final readonly class EmptyDirectoryPruner
         $seen = [];
 
         foreach ($deletedPaths as $path) {
-            // Separators FIRST, then dirname. On a Unix host dirname() treats a backslash as an
+            // Separators first, then dirname. On a Unix host dirname() treats a backslash as an
             // ordinary character, so a Windows-style path would come back as '.' and the
             // directory would never be pruned — which is what the guard for this caught.
             $directory = trim(dirname(str_replace('\\', '/', $path)), '/');
             // dirname() of a bare filename is '.', and a path directly in the root has the root
-            // itself as its parent — neither is ours to remove.
+            // itself as its parent — neither is this package's to remove.
             if ($directory === '') {
                 continue;
             }

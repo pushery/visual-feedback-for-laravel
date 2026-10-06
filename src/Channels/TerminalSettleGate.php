@@ -7,13 +7,13 @@ namespace Pushery\VisualFeedback\Channels;
 use Illuminate\Contracts\Cache\Repository as Cache;
 
 /**
- * The once-only latch behind "every channel settles EXACTLY ONCE". That
+ * The once-only latch behind "every channel settles exactly once". That
  * sentence is ReportDeliveryTracker's whole contract, and it used to rest on every caller being
  * disciplined enough to keep it — which is not a property code has, it is a property nobody is
  * checking.
  *
  * The sync queue broke it with two individually correct pieces. `SyncQueue::handleException()`
- * calls `$job->fail($e)`, which runs the job's failed() hook (one settle), and then RETHROWS.
+ * calls `$job->fail($e)`, which runs the job's failed() hook (one settle), and then rethrows.
  * That exception leaves Bus::dispatch(), leaves the channel's dispatch(), and lands in
  * ChannelRegistry's per-channel try/catch, which settles the same channel a second time. The
  * receipt survived that (writing the same status twice is a no-op) but the two things beside it
@@ -21,7 +21,7 @@ use Illuminate\Contracts\Cache\Repository as Cache;
  * and alert on — and the attachment refcount was decremented twice, so the files were released
  * one settle early, before a later transient channel had even been dispatched.
  *
- * So the terminal settle is CLAIMED here instead of counted by convention: the first caller for
+ * So the terminal settle is claimed here instead of counted by convention: the first caller for
  * a (report, channel) pair gets true, every later one gets false, and the tracker returns without
  * doing anything. That makes the second call structurally inert no matter which caller makes it,
  * rather than repairing the one path that is known to duplicate today.
@@ -38,7 +38,7 @@ final readonly class TerminalSettleGate
 
     public function __construct(private Cache $cache) {}
 
-    /** True for the FIRST terminal settle of this (report, channel), false for every later one. */
+    /** True for the first terminal settle of this (report, channel), false for every later one. */
     public function claim(string $reportId, string $channel): bool
     {
         return $this->cache->add($this->key($reportId, $channel), true, self::TTL_SECONDS);

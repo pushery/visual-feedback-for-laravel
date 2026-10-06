@@ -7,9 +7,9 @@ namespace Pushery\VisualFeedback\Contracts;
 use Pushery\VisualFeedback\Data\Report;
 
 /**
- * A delivery channel for a submitted report. Channels are an OPEN, configurable contract — not
+ * A delivery channel for a submitted report. Channels are an open, configurable contract — not
  * three hardcoded special cases: the built-in mail/database/webhook channels implement this, and
- * a consumer adds their own via VisualFeedback::extend(). Each channel queues its OWN job, so one
+ * a consumer adds their own via VisualFeedback::extend(). Each channel queues its own job, so one
  * channel's failure or retry can never affect another's, and `dispatch()` enqueues work rather
  * than delivering inline.
  */

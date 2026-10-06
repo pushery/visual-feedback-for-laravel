@@ -11,7 +11,7 @@ use Pushery\VisualFeedback\Data\ReportContextEntry;
  * in `config('visual-feedback.context_providers')`; per-instance context is passed as
  * widget mount props instead.
  *
- * AUTHORIZATION IS THE HOST'S DUTY. A provider must authorize what it exposes — return
+ * Authorization is the host's duty. A provider must authorize what it exposes — return
  * only entries the current request's user is allowed to see. The context path is
  * server-side only: there is no client-callable action that sets context, so a
  * provider's `entries()` is the single trusted source (the structural fix for a

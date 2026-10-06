@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Data;
 
 /**
- * Who filed a report — a neutral value object, NEVER the host's User model. The host
+ * Who filed a report — a neutral value object, never the host's User model. The host
  * User is never serialized into a queued channel or mailable; the reporter travels as
  * plain scalars. `id` is a string so it tolerates int / uuid / ulid primary keys, and
  * is null for a guest.

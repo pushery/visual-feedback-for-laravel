@@ -65,16 +65,16 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             return false;
         }
 
-        // A BRANCH install is the newest state of the kit, not an old one. `dev-develop` carries no
+        // A branch install is the newest state of the kit, not an old one. `dev-develop` carries no
         // number a floor could compare, and version_compare read it as older than every release,
         // so a host on WireKit's development branch was served the plain tree without a word. The
-        // floor exists to keep templates that name missing components away from an OLD WireKit,
+        // floor exists to keep templates that name missing components away from an old WireKit,
         // and a branch head is the install where those components are most certainly present.
         if (str_starts_with($version, 'dev-')) {
             return true;
         }
 
-        // A branch alias (`2.x-dev`, `2.40.x-dev`) names a development LINE. Its open component is
+        // A branch alias (`2.x-dev`, `2.40.x-dev`) names a development line. Its open component is
         // read as the top of that line, so the alias satisfies the floor exactly when a release on
         // that line could.
         if (str_ends_with($version, '-dev')) {
@@ -83,18 +83,18 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
 
         // The leading `v` has to go, and it is not cosmetic. Composer's getPrettyVersion returns
         // the tag as written — `v2.54.0` for this package's own vendor — and version_compare
-        // reads a leading letter as a pre-release marker, so a `v`-tag compares BELOW the bare
-        // minimum. Measured here on the real vendor tree: the check said no while WireKit was
-        // installed, which would have served the plain tree to every host that has WireKit.
+        // reads a leading letter as a pre-release marker, so a `v`-tag compares below the bare
+        // minimum. Left in place, the check says no while WireKit is installed, and every host
+        // that has WireKit would be served the plain tree.
         return version_compare(ltrim($version, 'vV'), self::WIREKIT_MINIMUM, '>=');
     }
 
     /**
-     * The view paths, in resolution ORDER, for the tree the settings select.
+     * The view paths, in resolution order, for the tree the settings select.
      *
      * A named method rather than an inline ternary so the order can be asserted directly. It has
      * to be asserted directly, because asserting it through a second boot() does not work:
-     * Laravel's loadViewsFrom APPENDS to a namespace's hints rather than replacing them, so a
+     * Laravel's loadViewsFrom appends to a namespace's hints rather than replacing them, so a
      * test that boots twice reads the paths of the first boot with the second appended — and
      * reports the wrong tree for the right reason.
      *
@@ -104,7 +104,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     {
         $plain = __DIR__.'/../resources/views';
 
-        // WireKit FIRST when it is served: the finder walks these in turn, so a view that exists
+        // WireKit first when it is served: the finder walks these in turn, so a view that exists
         // in both trees resolves to the WireKit one while everything that exists only in the
         // plain tree keeps working untouched.
         return $settings->servesWireKitViews()
@@ -115,7 +115,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     /**
      * Whether a package is installed at a version this package's WireKit tree can use.
      *
-     * Takes the package NAME rather than hardcoding it, and that is what makes the not-installed
+     * Takes the package name rather than hardcoding it, and that is what makes the not-installed
      * branch reachable from a test: with the name fixed, every branch below is decided by this
      * repository's own vendor tree, where WireKit is always present — so the guard clause would
      * be a line no run can enter, and a line no run can enter is one the 100% floor blocks the
@@ -163,10 +163,10 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         $this->app->singleton(ContextRegistry::class);
         $this->app->bind(ResolvesReporter::class, GuardReporterResolver::class);
 
-        // The abuse gate is the composite: the builtin floor ALWAYS runs, with additional
+        // The abuse gate is the composite: the builtin floor always runs, with additional
         // drivers (botgate) layered on top when available — so a provider outage
         // or a botgate-less install can never remove the floor.
-        // The registry is a SINGLETON: a host registers its driver once, at boot, and every
+        // The registry is a singleton: a host registers its driver once, at boot, and every
         // resolution of the gate must see that registration.
         $this->app->singleton(AbuseGateRegistry::class);
 
@@ -177,7 +177,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             // selected nothing.
             $app->make(AbuseGateRegistry::class)->additional(),
             $app->make(LoggerInterface::class),
-            // Read at CHECK time, not here: `abuse.drivers.<name>.on_error` is a per-request
+            // Read at check time, not here: `abuse.drivers.<name>.on_error` is a per-request
             // question, and a host that binds this gate once at boot must still be able to flip
             // the mode in a config cache warmed afterwards.
             $app->make(Settings::class),
@@ -196,7 +196,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'visual-feedback');
-        // A LIST, and the order is the whole mechanism: Laravel resolves a namespaced view
+        // A list, and the order is the whole mechanism: Laravel resolves a namespaced view
         // against these paths in turn, so putting the WireKit directory first makes every view
         // that exists in both trees resolve to the WireKit one, while everything that exists in
         // only the plain tree keeps working untouched.
@@ -207,8 +207,8 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // trigger. A path list covers every resolution in the package at once.
         //
         // A host's published copy in resources/views/vendor still wins over both — Laravel puts
-        // it ahead of any package path — so publishing remains the way to actually EDIT the
-        // templates, and this key is the way to CHOOSE between them without maintaining a copy.
+        // it ahead of any package path — so publishing remains the way to actually edit the
+        // templates, and this key is the way to choose between them without maintaining a copy.
         //
         // A Settings of its own rather than the container's singleton, so the boot resolves nothing
         // of the package's that a request would then inherit.
@@ -216,8 +216,8 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);
 
-        // The browser is registered but NOT routed. Registration makes it usable from a host's
-        // own Blade; reaching it needs a route the host writes, and reaching its DATA needs a
+        // The browser is registered but not routed. Registration makes it usable from a host's
+        // own Blade; reaching it needs a route the host writes, and reaching its data needs a
         // gate the host defines. Both are deliberate: this package ships an optional reader,
         // not an admin panel it opens by itself.
         Livewire::component('visual-feedback.report-browser', ReportBrowser::class);
@@ -279,9 +279,9 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             __DIR__.'/../dist' => $this->app->publicPath('vendor/visual-feedback'),
         ], ['visual-feedback', 'visual-feedback-assets']);
 
-        // WireKit-native view variants. Publishing this tag OVERWRITES the plain stubs with
+        // WireKit-native view variants. Publishing this tag overwrites the plain stubs with
         // the token-based versions (built from real <x-wirekit::*> components), so it is
-        // deliberately NOT part of the umbrella tag — publishing both at once contradicts
+        // deliberately not part of the umbrella tag — publishing both at once contradicts
         // itself. The shared form partial keeps its wirekit/ path so the override's @include
         // still resolves to it.
         $this->publishes([
@@ -292,27 +292,28 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         ], 'visual-feedback-wirekit');
 
         // The optional DatabaseChannel migrations. Deliberately not in the umbrella (like wirekit):
-        // a standard install must NOT get the table — only a consumer who publishes this tag and
+        // a standard install must not get the table — only a consumer who publishes this tag and
         // migrates opts in. Their 0001_… prefixes keep them first, before the host's own
         // migrations, and in the order they have to run: the table, then the indexes added to it.
         $this->publishes([
             __DIR__.'/../database/migrations/optional/0001_01_01_000000_create_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000000_create_visual_feedback_reports_table.php'),
             __DIR__.'/../database/migrations/optional/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php'),
             __DIR__.'/../database/migrations/optional/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php'),
+            __DIR__.'/../database/migrations/optional/0001_01_01_000003_add_mode_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000003_add_mode_index_to_visual_feedback_reports_table.php'),
         ], 'visual-feedback-migrations');
     }
 
     /**
-     * Merge the shipped config UNDER a published one, descending into maps.
+     * Merge the shipped config under a published one, descending into maps.
      *
-     * Laravel's `mergeConfigFrom()` is a flat `array_merge`, so it asks one question per TOP-LEVEL
+     * Laravel's `mergeConfigFrom()` is a flat `array_merge`, so it asks one question per top-level
      * key: is it already there? A host that ran `vendor:publish` has every top-level key, so a key
-     * this package adds INSIDE one of those blocks in a later release never reaches them. Their
+     * this package adds inside one of those blocks in a later release never reaches them. Their
      * block wins whole, the new setting reads as null, and nothing errors or logs.
      *
-     * RECURSING IS NOT ENOUGH ON ITS OWN, and this is the half that gets skipped — A LIST IS A VALUE, NEVER A STRUCTURE. The trap next
+     * Recursing is not enough on its own, and this is the half that gets skipped — a list is a value, never a structure. The trap next
      * door is `array_replace_recursive()`, which the framework's own `replaceConfigRecursivelyFrom()`
-     * uses: it merges lists BY INDEX. A host narrowing this package's shipped `attachments.mimes`
+     * uses: it merges lists by index. A host narrowing this package's shipped `attachments.mimes`
      * to a shorter set would get the removed types back, and an upload allowlist that quietly
      * regains entries is a security regression rather than a merge. So recursion stops at any list
      * on either side, and what the host wrote stands.
@@ -342,7 +343,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         $existing = $repository->get($key);
 
         // Neither side is provably string-keyed: a config array is just an array. The recursion
-        // below is written for that -- it asks whether a value is a LIST, never whether a key is
+        // below is written for that -- it asks whether a value is a list, never whether a key is
         // a string.
         $repository->set($key, $this->mergeConfigSections(
             is_array($shipped) ? $shipped : [],
@@ -396,7 +397,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
                 continue;
             }
 
-            // Recurse only where BOTH sides are maps. If either is a list, or the published value
+            // Recurse only where both sides are maps. If either is a list, or the published value
             // is a scalar or an explicit null, what the host wrote stands.
             if (is_array($value) && is_array($published[$key]) && ! array_is_list($value) && ! array_is_list($published[$key])) {
                 $published[$key] = $this->mergeConfigSections($value, $published[$key]);

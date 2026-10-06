@@ -17,20 +17,19 @@ use Throwable;
 
 /**
  * The optional bridge to pushery/legal-consent: with `privacy.source = legal-consent` the guest's
- * checkbox carries the PUBLISHED acknowledgment sentence instead of this package's own lang line.
+ * checkbox carries the published acknowledgment sentence instead of this package's own lang line.
  *
- * It READS legal-consent and never writes to it. Its recording API takes a Model subject on every
- * method and this widget's whole point is GUEST reports that have none; a synthetic subject was
+ * It reads legal-consent and never writes to it. Its recording API takes a Model subject on every
+ * method and this widget's whole point is guest reports that have none; a synthetic subject was
  * measured to be unsafe rather than merely ugly — `subject_id` is an unsignedBigInteger, and a
  * subject whose key is null collapses SubjectToken's lookup to `whereNull('subject_id')`, which
- * matches the ANONYMIZED rows and hands back the pseudonym of an erased person.
+ * matches the anonymized rows and hands back the pseudonym of an erased person.
  *
- * WHICH document was acknowledged is recorded, though — with the report rather than in that ledger. It needs the acceptance fingerprint over content hash AND wording, and until
- * v0.7.0 that helper only took a LegalDocument model the documented read path never handed out; the
- * returned document now carries the fingerprint itself, so it is taken from there and never
- * recomputed here.
+ * Which document was acknowledged is recorded, though — with the report rather than in that
+ * ledger. It needs the acceptance fingerprint over content hash and wording, and the returned
+ * document carries that fingerprint itself, so it is taken from there and never recomputed here.
  *
- * `privacy.url` stays REQUIRED — the wording never makes the checkbox appear on its own. A label
+ * `privacy.url` stays required — the wording never makes the checkbox appear on its own. A label
  * whose full text cannot be opened is an uninformed clickwrap, which legal-consent names as a
  * defect in its own stubs, and a widget that traded a working link for a nicer sentence would be
  * legally worse than the one it replaced. So this raises the quality of the label and changes
@@ -75,7 +74,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
 
     public function wording(): ?PrivacyNoticeWording
     {
-        // NOT class_exists on a facade. The facade class exists the moment the package is
+        // Not class_exists on a facade. The facade class exists the moment the package is
         // required, while the manager binding arrives only with its service provider — and the
         // table only after a migration. A bare class_exists guard turns an unmigrated install
         // into a QueryException inside render(), on every public page carrying the widget.
@@ -148,7 +147,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
         try {
             $document = $this->container->make(ConsentManager::class)->published($key, $locale);
         } catch (Throwable $e) {
-            // legal-consent promises never to throw for a MISSING publication; it promises nothing
+            // legal-consent promises never to throw for a missing publication; it promises nothing
             // about a missing table or an unreachable connection. A guest page must not 500 over
             // the wording of a checkbox.
             return $this->fallback('reading the published legal-consent document failed', [
@@ -200,7 +199,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
 
         if ($document->noticeMode->gates()) {
             // A gating mode means the old text stays in force until the subject actively agrees.
-            // Upstream forbids publishing a privacy notice that way, but the mode is DERIVED for a
+            // Upstream forbids publishing a privacy notice that way, but the mode is derived for a
             // legacy row (notice_mode null + requires_reconsent true), so the combination is
             // reachable — and a passive checkbox would claim a legal effect that does not occur.
             return $this->fallback('the configured legal-consent document is in a gating notice mode, which a passive acknowledgment cannot express', [
@@ -209,7 +208,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             ]);
         }
 
-        // Held in a local so the emptiness check below and the value handed on are the SAME
+        // Held in a local so the emptiness check below and the value handed on are the same
         // string. Reading the property twice would leave the second read `?string` again, and
         // the only ways out of that are a cast or a suppression — both of which turn a checked
         // value back into an asserted one.
@@ -219,7 +218,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // Two different ways to arrive at nothing, folded into one refusal because the
             // consequence is identical: a checkbox with no accessible name.
             //
-            // EMPTY was the original case (upstream's column is NOT NULL with no CHECK, and the
+            // Empty was the original case (upstream's column is NOT NULL with no CHECK, and the
             // translation branch of their render pipeline tests only "not the key", never "not
             // empty"), so a host that publishes its lang files and blanks the sentence freezes an
             // empty one into an immutable document.
@@ -248,7 +247,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             key: $document->key,
             locale: $document->locale,
             version: $document->version,
-            // legal-consent's OWN value, never recomputed here — see the note on the DTO.
+            // legal-consent's own value, never recomputed here — see the note on the DTO.
             acceptanceFingerprint: $document->acceptanceFingerprint(),
         );
     }

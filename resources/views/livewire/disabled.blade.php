@@ -7,7 +7,7 @@
 
     `hidden` rather than an empty <div> alone, because a host stylesheet that gives every
     direct child of its layout a margin or a min-height would otherwise leave a gap on the
-    page where the widget used to be — a switch that is off should cost no layout.
+    page where the widget would be — a switch that is off should cost no layout.
 
     The endpoint half of the switch lives in SubmitReport::handle(), and it is the half that
     matters: this component is registered by name and is reachable without the page that draws

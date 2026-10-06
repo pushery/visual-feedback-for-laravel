@@ -9,8 +9,8 @@ use Pushery\VisualFeedback\Data\Report;
 /**
  * Dispatched before a report is accepted, giving listeners a last chance to cancel it.
  *
- * This is the ONE mutable event in the family: a listener calls `reject()` to cancel.
- * Only SYNCHRONOUS listeners can cancel — a queued listener runs after the report has
+ * This is the one mutable event in the family: a listener calls `reject()` to cancel.
+ * Only synchronous listeners can cancel — a queued listener runs after the report has
  * already been accepted and dispatched to channels, far too late. A rejection here
  * surfaces to the reporter as an error state (no channel dispatch) and fires
  * `ReportRejected(RejectionReason::ListenerRejected)`.

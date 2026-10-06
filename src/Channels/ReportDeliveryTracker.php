@@ -20,9 +20,9 @@ use Throwable;
 
 /**
  * The single source of delivery-lifecycle truth. Every channel
- * settles EXACTLY ONCE here — terminally, never per retry — and that is now ENFORCED rather than
+ * settles exactly once here — terminally, never per retry — and that is enforced rather than
  * assumed: the TerminalSettleGate claims each (report, channel) pair, and a second settle from
- * any caller returns without doing anything. It had to become structural because a caller that
+ * any caller returns without doing anything. It has to be structural because a caller that
  * duplicates is not hypothetical — under the sync queue the framework settles the job through
  * failed() and then rethrows into ChannelRegistry's catch, which settles it again. The class does
  * the three
@@ -85,7 +85,7 @@ final readonly class ReportDeliveryTracker
         $this->refcount->arm($report->id, $transientCount);
     }
 
-    /** Record a terminal SUCCESS for one channel: receipt + event + refcount step. */
+    /** Record a terminal success for one channel: receipt + event + refcount step. */
     public function settleDelivered(Report $report, string $channel): void
     {
         if (! $this->gate->claim($report->id, $channel)) {
@@ -98,7 +98,7 @@ final readonly class ReportDeliveryTracker
         $this->afterTerminal($report);
     }
 
-    /** Record a terminal FAILURE for one channel: receipt + event (strings) + refcount step. */
+    /** Record a terminal failure for one channel: receipt + event (strings) + refcount step. */
     public function settleFailed(Report $report, string $channel, Throwable $exception): void
     {
         if (! $this->gate->claim($report->id, $channel)) {
@@ -196,7 +196,17 @@ final readonly class ReportDeliveryTracker
                 return;
             }
 
-            if ($this->refcount->decrement($report->id) <= 0) {
+            $remaining = $this->refcount->decrement($report->id);
+
+            // The counter vanished between the check and the decrement: no refcount cleanup. The
+            // release drops the -1 a store may have created for it.
+            if ($remaining === null) {
+                $this->refcount->release($report->id);
+
+                return;
+            }
+
+            if ($remaining === 0) {
                 $this->refcount->release($report->id);
                 $this->discardAttachments($report);
             }

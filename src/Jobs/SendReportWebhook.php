@@ -32,10 +32,10 @@ use Throwable;
  * plus the resolved retry knobs — so serialization is safe.
  *
  * Two delivery paths, chosen in deliver(): the pushery/webhooks platform when installed (it
- * owns signing/retry/dedupe), else the built-in signed HTTP sender. Both use the SAME
- * minimized, path-and-binary-free payload. On success handle() settles DELIVERED; a failure
+ * owns signing/retry/dedupe), else the built-in signed HTTP sender. Both use the same
+ * minimized, path-and-binary-free payload. On success handle() settles delivered; a failure
  * throws so the queue retries, and once the retries in `channels.webhook` are exhausted the
- * failed() hook settles FAILED — both through the single ReportDeliveryTracker.
+ * failed() hook settles failed — both through the single ReportDeliveryTracker.
  *
  * Queued encrypted: the report carries the reporter's name, address and message, and a job that
  * fails for good stays in the queue's failed jobs until somebody removes it. A report whose
@@ -74,10 +74,12 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
             throw RedactedFailure::standIn($exception);
         }
 
-        $tracker->settleDelivered($this->report, 'webhook');
+        // The webhook is posted. A settle the cache refuses now goes to a job of its own, because
+        // a retry of this one would post it a second time.
+        SettleDelivery::afterDelivery($tracker, $this->report, 'webhook', $this->connection, $this->queue, $this->tries, $this->backoffSeconds);
     }
 
-    /** Retries exhausted → the ONE terminal failure path for this channel. */
+    /** Retries exhausted → the one terminal failure path for this channel. */
     public function failed(Throwable $exception): void
     {
         Container::getInstance()->make(ReportDeliveryTracker::class)
@@ -94,20 +96,20 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
     {
         $payload = WebhookPayload::for($this->report, $this->includeReporter);
 
-        // Fleet infrastructure first: the platform owns signing, retries and de-duplication.
+        // The platform first: it owns signing, retries and de-duplication.
         if ($platform->isInstalled()) {
             $reached = $platform->dispatch($payload);
 
             if ($reached === 0) {
-                // NOT settleFailed(): nothing failed. The platform accepted the event and found
+                // Not settleFailed(): nothing failed. The platform accepted the event and found
                 // nobody subscribed to it, which is a configuration state, not an error — a retry
-                // would produce the same zero, and a FAILED receipt would send an operator
+                // would produce the same zero, and a failed receipt would send an operator
                 // looking for a broken endpoint that does not exist.
                 //
                 // But it must not be silent either, because a delivered receipt for zero
-                // recipients is a receipt for nothing, and the two used to be indistinguishable.
+                // recipients is a receipt for nothing, and without this line the two read alike.
                 // Reaching zero takes only a fresh install: the event has to be listed in
-                // `webhooks.platform.catalog` AND something has to subscribe to it.
+                // `webhooks.platform.catalog` and something has to subscribe to it.
                 Container::getInstance()->make(LoggerInterface::class)->warning(
                     'visual-feedback: the webhooks platform matched no subscription for this report',
                     [
@@ -140,16 +142,16 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
             throw new RuntimeException('visual-feedback: webhook channel has no platform and no webhook.secret configured — a report is never signed with an empty key.');
         }
 
-        // Sign the EXACT bytes that go on the wire (see WebhookSignature). The timestamp is
+        // Sign the exact bytes that go on the wire (see WebhookSignature). The timestamp is
         // fresh per attempt, so a retry re-signs within its own replay window.
         //
         // JSON_THROW_ON_ERROR, and it is the whole point of this line rather than a nicety.
         // Without it json_encode returns false for a payload it cannot encode — a byte sequence
         // that is not valid UTF-8 — a `(string)` cast turned that into '', and the job then
-        // delivered an EMPTY body, correctly signed, which the receiver accepted with 200 and the
-        // report settled DELIVERED. Nothing logged, no event, no retry: the content was simply
+        // delivered an empty body, correctly signed, which the receiver accepted with 200 and the
+        // report settled delivered. Nothing logged, no event, no retry: the content was simply
         // gone and the maintainer was told it arrived. Throwing instead lets the queue retry and,
-        // once the attempts are spent, `failed()` writes the FAILED receipt and fires
+        // once the attempts are spent, `failed()` writes the failed receipt and fires
         // ReportDeliveryFailed — a maintainer sees that a report did not arrive.
         $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $timestamp = (string) Carbon::now()->getTimestamp();

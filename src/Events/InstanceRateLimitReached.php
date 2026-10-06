@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Pushery\VisualFeedback\Events;
 
 /**
- * Dispatched the moment the instance-wide report cap is reached — ONCE per window, not once per
+ * Dispatched the moment the instance-wide report cap is reached — once per window, not once per
  * refused submission.
  *
  * The per-subject rate limits answer one sender at a time and a distributed bot never meets them:
@@ -14,7 +14,7 @@ namespace Pushery\VisualFeedback\Events;
  * per byte. `abuse.global_rate_limit` is the ceiling that bounds the bill, and this event is how an
  * operator learns they are at it from their own application rather than from the invoice.
  *
- * It fires on the attempt that REACHES the cap, which is the last one still accepted — so it
+ * It fires on the attempt that reaches the cap, which is the last one still accepted — so it
  * arrives one report before anything is refused, and an operator who reacts fast enough loses
  * nothing. Every refusal after it is observable as usual through
  * `ReportRejected(RejectionReason::GlobalRateLimited)`; this event stays quiet for those, because

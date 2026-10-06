@@ -1,7 +1,7 @@
 {{--
     Single-action floating trigger — `<x-visual-feedback::fab />`. One click dispatches
     `visual-feedback:open` on the window, which the widget catches to open its modal. It
-    is a plain button (aria-haspopup="dialog", ≥ 44px via the stylesheet), NOT a speed-dial
+    is a plain button (aria-haspopup="dialog", ≥ 44px via the stylesheet), not a speed-dial
     menu, so a single tap opens feedback directly. Place it once per page.
 
     Props:
@@ -15,7 +15,7 @@
     'position' => 'bottom-end',
     'label' => null,
 ])
-{{-- Master switch. A host places this trigger in ITS own layout, so the widget cannot take it
+{{-- Master switch. A host places this trigger in its own layout, so the widget cannot take it
      away by rendering nothing itself — the trigger has to ask too, or an operator who switched
      the package off is left with a button that opens an empty dialog. `visual-feedback.enabled`
      is documented in the shipped config as "the widget renders nothing"; this is part of what

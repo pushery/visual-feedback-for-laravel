@@ -43,9 +43,9 @@ use Pushery\VisualFeedback\Support\WidgetAvailability;
 use Throwable;
 
 /**
- * The feedback widget — a THIN shell over the transport-agnostic SubmitReport pipeline.
+ * The feedback widget — a thin shell over the transport-agnostic SubmitReport pipeline.
  * It binds the form, hands the pipeline a plain SubmissionInput, and reflects the
- * result. `mode` (modal | inline) is a per-instance override, CLAMPED on every request
+ * result. `mode` (modal | inline) is a per-instance override, clamped on every request
  * rather than locked -- see the property. The reset lifecycle lets a reporter file a second report
  * in the same session; without a reset, a screenshot button that has been used once stays gone.
  *
@@ -61,7 +61,7 @@ class ReportWidget extends Component
     /**
      * The shapes this widget renders, and the only values `$mode` may hold.
      *
-     * Named here because two places now decide it -- the mount prop and the per-request clamp --
+     * Named here because two places decide it -- the mount prop and the per-request clamp --
      * and a set written twice is a set that disagrees with itself the first time a third shape
      * arrives.
      *
@@ -72,19 +72,18 @@ class ReportWidget extends Component
     /**
      * Which shape this instance renders: `modal` or `inline`.
      *
-     * DELIBERATELY NOT #[Locked], and the reason is the same one that unlocked `openedAt`. This
-     * widget hangs in the host's layout, so it survives every `wire:navigate` transition and the
-     * browser sends the unchanged state back. A lock throws during HYDRATION -- before any method
-     * of ours runs, so nothing can catch it -- and the visitor gets a 419 on a page that was only
-     * being navigated. Measured at a consumer: three separate locked props produced that in
-     * production, this one among them.
+     * Deliberately not #[Locked], for the reason the form's open time is held on the server
+     * (FormOpenedAt). A lock throws when a request writes the property, before any method of this
+     * component runs, so nothing here can catch it, and outside debug mode Livewire answers with a
+     * bare 419. This widget hangs in the host's layout, and visitors met that 419 on pages that
+     * were only being navigated with `wire:navigate`.
      *
-     * The guarantee the lock was supposed to give is kept, and kept where it can be checked: the
-     * value is normalized on every request, so it is one of {@see MODES} whatever arrives. Every
+     * The guarantee a lock would give is kept, and kept where it can be checked: the
+     * value is normalized on every request, so it is one of {@see modes} whatever arrives. Every
      * reader -- the rendered shape, the screenshot default, the FAB condition, and the `mode` this
      * records on a submitted report -- therefore sees a value this package chose from its own set.
      *
-     * What a client CAN now do is render their own widget in the other shape and have the report
+     * What a client can do is render their own widget in the other shape and have the report
      * say so. That is their own page and their own record of it; a 419 for everybody navigating
      * past is the worse trade by a distance. The per-instance override stays, which is why the
      * snapshot value is normalized rather than re-derived: a host placing two widgets on one page
@@ -120,7 +119,7 @@ class ReportWidget extends Component
      *
      * @var array<string, mixed>
      */
-    // Client-writable in the snapshot and restored from the sealed copy on every request, because a changed mode here decides which fields are REQUIRED.
+    // Client-writable in the snapshot and restored from the sealed copy on every request, because a changed mode here decides which fields are required.
     public array $fields = [];
 
     /**
@@ -129,12 +128,12 @@ class ReportWidget extends Component
      * Validated as an address in mount(), so an invalid one fails loudly at the call site
      * instead of silently swallowing every report from that page.
      *
-     * DELIBERATELY NOT #[Locked] any more, for the reason `mode` and `openedAt` lost theirs: a
-     * lock throws during HYDRATION, before any method here runs, and this widget lives in the
-     * host's layout — so ordinary `wire:navigate` traffic answered with a 419 the application
-     * could not catch. Measured at a consumer: 52 events on this property alone.
+     * Deliberately not #[Locked], for the reason `mode` is not: a lock throws when a request writes
+     * the property, before any method here runs, and on a widget in the host's layout the 419 it
+     * answers with reached ordinary `wire:navigate` traffic, where the application cannot catch it.
      *
-     * THE GUARANTEE IS NOT DROPPED, IT MOVED. This value decides where the mail goes, so it is
+     * The guarantee is kept, where it can be checked. This value decides where the mail goes,
+     * so it is
      * checked against {@see aPermittedRecipient()} on the way in and on every request after:
      * `mail.to` or an address the host listed under `mail.allowed_recipients`, and otherwise
      * `null`, which is `mail.to`. A browser can therefore write whatever it likes into the
@@ -158,20 +157,19 @@ class ReportWidget extends Component
     /**
      * The mount props as this widget received them, sealed so the round trip cannot change them.
      *
-     * THIS IS WHAT `#[Locked]` SHOULD HAVE BEEN. A lock forbids a write and throws while doing it —
-     * during hydration, where nothing can catch it, which on a widget living in the host's layout
-     * answered ordinary `wire:navigate` traffic with a 419. Measured at one consumer across three
-     * properties, 80 events.
+     * This is what `#[Locked]` should have been. A lock forbids a write and throws while doing it,
+     * before any method of the component runs, where nothing can catch it, and on a widget living
+     * in the host's layout the 419 it answers with reached ordinary `wire:navigate` traffic.
      *
-     * The question a lock was actually standing in for is about ORIGIN: did this value come from
+     * The question a lock was actually standing in for is about origin: did this value come from
      * the Blade tag, or from the browser? `mount()` runs once and the tag is never evaluated again,
-     * so nothing in Livewire can answer it — unless the answer travels along. It does now, and
+     * so nothing in Livewire can answer it — unless the answer travels along. It does here, and
      * encrypted rather than signed, so a client can neither forge it nor read the values out of the
      * page. On every request the four properties are restored from it.
      *
-     * NOTE: A COPY, NOT A DIGEST, and the difference is the whole design. A digest detects tampering
+     * Note: a copy, not a digest, and the difference is the whole design. A digest detects tampering
      * and cannot undo it: the tag values would be gone, the fallback would have to be the
-     * configuration, and a client could then tamper ON PURPOSE to pull a page onto the wider
+     * configuration, and a client could then tamper on purpose to pull a page onto the wider
      * defaults. That is the same widening through the back door. A copy carries the values, so
      * there is something to restore to.
      *
@@ -180,12 +178,10 @@ class ReportWidget extends Component
      * A fallback to the configuration there would be the back door this copy exists to close. It
      * still does not throw.
      *
-     * WHERE THE ARMS REACH, stated rather than implied. Livewire's protocol sends property changes
-     * as update entries, and a test can only produce those, so every arm below exercises the
-     * `updatedX()` side. The `hydrate()` side covers a different path: a value changed in the
-     * snapshot's own data block and sent with NO update entry, which the test helper cannot
-     * express. Removing the hydrate call therefore leaves the suite green -- measured -- and the
-     * call stays because the path is real, not because an arm demands it.
+     * Two paths carry a changed value in, and both restore from this copy. Livewire's protocol
+     * sends property changes as update entries, which the `updatedX()` hooks see; a value changed
+     * in the snapshot's own data block and sent with no update entry reaches only `hydrate()`.
+     * The second path is rare and real, so the hydrate call stays.
      */
     public string $sealedProps = '';
 
@@ -202,7 +198,7 @@ class ReportWidget extends Component
     public ?string $guestPhone = null;
 
     /**
-     * Raw browser metadata collected client-side (url, viewport, language, …). UNTRUSTED
+     * Raw browser metadata collected client-side (url, viewport, language, …). Untrusted
      * — the MetadataSanitizer enforces the allowlist, the length caps, and the never-IP
      * rule on submit, so a client can only ever inject allowlisted, capped values.
      *
@@ -212,7 +208,7 @@ class ReportWidget extends Component
 
     /**
      * Honeypot — a hidden field a bot fills and a human never sees. Its name is deliberately
-     * NON-semantic: a field named `website`/`email` is filled by browser autofill / password
+     * non-semantic: a field named `website`/`email` is filled by browser autofill / password
      * managers even with autocomplete="off", so a real user with autofill would trip the trap
      * and their report would be silently dropped — a hidden field is not invisible to a password manager. A
      * non-empty value is a silent decoy rejection (success UI, nothing stored).
@@ -221,7 +217,7 @@ class ReportWidget extends Component
 
     /**
      * Reporter file uploads. WithFileUploads holds these as TemporaryUploadedFile at the
-     * UI boundary; submit() stores them and passes only PATHS onward (the arch guard keeps
+     * UI boundary; submit() stores them and passes only paths onward (the arch guard keeps
      * the upload type from leaking past this component). Validated in real time against the
      * perimeter rules on every upload, and again server-side by the AttachmentValidator.
      *
@@ -232,14 +228,14 @@ class ReportWidget extends Component
     /**
      * The client-captured screenshot, uploaded via the capture module's swappable
      * uploader ($wire.upload). Held as a TemporaryUploadedFile at the UI boundary,
-     * stored to a PATH on submit; the ScreenshotValidator re-checks it server-side.
+     * stored to a path on submit; the ScreenshotValidator re-checks it server-side.
      */
     public ?TemporaryUploadedFile $screenshot = null;
 
     /**
      * The capture stage that produced the screenshot — `native` (pixel-exact getDisplayMedia)
      * or `dom` (the DOM-renderer reconstruction). Client-set via the capture module's onStage
-     * seam, so it is UNTRUSTED: it is validated to the known set and recorded on the report
+     * seam, so it is untrusted: it is validated to the known set and recorded on the report
      * only when a screenshot was actually attached (see submit()). It tells the recipient which
      * stage the browser says it used. The server cannot check that against the file, so the
      * report mail marks the value as reported by the browser.
@@ -250,11 +246,11 @@ class ReportWidget extends Component
      * Whether a capture is sitting in the preview with Attach / Discard / Retake under it.
      *
      * A screenshot exists only in the reporter's browser until `attach()` uploads it, so pressing
-     * Send from the preview used to submit the report WITHOUT it — no hint, no error, and a
+     * Send from the preview used to submit the report without it — no hint, no error, and a
      * success message afterwards. Somebody takes a screenshot because words were not enough, and
      * that was the part that disappeared.
      *
-     * Client-set through the capture module's `onPending` seam and therefore UNTRUSTED, which
+     * Client-set through the capture module's `onPending` seam and therefore untrusted, which
      * costs nothing here: the only thing a forged value can do is refuse the forger's own submit.
      * Auto-attaching instead would have been the smaller change and the wrong one — Discard
      * exists because a screenshot is sometimes deliberately not sent, and attaching for them
@@ -270,7 +266,7 @@ class ReportWidget extends Component
 
     /**
      * How many submits have failed on this widget. The view moves focus to the offending
-     * field when a submit fails, and an Alpine effect only re-runs when a value CHANGES —
+     * field when a submit fails, and an Alpine effect only re-runs when a value changes —
      * `failed` goes false→true inside a single round-trip, so the client only ever observes
      * true→true and a second consecutive failure would move no focus at all. A counter
      * changes on every failure, so the focus move survives repetition.
@@ -289,11 +285,11 @@ class ReportWidget extends Component
     public ?string $failedMessage = null;
 
     /**
-     * Whether the field named above is genuinely INVALID — as opposed to merely being where the
+     * Whether the field named above is genuinely invalid — as opposed to merely being where the
      * reporter's attention should go.
      *
      * These are two different questions and the obvious shortcut gets them wrong.
-     * `$failedField` is a FOCUS TARGET: three paths set it to `message` while the message the
+     * `$failedField` is a focus target: three paths set it to `message` while the message the
      * reporter wrote is perfectly fine — a listener veto, a rate limit, and the master switch
      * being off (which fabricates a failure on `message` so the operator's line has somewhere to
      * land). Marking that control `aria-invalid` would tell a screen reader the text is wrong
@@ -309,13 +305,13 @@ class ReportWidget extends Component
     /**
      * Client-supplied challenge data, bound by whatever markup `abuse.challenge_view` renders.
      *
-     * Deliberately NOT #[Locked]: the whole point is that the browser writes into it. That makes
+     * Deliberately not #[Locked]: the whole point is that the browser writes into it. That makes
      * every value here attacker-controlled, which is exactly what a challenge token is — the gate
      * verifying it treats it as a claim to check, never as a fact.
      *
-     * Nothing else in this package reads it, so a hostile value cannot reach anything of ours: it
-     * is never stored, queued, mailed, logged or rendered. What it CAN do is make a gate throw,
-     * and what that costs is the host's choice: an additional gate that throws fails OPEN by
+     * Nothing else in this package reads it, so a hostile value cannot reach anything of the package's: it
+     * is never stored, queued, mailed, logged or rendered. What it can do is make a gate throw,
+     * and what that costs is the host's choice: an additional gate that throws fails open by
      * default, leaving the always-on floor plus an error in the log, and under
      * `abuse.drivers.<name>.on_error = 'closed'` it refuses instead. Both are bad outcomes to
      * reach by sending a malformed field — a gate that verifies a token should therefore treat a
@@ -362,12 +358,12 @@ class ReportWidget extends Component
             $values[$property] = $this->{$property};
         }
 
-        // BOUND TO THIS COMPONENT, and that is not decoration. Measured before it was: without
-        // the id, a seal is portable between widgets of the same application. A page offering one
-        // category could be handed the seal of a page offering two and accept the wider list --
-        // which reaches `allowedCategories` at the validation seam, so the replay widened what
-        // the server would accept. The values are the host's own either way, which is exactly why
-        // it looked harmless and was not.
+        // Bound to this component, and that is not decoration: without the id, a seal is portable
+        // between widgets of the same application. A page offering one category could be handed
+        // the seal of a page offering two and accept the wider list -- which reaches
+        // `allowedCategories` at the validation seam, so the replay would widen what the server
+        // accepts. The values are the host's own either way, which is exactly why it looks
+        // harmless and is not.
         $values['id'] = $this->getId();
 
         // Encrypted, not merely signed: a signature would keep the values readable in the page,
@@ -407,13 +403,13 @@ class ReportWidget extends Component
      * belongs to another widget, or it does not hold the shape this widget sealed. All three mean
      * "nothing trustworthy is left", and the caller answers all three from the configuration.
      *
-     * THE SHAPE IS CHECKED RATHER THAN REPAIRED, and that is a correction to the first version of
+     * The shape is checked rather than repaired, and that is a correction to the first version of
      * this. That one rebuilt the arrays row by row and skipped anything malformed -- and the
      * `continue` for a malformed row was a line no run could enter, because `mount()` filters the
      * rows before sealing them. The 100 % coverage floor said so, which is the honest reading of an
      * uncovered line: the case cannot arise. Rejecting the whole copy is one branch instead, it is
      * reachable by a test that seals a bad payload itself, and it says something stronger -- a copy
-     * that is not what we sealed is not partially used.
+     * that is not what this widget sealed is not partially used.
      *
      * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool}|null
      */
@@ -521,9 +517,9 @@ class ReportWidget extends Component
      *
      * One function for both entry points. The mount prop goes through it so a host writing
      * `mode="banana"` gets the configured default instead of a value every `@if` below compares
-     * false against -- which rendered a widget with no trigger and no form, reachable by nobody.
-     * And the hydrated snapshot goes through it because that is where an arbitrary value now
-     * arrives from, once the lock is gone.
+     * false against -- which would render a widget with no trigger and no form, reachable by
+     * nobody. And the hydrated snapshot goes through it because that is where an arbitrary value
+     * arrives from, with no lock on the property.
      *
      * `null` is not a failure: it is the documented way to say "take the default", and the default
      * is the host's `ui.trigger`.
@@ -538,12 +534,12 @@ class ReportWidget extends Component
     }
 
     /**
-     * Livewire's per-request entry point, and the reason this component no longer needs a lock.
+     * Livewire's per-request entry point, and the reason this component needs no lock.
      *
      * It runs after the snapshot is restored and before anything reads a property, so a client can
-     * send whatever it likes and every reader still meets a value from {@see MODES}. That is the
-     * shape of the fix the earlier one found for `openedAt`: what a lock PROMISED is checked where
-     * the value is used, instead of thrown about where nobody can catch it.
+     * send whatever it likes and every reader still meets a value from {@see modes}. What a lock
+     * would promise is checked where the value is used, instead of thrown about where nobody can
+     * catch it.
      */
     public function hydrate(): void
     {
@@ -553,12 +549,12 @@ class ReportWidget extends Component
     }
 
     /**
-     * The same restore for the value being written in THIS request, one hook per property.
+     * The same restore for the value being written in this request, one hook per property.
      *
      * Livewire hydrates, then applies the client's updates, then runs methods -- so the hook above
-     * cannot see a write that happens after it. Measured rather than assumed: with only the hydrate
-     * side, a test writing into `fields` read its own value back, and the validation built from it
-     * would have used it.
+     * cannot see a write that happens after it: with only the hydrate side, a value written into
+     * `fields` in the same request is read back as written, and the validation built from it uses
+     * it.
      */
     public function updatedAvailableCategories(): void
     {
@@ -667,13 +663,13 @@ class ReportWidget extends Component
      * The same clamp on the other half of the request, and it is not redundant.
      *
      * Livewire's order is hydrate, then apply the client's updates, then run methods. So
-     * {@see hydrate()} normalizes the value that ARRIVED and cannot see the one being written in
+     * {@see hydrate()} normalizes the value that arrived and cannot see the one being written in
      * the same request -- a client setting `mode` would be read unnormalized by everything after
-     * it, including the shape recorded on a report submitted in that very request. Measured: with
-     * only the hydrate hook, a test writing `banana` read `banana` back.
+     * it, including the shape recorded on a report submitted in that very request: with only the
+     * hydrate hook, a client writing `banana` reads `banana` back.
      *
-     * Both hooks matter and neither covers the other: the first is what ends the 419, the second
-     * is what keeps the promise the lock used to make.
+     * Both hooks matter and neither covers the other: the first is what keeps the 419 away, the
+     * second is what keeps the promise a lock would make.
      */
     public function updatedMode(): void
     {
@@ -711,10 +707,10 @@ class ReportWidget extends Component
         $this->recipient = $recipient;
         $this->withScreenshot = $withScreenshot;
         // `ui.trigger = inline` is documented as "no modal; the form is part of the page", and it
-        // has to actually DO that. It used to be read in exactly one place — a comparison against
-        // `'fab'` that decided whether to render the floating button — which made `inline` and
-        // `none` byte-for-byte identical: both suppressed the button and left a modal with no way
-        // to open it. Setting `inline` therefore produced a widget nobody could reach.
+        // has to actually do that, so it also supplies the default shape here. Read only as a
+        // comparison against `'fab'` that decides whether to render the floating button, it
+        // would make `inline` and `none` byte-for-byte identical: both would suppress the button
+        // and leave a modal with no way to open it, a widget nobody can reach.
         //
         // The mount prop still wins, so a host placing two widgets on one page can mix them; the
         // config only supplies the default. Hence a NULL default rather than 'modal' — with a
@@ -725,24 +721,23 @@ class ReportWidget extends Component
         $this->fields = $fields;
         $this->sealMountProps();
         $this->category = $this->firstCategory();
-        // The inline widget is open from the moment it renders, so mount IS its open — and
+        // The inline widget is open from the moment it renders, so mount is its open — and
         // nothing else will ever stamp it, because the open listener is modal-only. A modal is
-        // NOT open at mount: markOpened() stamps it when the panel actually opens.
+        // not open at mount: markOpened() stamps it when the panel actually opens.
         //
-        // The difference is not cosmetic. Stamping every mount put a second-resolution timestamp
-        // into the rendered markup of every page carrying the widget, so the same page was
-        // byte-different from one second to the next — enough to defeat any full-page cache or
-        // ETag a host puts in front of it. A modal that is never opened now renders identically
-        // all day.
+        // The difference is not cosmetic. Stamping every mount would put a second-resolution
+        // timestamp into the rendered markup of every page carrying the widget, so the same page
+        // would be byte-different from one second to the next — enough to defeat any full-page
+        // cache or ETag a host puts in front of it. A modal that is never opened renders
+        // identically all day.
         //
-        // This moves WITH the abuse floor, not before it: BuiltinAbuseGate refuses a submission
+        // This moves with the abuse floor, not before it: BuiltinAbuseGate refuses a submission
         // that carries no open time while the trap is armed, so the unstamped modal is refused
         // rather than exempted.
         //
-        // It is a SERVER-held stamp rather than a property on this component, which is the second
-        // half of the same story: as a `#[Locked]` property it threw during hydration whenever
-        // Livewire's own `wire:navigate` machinery sent the unchanged value back, so a widget
-        // living in the layout answered ordinary navigation with an uncatchable 419. Held here it
+        // It is a server-held stamp rather than a property on this component. A `#[Locked]`
+        // property throws when a request writes it, before any method here runs, and a widget
+        // living in the layout met that as an uncatchable 419 on ordinary navigation. Held here it
         // is neither readable nor writable from the browser -- a stronger guarantee than the lock,
         // which only ever stopped the write while the value traveled to the client anyway.
         $this->mode === 'inline'
@@ -755,14 +750,14 @@ class ReportWidget extends Component
     /**
      * The key this widget's open-time anchor is stored under.
      *
-     * Livewire declares `getId()` untyped, so this is where the value becomes a string — CHECKED
+     * Livewire declares `getId()` untyped, so this is where the value becomes a string — checked
      * rather than cast, because a cast turns "it is a string" from something the code establishes
      * into something the code assumes, and the assumption is the part that rots.
      *
      * The fallback is the class name. A component whose id is not a string is one Livewire never
      * registered — a hand-constructed instance, or a future version that mints something else —
      * and two such instances sharing one anchor is a better failure than a TypeError on a public
-     * page. It errs STRICT either way: a shared anchor only ever moves the trap's start forward.
+     * page. It errs strict either way: a shared anchor only ever moves the trap's start forward.
      */
     private function anchorKey(): string
     {
@@ -774,11 +769,11 @@ class ReportWidget extends Component
     /**
      * The server-held open time as an instant, or null when this widget was never opened.
      *
-     * A METHOD RATHER THAN A TERNARY IN THE ARGUMENT LIST, and the reason is the 100% coverage
-     * floor rather than taste. A three-line ternary puts `: null` on a line of its own, that line
-     * holds the constant null as its whole value, and a constant compiles to no opcode — pcov
-     * never records it, PHPUnit counts it as executable, and no test can ever cover it. The line
-     * is then permanently red under this package's floor, and it reads as a missing test.
+     * A method rather than a ternary in the argument list, and the reason is coverage rather than
+     * taste. A three-line ternary puts `: null` on a line of its own, that line holds the
+     * constant null as its whole value, and a constant compiles to no opcode — a coverage driver
+     * never records it, PHPUnit counts it as executable, and no test can ever cover it, so it
+     * reads as a missing test.
      */
     private function formOpenedAt(): ?DateTimeImmutable
     {
@@ -810,7 +805,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * Real-time upload perimeter: every uploaded file is validated the MOMENT it lands
+     * Real-time upload perimeter: every uploaded file is validated the moment it lands
      * (not only at submit), against the MIME allowlist and byte cap derived from config
      * via the AttachmentPolicy, the count against max_files and the sum against
      * max_total_size. An unacceptable file surfaces an error immediately instead of riding
@@ -859,7 +854,7 @@ class ReportWidget extends Component
      * cap the moment it lands, so a tampered upload dies at the endpoint, not only at
      * submit (where the ScreenshotValidator re-checks it server-side).
      *
-     * A REFUSED capture is dropped from the component here, and that is not cosmetic. The
+     * A refused capture is dropped from the component here, and that is not cosmetic. The
      * property used to keep the rejected file: `discard()` and `retake()` only reset the Alpine
      * state machine in the browser, so nothing on the client could clear it, and the next submit
      * stored the refused capture, had the ScreenshotValidator refuse it a second time, and
@@ -867,10 +862,10 @@ class ReportWidget extends Component
      * submission that failed on a screenshot they could not see — the "capture -> reject loop
      * with no way out" the shipped config warns about, one layer down.
      *
-     * The clear has to run BEFORE the exception leaves this method, which is why the validation
+     * The clear has to run before the exception leaves this method, which is why the validation
      * is caught and re-thrown rather than left to fly: `validate()` throws on the failing line,
      * and every statement after it belongs to a path that a rejection never takes. Re-throwing
-     * the SAME exception keeps the error bag exactly as it was — Livewire's SupportValidation
+     * the same exception keeps the error bag exactly as it was — Livewire's SupportValidation
      * catches it, fills the bag and stops propagation, so the reporter still reads the perimeter's
      * own message next to the capture control.
      */
@@ -907,7 +902,7 @@ class ReportWidget extends Component
             return;
         }
 
-        // The master switch, read FIRST and then used to skip every step below that costs
+        // The master switch, read first and then used to skip every step below that costs
         // something. The verdict itself still comes from SubmitReport::handle(), which refuses on
         // the same switch, dispatches ReportRejected and names the message the reporter reads —
         // this is not a second gate, it is the widget declining to pay for a submission the
@@ -924,7 +919,7 @@ class ReportWidget extends Component
         // turned off, and `/livewire/update` carries no throttle in front of it.
         $enabled = $this->settings()->enabled();
 
-        // A field the host switched off contributes NOTHING, even if a value reached the
+        // A field the host switched off contributes nothing, even if a value reached the
         // component. Livewire properties are writable from the browser, so a crafted request can
         // set `guestEmail` on a form that never rendered an email box; dropping it here means the
         // off state is a property of the submission rather than of the markup.
@@ -937,24 +932,24 @@ class ReportWidget extends Component
         // A guest must acknowledge the privacy notice, when one is configured, before submitting.
         //
         // Behind the switch for the "cache" half of that promise: `privacy.source = legal-consent`
-        // resolves the notice by READING the published document through the bridge, and a disabled
-        // package has no business reading anything. A guest who has not acknowledged now gets the
+        // resolves the notice by reading the published document through the bridge, and a disabled
+        // package has no business reading anything. A guest who has not acknowledged gets the
         // operator's "the form is off" instead of a privacy error, which is the more accurate of
         // the two answers anyway — the acknowledgment is not what stopped the report.
         if ($enabled && $reporterDto->isGuest && ! $this->privacyAcknowledged && app(PrivacyNotice::class)->required()) {
-            // Named like every other failure. This was the last one that still fell back to the
-            // generic line, and it is a rejection the reporter can act on immediately.
+            // Named like every other failure: it is a rejection the reporter can act on
+            // immediately.
             $this->fail('privacy', (string) trans('visual-feedback::messages.validation.privacy_required'), invalid: true);
 
             return;
         }
 
         // A capture waiting in the preview stops the submit and says which of the two ways out
-        // there is. Without this the report went without it, silently, and the reporter read a
-        // success message — the most expensive shape of that failure, because a screenshot is
+        // there is. Without this the report would go without it, silently, and the reporter would
+        // read a success message — the most expensive shape of that failure, because a screenshot is
         // taken precisely when words were not enough.
         //
-        // Behind `$enabled` like everything above it, and behind the SAME condition that
+        // Behind `$enabled` like everything above it, and behind the same condition that
         // renders the capture UI. `screenshotPending` is client-set and survives a config change:
         // a host who switches `screenshot.strategy` to `off` while a widget is open would
         // otherwise leave that reporter unable to submit at all, refused over a control the page
@@ -981,20 +976,20 @@ class ReportWidget extends Component
             $metadata['capture_method'] = $this->screenshotStage;
         }
 
-        // Which published notice this acknowledgment belongs to. Added AFTER sanitization, from a
+        // Which published notice this acknowledgment belongs to. Added after sanitization, from a
         // server-side read — the reporter's browser never sends any of it, and MetadataSanitizer
         // strips the reserved prefix unconditionally so it cannot be forged even if a consuming
         // application adds one of these keys to `metadata.collect`.
         //
-        // Read at SUBMIT, not carried from render: component state makes a round trip through the
+        // Read at submit, not carried from render: component state makes a round trip through the
         // browser, and provenance that the client could return is not provenance. The README names
         // the consequence — publish a new version while a widget is open and the recorded version
         // is the newer one — and, like the acknowledgment check above, not read at all while the
         // package is switched off, because with the legal-consent source this is the second call
         // that reaches for a published document.
         //
-        // GATED ON THE SAME CONDITION THAT RENDERS THE NOTICE, not on `$enabled` alone. It was
-        // the looser test, so an AUTHENTICATED reporter — who is never shown the block, because
+        // Gated on the same condition that renders the notice, not on `$enabled` alone. It was
+        // the looser test, so an authenticated reporter — who is never shown the block, because
         // `render()` asks for the wording behind `$isGuest && $privacyNoticeUrl !== null` — had
         // `privacy_notice_key/locale/version/fingerprint` merged into their report anyway. The
         // maintainer then read a provenance record for a notice nobody displayed, in the mail's
@@ -1007,48 +1002,48 @@ class ReportWidget extends Component
             ? array_merge($metadata, app(PrivacyNotice::class)->wording()?->toMetadata() ?? [])
             : $metadata;
 
-        // Hoisted out of the argument list so the paths still exist AFTER the call. They used to
-        // be evaluated inline, which meant the files were on the permanent disk before the abuse
-        // floor had run and nothing knew where they were once it rejected.
+        // Hoisted out of the argument list so the paths still exist after the call. Evaluated
+        // inline, they would put the files on the permanent disk before the abuse floor has run,
+        // and nothing would know where they are once it rejects.
         //
         // Behind the master switch as well, and this is the step the promise is really about:
-        // storing is the only thing in this method that WRITES.
+        // storing is the only thing in this method that writes.
         //
-        // THE FREE HALF OF THE ABUSE FLOOR RUNS FIRST NOW, and the paragraph this replaces is worth
-        // keeping in mind: the full gate still stays where it is, for the reasons it gave. Calling
+        // The free half of the abuse floor runs first, and the full gate stays where it is: calling
         // `check()` here would burn a second rate-limit token against the reporter's own quota, and
         // splitting `handle()` into two public phases would put a seam into the one
         // transport-agnostic entrance a second adapter could call in the wrong order.
         //
-        // What changed is that part of that floor costs nothing to ask. `silentFloor()` is the
+        // What can move is the part of that floor that costs nothing to ask. `silentFloor()` is the
         // honeypot and the time trap: no cache, no disk, no network, no token — and exactly the
-        // arms a bot trips. Asking them here means a rejected bot attempt writes NOTHING, where it
-        // used to write up to five attachments and a screenshot and discard them after. On a
-        // remote disk those were real PUT requests, paid for before any protection had run.
+        // arms a bot trips. Asking them here means a rejected bot attempt writes nothing, where
+        // asking them later would write up to five attachments and a screenshot and discard them
+        // after. On a remote disk those are real PUT requests, paid for before any protection has
+        // run.
         //
-        // A gate that is not this one keeps today's ordering: the early call is deliberately not
+        // A gate that is not this one keeps the ordinary order: the early call is deliberately not
         // part of the `AbuseGate` contract, because a third-party gate may have nothing that is
         // free to evaluate, and requiring it would make the promise an interface cannot keep.
-        // IT SKIPS THE WRITE, NOT THE SUBMISSION, and that distinction is the whole design.
+        // It skips the write, not the submission, and that distinction is the whole design.
         // Returning early here would also skip `handle()` — and with it the rejection event a host
         // listens to, the decoy-success decision, and the mapping of the failure onto a field. A
         // host counting honeypot hits would simply stop seeing them, which is a worse defect than
-        // the one being fixed. So the pipeline runs exactly as before and reaches the same verdict;
+        // the cost this saves. So the pipeline runs exactly as it would without the early check and
+        // reaches the same verdict;
         // only the files are not there to be written and discarded again.
-        // The FLOOR is asked directly, not the gate the container hands out, and both halves of
+        // The floor is asked directly, not the gate the container hands out, and both halves of
         // that are deliberate.
         //
-        // The first version asked `app(AbuseGate::class)` and tested `instanceof
-        // BuiltinAbuseGate`. That binding returns the manager, so the test was false in every
-        // installation and the whole optimization was dead code — caught by static analysis
-        // before any test ran, because nothing about it is visible in behavior: a widget that
-        // skips no write looks exactly like one whose early floor never rejects.
+        // Asking `app(AbuseGate::class)` and testing `instanceof BuiltinAbuseGate` would not do:
+        // that binding returns the manager, so the test would be false in every installation and
+        // the whole optimization dead code, with nothing about it visible in behavior. A widget
+        // that skips no write looks exactly like one whose early floor never rejects.
         //
         // Resolving the floor itself keeps this independent of what a host layered on top. The
         // floor is what the manager runs first and whose rejection it calls final, so an attempt
         // rejected here is rejected by the full gate too, by the same arm for the same reason. A
-        // host that replaced the binding entirely still gets today's ordering, which is correct:
-        // this is an optimization for the gate we ship, not a promise about someone else's.
+        // host that replaced the binding entirely still gets this ordering, which is correct:
+        // this is an optimization for the gate this package ships, not a promise about someone else's.
         $attempt = new ReportAttempt(
             reporter: $reporterDto,
             honeypot: $this->feedbackReference,
@@ -1075,7 +1070,7 @@ class ReportWidget extends Component
             && app(WidgetAvailability::class)->forThisRequest()
             && ! $floor->limitAlreadySpent($attempt);
 
-        // Uploads over the caps are refused HERE, because handle() cannot see them without the
+        // Uploads over the caps are refused here, because handle() cannot see them without the
         // store: it reads the stored paths, and storing them is the cost being avoided. The
         // perimeter in updatedAttachments() keeps a reporter's own uploads within the caps, so
         // only a request that wrote the property past it reaches this, and it is answered as the
@@ -1108,7 +1103,7 @@ class ReportWidget extends Component
             recipient: $this->recipient,
             challenge: $this->challenge,
             // Exactly the keys the picker rendered, so the validator cannot disagree with it.
-            // `array_map` because PHP converts a numeric-STRING array key to an int on write:
+            // `array_map` because PHP converts a numeric-string array key to an int on write:
             // a configured `['101', '102']` comes back out of `array_keys()` as `[101, 102]`,
             // and the pipeline's allowlist is a list of strings. The keys were strings going in
             // — `categoryOptions()` filters on `is_string($key)` — so casting them back is a
@@ -1126,7 +1121,7 @@ class ReportWidget extends Component
 
         // Reclaim the files of a submission that produced no report.
         //
-        // Keyed on `accepted`, NOT on `showsSuccess`: a honeypot hit shows the decoy success and
+        // Keyed on `accepted`, not on `showsSuccess`: a honeypot hit shows the decoy success and
         // stores nothing, so keying on the UI flag would leak exactly the files a bot uploads.
         // That is the case this matters for — a public form, and an attacker who fails the floor
         // on purpose while the disk fills.
@@ -1233,20 +1228,20 @@ class ReportWidget extends Component
      * Clear the "you captured a screenshot but have not attached it" refusal the moment the
      * capture it refers to is gone.
      *
-     * The capture module clears `screenshotPending` on every way OUT of the preview — discard,
-     * retake and attach all reach it. The REFUSAL it caused did not follow: `failed` and
+     * The capture module clears `screenshotPending` on every way out of the preview — discard,
+     * retake and attach all reach it. The refusal it caused did not follow: `failed` and
      * `failedMessage` are set by submit and cleared by nothing short of a successful one. So a
      * reporter who pressed Send, read "attach it or discard it", and then pressed Discard was
      * left looking at an instruction to resolve something they had just resolved — the widget
      * asking for a decision that no longer exists.
      *
-     * Scoped to THIS failure rather than clearing on any state change, and the scope is what
+     * Scoped to this failure rather than clearing on any state change, and the scope is what
      * makes it safe: `failedField` is the server's own record of which refusal is on screen, so
      * an unrelated one (a rate limit, a listener veto, a bad email) is untouched. Clearing
      * broadly would erase a message the reporter still needs while they fix something else.
      *
-     * `failureCount` is deliberately NOT decremented. It is the monotonic counter the views key
-     * their focus effect on, and rolling it back would make the NEXT failure look unchanged to
+     * `failureCount` is deliberately not decremented. It is the monotonic counter the views key
+     * their focus effect on, and rolling it back would make the next failure look unchanged to
      * Alpine — the focus move would not fire, which is the defect that counter exists for.
      */
     public function updatedScreenshotPending(): void
@@ -1269,7 +1264,7 @@ class ReportWidget extends Component
     public function resetWidget(): void
     {
         $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'attachments', 'screenshot', 'screenshotStage', 'screenshotPending', 'metadata', 'privacyAcknowledged', 'feedbackReference', 'challenge', 'submitted', 'failed', 'failedField', 'failedMessage', 'failedFieldInvalid']);
-        // reset() restores the PROPERTY default — the empty string — which would put the
+        // reset() restores the property default — the empty string — which would put the
         // widget back into the mismatch mount() resolves. The second report must start where
         // the first one did.
         $this->category = $this->firstCategory();
@@ -1279,25 +1274,24 @@ class ReportWidget extends Component
         // reporter who did nothing wrong. Clearing it is only half the answer, though — the form
         // is removed on success (`@unless ($submitted)`), which tears the challenge region out
         // with it, and the third-party script that mounts the widget does not run again when the
-        // region comes back. So the host is TOLD, and can re-initialize.
+        // region comes back. So the host is told, and can re-initialize.
         //
         // The event name is public API: it can be added for free today and never silently later.
         $this->dispatch('visual-feedback:challenge-reset');
     }
 
     /**
-     * The category the picker SHOWS before the reporter touches it.
+     * The category the picker shows before the reporter touches it.
      *
      * The picker has no placeholder option, so a browser selects its first option and shows
-     * it as chosen. The server held an empty string, so a reporter who agreed with what they
-     * saw — the natural thing to do — submitted an empty category and was told "Something
-     * went wrong": found by submitting through a real Laravel app, not a fixture. The suite
-     * could not see it, because Livewire's test harness assigns properties directly and never
-     * renders a <select> for a browser to apply that default to.
+     * it as chosen. With an empty string on the server, a reporter who agreed with what they
+     * saw — the natural thing to do — would submit an empty category and be told "Something
+     * went wrong". Livewire's test harness cannot show it, because it assigns properties
+     * directly and never renders a <select> for a browser to apply that default to.
      *
      * So the server adopts what the UI shows. The alternative — a placeholder option forcing
-     * an explicit choice — is a product decision with a seven-locale string behind it, filed
-     * separately; this is the part that is simply a defect.
+     * an explicit choice — is a product decision with a seven-locale string behind it; this is
+     * the part that is simply a defect.
      */
     private function firstCategory(): string
     {
@@ -1307,7 +1301,7 @@ class ReportWidget extends Component
     /**
      * Delete files stored for a submission that produced no report.
      *
-     * Deliberately best-effort and silent: this runs on a path that is ALREADY a rejection, and a
+     * Deliberately best-effort and silent: this runs on a path that is already a rejection, and a
      * disk error here must not turn a clean "your message was too long" into an exception the
      * reporter sees. What it must not do is claim success — the orphan sweep still walks the same
      * directory, so anything missed here is reclaimed later rather than lost.
@@ -1326,10 +1320,10 @@ class ReportWidget extends Component
             $filesystem = Storage::disk($disk);
             $filesystem->delete($paths);
 
-            // THE DIRECTORY, TOO. `storeAttachments()` writes each file into its own
+            // The directory, too. `storeAttachments()` writes each file into its own
             // `<root>/<random>/` directory, and deleting the file left that directory standing
             // forever: the orphan sweep only ever yields entries where `isFile()` is true, so an
-            // ALREADY-empty directory is never a candidate, and `PruneReports` / `ForgetReporter`
+            // already-empty directory is never a candidate, and `PruneReports` / `ForgetReporter`
             // walk only directories named by a table row — which a rejected submission has not
             // got. One directory per rejected attempt, unbounded, on a public form where the
             // rejections are the bot traffic.
@@ -1414,7 +1408,7 @@ class ReportWidget extends Component
         }
 
         $disk = app(AttachmentPolicy::class)->disk();
-        // Through the policy, NOT off the raw config. The policy trims slashes and maps an empty
+        // Through the policy, not off the raw config. The policy trims slashes and maps an empty
         // string onto the default; a raw read accepts `''` as a directory, and the screenshot then
         // lands at `/screenshots/...` while the orphan sweep walks `visual-feedback/` and the
         // uploads sit under it. The file becomes unreachable to the only thing that would ever
@@ -1494,16 +1488,15 @@ class ReportWidget extends Component
      * the readable basename — which is also the mail attachment name. Returns only paths;
      * the TemporaryUploadedFile never travels onward.
      *
-     * The basename stays the reporter's, the EXTENSION does not. `guessExtension()` resolves it
+     * The basename stays the reporter's, the extension does not. `guessExtension()` resolves it
      * from the server-sniffed MIME — the same value Livewire's `mimes:` perimeter just accepted
-     * the file on — so the stored key and the mail attachment finally say the same thing about
-     * the bytes that every check in the package does. Until now the name was the client's whole
-     * string: a valid PNG uploaded as `report.html` passed the perimeter on its content, passed
-     * the AttachmentValidator's finfo re-check on its content, and then landed in the
-     * maintainer's inbox as `report.html` — a document their browser will happily execute once
-     * they save and open it, from a mail that appears to come from their own tooling. This is the
-     * same defense storeScreenshot() has always had two methods up, where the name is simply
-     * fixed at `screenshot.png`.
+     * the file on — so the stored key and the mail attachment say the same thing about the bytes
+     * that every check in the package does. With the client's whole string as the name, a valid
+     * PNG uploaded as `report.html` would pass the perimeter on its content, pass the
+     * AttachmentValidator's finfo re-check on its content, and then land in the maintainer's
+     * inbox as `report.html` — a document their browser will happily execute once they save and
+     * open it, from a mail that appears to come from their own tooling. This is the same defense
+     * storeScreenshot() has two methods up, where the name is simply fixed at `screenshot.png`.
      *
      * @return list<string>
      */
@@ -1531,7 +1524,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * The configured challenge view, or null — and a WARNING rather than silence when it is
+     * The configured challenge view, or null — and a warning rather than silence when it is
      * configured and missing.
      *
      * `@includeIf` renders nothing for a view that does not exist, which is the correct template
@@ -1565,9 +1558,9 @@ class ReportWidget extends Component
     {
         // The master switch, drawing half. `visual-feedback.enabled` is documented in the shipped
         // config as "the widget renders nothing and the submit endpoint rejects everything", and
-        // until now it did neither: Settings::enabled() had no caller anywhere in the package.
+        // a documented switch holds only where something reads it: here, for the drawing.
         //
-        // Short-circuiting HERE rather than inside the template covers both view trees at once —
+        // Short-circuiting here rather than inside the template covers both view trees at once —
         // the WireKit tree is a publish-time override of this same view name, so a guard written
         // in one file would be absent from the other the moment a host publishes.
         //
@@ -1576,7 +1569,7 @@ class ReportWidget extends Component
         //
         // Both switches at once, through the same object the five component templates ask, so the
         // button and the form can never disagree about whether this reporter has a form. The
-        // sign-in switch renders the SAME nothing as the master switch on purpose: a guest on an
+        // sign-in switch renders the same nothing as the master switch on purpose: a guest on an
         // authenticated-only install is not being told the form is broken, they are being shown a
         // page that has no feedback widget on it.
         if (! app(WidgetAvailability::class)->forThisRequest()) {
@@ -1584,7 +1577,7 @@ class ReportWidget extends Component
         }
 
         // Resolved once, because both are asked twice below and the second question is expensive.
-        // Together they are the condition BOTH view trees put the whole privacy block behind
+        // Together they are the condition both view trees put the whole privacy block behind
         // (`@if ($showGuestFields && $privacyNoticeUrl)`), and the wording lookup underneath it can
         // be a database read: with `privacy.source = legal-consent` the bridge reads the published
         // document once a minute per tenant, document key and locale and answers from the cache in
@@ -1599,18 +1592,18 @@ class ReportWidget extends Component
 
         return view('visual-feedback::livewire.report-widget', [
             'categoryOptions' => $this->categoryOptions(),
-            // What the reporter may attach, in words, next to the field. Built ONCE here and
+            // What the reporter may attach, in words, next to the field. Built once here and
             // handed to both view trees: two trees rendering their own trans_choice would be two
             // places to keep in step, and the numbers come from the policy so they cannot drift
             // from `accept` or the server rules.
             'attachmentLimit' => $this->attachmentLimitLine(),
-            // The challenge view, or null. Resolved HERE for the same reason as the master switch
+            // The challenge view, or null. Resolved here for the same reason as the master switch
             // above: both view trees render this same component, so a lookup written into one
             // template would be missing from the other the moment a host publishes.
             'challengeView' => $this->resolvedChallengeView(),
             // Guest identity fields show only when there is no authenticated reporter —
             // decided by the same resolver the submission uses, so the two never disagree.
-            // The block itself renders while ANY of the three is on; each one then decides
+            // The block itself renders while any of the three is on; each one then decides
             // for itself, so a host who wants only an email box gets only an email box.
             'showGuestFields' => $isGuest && ($this->fieldEnabled('name') || $this->fieldEnabled('email') || $this->fieldEnabled('phone')),
             // Every field answers the same question in the same vocabulary — see Settings.
@@ -1630,16 +1623,15 @@ class ReportWidget extends Component
             // see PrivacyNotice::required().
             'privacyNoticeUrl' => $privacyNoticeUrl,
             // The sentence for that checkbox when the source supplies one (the legal-consent
-            // bridge hands over the PUBLISHED acknowledgment wording), else null and the views
+            // bridge hands over the published acknowledgment wording), else null and the views
             // fall back to this package's own lang line. Plain text, escaped by the templates:
             // legal-consent never runs this field through its sanitizer.
             //
-            // Asked ONLY when the block that would show it renders. The named side effect: a
-            // wording source that logs a fallback warning no longer logs one on an authenticated
-            // reporter's render — right for a guest-only checkbox, and a change in behavior.
-            // Written on ONE line deliberately: a `: null,` on a line of its own compiles to no
-            // opcode, so pcov never records it while PHPUnit counts it as executable — permanently
-            // red under this package's 100% floor. CoverableSourceLineTest holds that rule.
+            // Asked only when the block that would show it renders, so a wording source that logs
+            // a fallback warning logs none on an authenticated reporter's render, which is right
+            // for a guest-only checkbox. Written on one line deliberately: a `: null,` on a line of
+            // its own compiles to no opcode, so a coverage driver never records it while PHPUnit
+            // counts it as executable.
             'privacyNoticeWording' => $isGuest && $privacyNoticeUrl !== null ? app(PrivacyNotice::class)->wording()?->text : null,
             // Max message length for the live counter. Code points here match the
             // server's mb_strlen-based validation, so the two never disagree.
@@ -1658,7 +1650,7 @@ class ReportWidget extends Component
             // a regional locale with an underscore (`pt_BR`), and Intl reads only the BCP 47 form
             // (`pt-BR`): handed `pt_BR`, it throws a RangeError and the counter stops.
             'appLocale' => str_replace('_', '-', app()->getLocale()),
-            // The file picker's `accept` attribute, DERIVED from the same server MIME
+            // The file picker's `accept` attribute, derived from the same server MIME
             // allowlist the validation uses — so the two can never drift apart.
             'acceptAttribute' => app(AttachmentPolicy::class)->acceptAttribute(),
             'screenshotEnabled' => $this->screenshotEnabled(),
@@ -1730,7 +1722,7 @@ class ReportWidget extends Component
      *
      * The per-instance `fields` prop wins over configuration, because a docs page and a billing
      * page in the same application legitimately want different forms. It accepts the mode by
-     * name, and it still accepts the BOOLEAN the prop was documented with — `['subject' => false]`
+     * name, and it still accepts the boolean the prop was documented with — `['subject' => false]`
      * has been in consumers' templates since 0.1.0 and keeps meaning what it always meant.
      */
     private function fieldMode(string $field): string

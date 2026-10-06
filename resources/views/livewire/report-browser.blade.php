@@ -1,19 +1,18 @@
 {{-- The framework-free browser. No Tailwind, no build step, every interaction a Livewire round
      trip.
 
-     THAT DOES NOT PUT IT OUTSIDE THE CSP QUESTION, AND THIS COMMENT SAID IT DID. It read
-     "carries no `x-` directive at all and is therefore outside the CSP question the widget had
-     to solve", which is a true premise and a false conclusion: Livewire contextualizes a
-     `wire:` action expression into `$wire.<expression>` and hands it to Alpine, so these
-     attributes are evaluated by exactly the parser the widget had to be rewritten for. Shipped
-     in 0.5.0 and reported by two separate consuming applications within the hour.
+     That does not put it outside the CSP question, although it carries no `x-` directive at
+     all: Livewire contextualizes a `wire:` action expression into `$wire.<expression>` and
+     hands it to Alpine, so these attributes are evaluated by exactly the parser the widget's
+     own directives are written for.
 
      The styles live in `visual-feedback::style`, the same stylesheet the widget uses, so a host
      that already includes it gets this for free. --}}
 <div class="visual-feedback-browser">
     {{-- The page's one h1. The browser renders into the host's own layout, and a host layout
-         carries no h1 because every page brings its own, so without this line the page had no
-         first heading at all and a screen reader navigating by heading found no topic. --}}
+         carries no h1 because every page brings its own, so without this line the page would
+         have no first heading at all and a screen reader navigating by heading would find no
+         topic. --}}
     <h1 class="visual-feedback-browser-title">{{ __('visual-feedback::browser.title') }}</h1>
     @if ($deleteFailed)
         <p class="visual-feedback-browser-error" role="alert">{{ __('visual-feedback::browser.delete_failed') }}</p>

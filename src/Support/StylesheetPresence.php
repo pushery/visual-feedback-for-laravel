@@ -7,13 +7,12 @@ namespace Pushery\VisualFeedback\Support;
 /**
  * Whether the host's layout rendered the widget stylesheet during this request.
  *
- * THE DELIVERY PATH HAS NO FAILURE SIGNAL OF ITS OWN, AND HALF A FLEET CAN FALL THROUGH IT. In
- * the applications that embed this widget, 6 of 11 carried the widget and the
- * scripts tag but not `@include('visual-feedback::style')`, so they shipped it unstyled — no
- * positioning for the floating panel, no dialog styling, and no concealment rule for the
- * honeypot, which lives in that sheet.
+ * The delivery path has no failure signal of its own. A layout that carries the widget and the
+ * scripts tag but not `@include('visual-feedback::style')` ships it unstyled — no positioning
+ * for the floating panel, no dialog styling, and no concealment rule for the honeypot, which
+ * lives in that sheet.
  *
- * Nothing turned red. The widget renders, opens and sends; it simply looks like nothing else on
+ * Nothing fails. The widget renders, opens and sends; it simply looks like nothing else on
  * the page. A defect that raises no signal is not fixed, it is got used to.
  *
  * The state lives for one request or one queued job rather than for the process, on purpose:
@@ -28,7 +27,7 @@ final class StylesheetPresence
     private bool $rendered = false;
 
     /**
-     * Called by the stylesheet partial itself, OUTSIDE its tree branch.
+     * Called by the stylesheet partial itself, outside its tree branch.
      *
      * The branch decides what the sheet contains, never whether the host asked for it — both
      * trees need the include, and the WireKit branch is smaller rather than empty. Marking

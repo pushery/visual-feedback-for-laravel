@@ -24,8 +24,9 @@ use Throwable;
 /**
  * The mail channel's own queued job. It carries the plain, queue-safe pieces
  * the mailable needs and sends synchronously inside the worker — so the channel gets one
- * uniform lifecycle shape with the others: handle() delivers then settles DELIVERED, and
- * failed() (after the retries in `channels.mail` are exhausted) settles FAILED. The receipt,
+ * uniform lifecycle shape with the others: handle() delivers then settles delivered, handing a
+ * settle the cache refuses to SettleDelivery, and
+ * failed() (after the retries in `channels.mail` are exhausted) settles failed. The receipt,
  * the ReportDelivered/ReportDeliveryFailed event and the attachment-refcount step all flow
  * through the single ReportDeliveryTracker — never from a second path.
  *
@@ -80,10 +81,12 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
             throw RedactedFailure::standIn($exception);
         }
 
-        $tracker->settleDelivered($this->report, 'mail');
+        // The mail is out. A settle the cache refuses now goes to a job of its own, because a
+        // retry of this one would send the mail a second time.
+        SettleDelivery::afterDelivery($tracker, $this->report, 'mail', $this->connection, $this->queue, $this->tries, $this->backoffSeconds);
     }
 
-    /** Retries exhausted → the ONE terminal failure path for this channel. */
+    /** Retries exhausted → the one terminal failure path for this channel. */
     public function failed(Throwable $exception): void
     {
         Container::getInstance()->make(ReportDeliveryTracker::class)

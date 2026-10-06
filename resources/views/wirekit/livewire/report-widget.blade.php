@@ -10,18 +10,18 @@
     {{-- The same registered component the plain tree uses. It moved into the bundle because an
          object literal with method shorthand, statements, default parameters, arrow functions
          and bare `document`/`window` is outside Alpine's CSP grammar on six counts — and a
-         rejected `x-data` leaves the element with an EMPTY scope, so every directive beneath it
+         rejected `x-data` leaves the element with an empty scope, so every directive beneath it
          silently stops working. --}}
     x-data="visualFeedbackWidget()"
     {{-- Every trigger path (built-in FAB, standalone components, a host's own $dispatch)
-         dispatches `visual-feedback:open`; here we re-measure metadata fresh and open the
+         dispatches `visual-feedback:open`; the handler here re-measures metadata fresh and opens the
          WireKit modal by name via its own `wirekit-modal-show` event.
 
-         MODAL ONLY, and the listener is not merely inert inline — it is harmful there. An
+         Modal only, and the listener is not merely inert inline — it is harmful there. An
          inline widget renders a card and no modal at all, so there is nothing to open; but
          `markOpened()` would still re-anchor the server-held open time, and the abuse gate
          rejects anything submitted within `abuse.min_fill_seconds` of that stamp as a
-         honeypot hit — SILENTLY, with the decoy success shown. The listener carries
+         honeypot hit — silently, with the decoy success shown. The listener carries
          `.window`, and a mixed page (one inline widget plus one modal, which the docs
          support) is exactly where a FAB press meant for the modal would reach the inline
          widget and reset the timer under someone mid-sentence.
@@ -30,10 +30,10 @@
          renders with a literal `open`, so `!$refs.dialog.open` is permanently false there.
          Same outcome, so this is parity — not a new rule.
 
-         Nothing is lost by dropping the listener inline: `mount()` anchors an INLINE widget
+         Nothing is lost by dropping the listener inline: `mount()` anchors an inline widget
          itself — it is open from the moment it renders, and nothing else would ever anchor it,
          because this listener is the modal path — and the metadata is re-measured on the form's
-         own `submit.capture`. (A modal is deliberately NOT anchored at mount, so it is refused
+         own `submit.capture`. (A modal is deliberately not anchored at mount, so it is refused
          rather than exempted while the trap is armed. The anchor is held on the server and never
          reaches the markup, so no mode puts a moving value into a rendered page.) --}}
     @if ($mode === 'modal')
@@ -49,7 +49,7 @@
              component tag. <x-wirekit::modal> forwards stray attributes to its outer wrapper —
              a <div> with no role — where aria-label is a prohibited attribute that assistive
              tech ignores outright, while the panel's aria-labelledby kept pointing at the
-             header id that then never existed. The result was a dialog with NO accessible
+             header id that then never existed. The result was a dialog with no accessible
              name at all. modal.header supplies that id, and with it the keyboard-reachable
              close button the plain tree already had. --}}
         <x-wirekit::modal name="visual-feedback">
@@ -65,15 +65,15 @@
         </x-wirekit::modal>
     @else
         {{-- `visual-feedback-panel` is the marker the capture module hides by. The plain tree's
-             panel is a <dialog> and was found by element type; this one is a WireKit component,
-             so without a marker of our own every DOM-stage screenshot from a WireKit app
-             carried a picture of the feedback form instead of the page being reported. It
-             cannot go on <x-wirekit::modal> itself: stray attributes land on a wrapper OUTSIDE
+             panel is a <dialog> and is found by element type; this one is a WireKit component,
+             so without a marker of the widget's own every DOM-stage screenshot from a WireKit app
+             would carry a picture of the feedback form instead of the page being reported. It
+             cannot go on <x-wirekit::modal> itself: stray attributes land on a wrapper outside
              the x-teleport, not on the overlay that paints over the page. --}}
         {{-- The form goes into `card.body`, not straight into the card. WireKit's card root is a
-             padding-free frame and its body carries the padding, so a form placed in the root sat
-             against the card's border: measured at 320 px wide, every field started directly inside
-             it. --}}
+             padding-free frame and its body carries the padding, so a form placed in the root
+             would sit against the card's border: at 320 px wide, every field would start directly
+             inside it. --}}
         <x-wirekit::card class="visual-feedback-panel">
             <x-wirekit::card.body>
                 @include('visual-feedback::wirekit.livewire._report-form')
