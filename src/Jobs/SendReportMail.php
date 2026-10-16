@@ -6,7 +6,7 @@ namespace Pushery\VisualFeedback\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Container\Container;
-use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Contracts\Mail\Factory as Mailers;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -41,7 +41,7 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
     use SerializesModels;
 
     /**
-     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string}  $mail
+     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, mailer?: ?string}  $mail
      */
     public function __construct(
         public readonly Report $report,
@@ -51,7 +51,7 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
         private readonly int $backoffSeconds,
     ) {}
 
-    public function handle(Mailer $mailer, ReportDeliveryTracker $tracker, CategoryLabels $labels, LoggerInterface $logger, ErasedReporters $erased): void
+    public function handle(Mailers $mailers, ReportDeliveryTracker $tracker, CategoryLabels $labels, LoggerInterface $logger, ErasedReporters $erased): void
     {
         // The reporter was erased after this report was submitted. Mailing it now would bring
         // back a copy the erasure was meant to end, so the channel ends here, recorded as not
@@ -76,7 +76,9 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
         // What a job throws, the worker reports and the failed jobs keep, so a transport error that
         // names a URL or a DSN goes out as a stand-in without its secrets.
         try {
-            $mailer->send($mailable);
+            // The mailer the channel named when it accepted the report; a job queued before the
+            // option existed carries none and goes through the default, as it would have.
+            $mailers->mailer($this->mail['mailer'] ?? null)->send($mailable);
         } catch (Throwable $exception) {
             throw RedactedFailure::standIn($exception);
         }

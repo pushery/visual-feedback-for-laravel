@@ -364,9 +364,10 @@
                         id="visual-feedback-files" @if ($vfInvalidField === 'files') aria-invalid="true" aria-describedby="visual-feedback-error visual-feedback-files-limit" @else aria-describedby="visual-feedback-files-limit" @endif
                         class="visual-feedback-file-input"
                         type="file"
-                        multiple
                         accept="{{ $acceptAttribute }}"
-                        wire:model="attachments"
+                        {{-- With uploads staged on S3, Livewire refuses `multiple`, so each pick is one
+                             file that joins the list below; everywhere else one pick takes several. --}}
+                        @if ($uploadsOneAtATime) wire:model="attachmentUpload" @else multiple wire:model="attachments" @endif
                     >
 
                     {{-- The caps in words, before the reporter picks. They were server-side only:

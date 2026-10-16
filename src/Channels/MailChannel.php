@@ -104,9 +104,9 @@ final readonly class MailChannel implements ReportChannel
         // Loud, because the alternative is a configuration that looks honored and is not — the
         // same reason LegalConsentNotice and AbuseGateRegistry are loud about their own refusals.
         $this->logger->warning('visual-feedback: the configured mailer cannot deliver — its transport accepts a message and drops it, so the mail channel is skipped instead of reporting a delivery that never happened', [
-            'mailer' => $this->config->get('mail.default'),
+            'mailer' => $this->transports->mailer(),
             'transports' => $dropping,
-            'hint' => 'set MAIL_MAILER to a real transport, or set visual-feedback.mail.require_deliverable_transport to false if this is deliberate',
+            'hint' => 'set VISUAL_FEEDBACK_MAIL_MAILER, or MAIL_MAILER, to a mailer with a real transport, or set visual-feedback.mail.require_deliverable_transport to false if this is deliberate',
         ]);
 
         return false;
@@ -157,7 +157,7 @@ final readonly class MailChannel implements ReportChannel
     }
 
     /**
-     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, subject_excerpt_length: int}
+     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, subject_excerpt_length: int, mailer: ?string}
      */
     private function mailConfig(Report $report): array
     {
@@ -190,6 +190,9 @@ final readonly class MailChannel implements ReportChannel
             // reached for config() itself would resolve it in the worker, whose configuration is
             // not necessarily the one the report was accepted under.
             'subject_excerpt_length' => is_numeric($excerpt) ? max(0, (int) $excerpt) : 60,
+            // The name travels with the job, as the rest of the mail configuration does, so the
+            // worker sends through the mailer the report was accepted for.
+            'mailer' => is_string($mail['mailer'] ?? null) && $mail['mailer'] !== '' ? $mail['mailer'] : null,
         ];
     }
 

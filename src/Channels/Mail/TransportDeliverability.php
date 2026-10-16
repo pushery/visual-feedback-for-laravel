@@ -7,7 +7,8 @@ namespace Pushery\VisualFeedback\Channels\Mail;
 use Illuminate\Contracts\Config\Repository as Config;
 
 /**
- * Can the configured mailer actually put a message on the wire?
+ * Can the mailer reports go through actually put a message on the wire? That is the one
+ * `visual-feedback.mail.mailer` names, or `mail.default` when it names none.
  *
  * `Mailer::send()` succeeds on the `log` and `array` transports — that is their correct
  * behavior, not a fault. So a report rendered into `laravel.log` walks the whole happy path: no
@@ -50,6 +51,23 @@ final readonly class TransportDeliverability
     public function __construct(private Config $config) {}
 
     /**
+     * The mailer the channel sends through: `visual-feedback.mail.mailer` when it names one,
+     * `mail.default` otherwise, and null when neither does.
+     */
+    public function mailer(): ?string
+    {
+        foreach (['visual-feedback.mail.mailer', 'mail.default'] as $key) {
+            $name = $this->config->get($key);
+
+            if (is_string($name) && $name !== '') {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * The non-delivering transports the configured mailer can end up on, in configuration order.
      *
      * An empty list means "nothing here silently drops a message" — which includes the cases
@@ -59,13 +77,13 @@ final readonly class TransportDeliverability
      */
     public function nonDeliveringTransports(): array
     {
-        $default = $this->config->get('mail.default');
+        $mailer = $this->mailer();
 
-        if (! is_string($default) || $default === '') {
+        if ($mailer === null) {
             return [];
         }
 
-        return $this->resolve($default, []);
+        return $this->resolve($mailer, []);
     }
 
     /**

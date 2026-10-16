@@ -226,6 +226,15 @@ class ReportWidget extends Component
     public array $attachments = [];
 
     /**
+     * One reporter upload at a time, for an application whose temporary upload disk is on S3.
+     * Livewire refuses a file input with `multiple` there before a byte moves, with its
+     * `S3DoesntSupportMultipleFileUploads`, so the form then binds its input here, without
+     * `multiple`, and each file the reporter picks joins $attachments on its own. On every
+     * other disk the input binds $attachments and takes several files in one pick.
+     */
+    public ?TemporaryUploadedFile $attachmentUpload = null;
+
+    /**
      * The client-captured screenshot, uploaded via the capture module's swappable
      * uploader ($wire.upload). Held as a TemporaryUploadedFile at the UI boundary,
      * stored to a path on submit; the ScreenshotValidator re-checks it server-side.
@@ -840,6 +849,25 @@ class ReportWidget extends Component
         }
     }
 
+    /**
+     * A file picked on its own joins the queued attachments, which then answer to the same
+     * perimeter as a pick of several: what does not fit is dropped, and the reporter is told.
+     * The slot is emptied first, so the next pick starts from nothing.
+     */
+    public function updatedAttachmentUpload(): void
+    {
+        $upload = $this->attachmentUpload;
+        $this->attachmentUpload = null;
+
+        if (! $upload instanceof TemporaryUploadedFile) {
+            return;
+        }
+
+        $this->attachments[] = $upload;
+
+        $this->updatedAttachments();
+    }
+
     /** Remove one queued attachment by index — bounds-checked, never trusting the client index. */
     public function removeAttachment(int $index): void
     {
@@ -1163,6 +1191,34 @@ class ReportWidget extends Component
             $policy->maxFiles(),
             ['count' => $policy->maxFiles(), 'size' => $policy->maxFileSizeForHumans()],
         );
+    }
+
+    /**
+     * One sentence per labeled field of the WireKit form: what the field is for and, where the
+     * submission holds it to a length, that length. The lengths are read the way SubmitReport
+     * reads them, from the same keys with the same defaults, and every sentence is a catalog
+     * line a host can override.
+     *
+     * @return array<string, string>
+     */
+    private function fieldHelp(): array
+    {
+        $separator = (string) trans('visual-feedback::messages.widget.help.thousands_separator');
+        $limit = static function (string $field, int $default) use ($separator): string {
+            $value = config("visual-feedback.fields.{$field}.max_length");
+
+            return number_format(is_numeric($value) ? (int) $value : $default, 0, '', $separator);
+        };
+
+        return [
+            'name' => (string) trans('visual-feedback::messages.widget.help.name', ['max' => $limit('name', 150)]),
+            'email' => (string) trans('visual-feedback::messages.widget.help.email', ['max' => $limit('email', 254)]),
+            'phone' => (string) trans('visual-feedback::messages.widget.help.phone', ['max' => $limit('phone', 32)]),
+            'category' => (string) trans('visual-feedback::messages.widget.help.category'),
+            'subject' => (string) trans('visual-feedback::messages.widget.help.subject', ['max' => $limit('subject', 150)]),
+            'message' => (string) trans('visual-feedback::messages.widget.help.message', ['max' => $limit('message', 50_000)]),
+            'attachments' => (string) trans('visual-feedback::messages.widget.help.attachments'),
+        ];
     }
 
     /**
@@ -1597,6 +1653,12 @@ class ReportWidget extends Component
             // places to keep in step, and the numbers come from the policy so they cannot drift
             // from `accept` or the server rules.
             'attachmentLimit' => $this->attachmentLimitLine(),
+            // The sentence beside each labeled field of the WireKit form, built here so its numbers
+            // are the ones SubmitReport validates against.
+            'fieldHelp' => $this->fieldHelp(),
+            // Whether the file input takes one file per pick, because Livewire stages uploads on
+            // S3 here and refuses `multiple` there. Decided once for both trees.
+            'uploadsOneAtATime' => FileUploadConfiguration::isUsingS3(),
             // The challenge view, or null. Resolved here for the same reason as the master switch
             // above: both view trees render this same component, so a lookup written into one
             // template would be missing from the other the moment a host publishes.

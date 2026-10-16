@@ -110,7 +110,9 @@ succeed with the message going nowhere, and Laravel's own default is `env('MAIL_
 — so an application that never set it is in that state. The mail channel refuses those (and a
 `failover` chain that can fall through to one) instead of reporting a delivery that did not
 happen. `VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT=false` allows it on purpose; the
-check is never applied while the application runs its tests.
+check is never applied while the application runs its tests. An application whose own mail
+stays on `array` on purpose, in a demo tenant for instance, names a real mailer for reports
+alone with `VISUAL_FEEDBACK_MAIL_MAILER`; the check then reads that one.
 
 The `log` transport writes the whole message — free text, the reporter's address, the
 screenshot as base64 — into the log in plaintext, and from there into every error tracker the
@@ -400,7 +402,7 @@ which is the copy that gets corrected when a dependency moves.
 
 ### 8. Use a WireKit-styled widget (optional)
 
-**Nothing to do — an application with WireKit 2.51+ installed already gets it.** The shipped
+**Nothing to do — an application with WireKit 2.64+ installed already gets it.** The shipped
 `ui.variant` is `auto`, which serves the WireKit tree when a new enough WireKit is present and
 the framework-free one otherwise. Force either tree when the automatic choice is not what the
 application wants:
@@ -417,9 +419,9 @@ views, which every update then silently leaves behind. That is what `ui.variant`
 replace. The stylesheet needs no attention either way: it carries the same switch and renders
 nothing under the WireKit tree.
 
-**Needs WireKit 2.51 or newer** — the report browser's pager turns pages inside Livewire from
-2.51, and from 2.50 the report dialog, a `<x-wirekit::modal>`, keeps its header and close button
-in reach when it is taller than the screen. `auto` serves the plain tree below 2.51; check the installed version before
+**Needs WireKit 2.64 or newer** — every field explains itself beside its label from 2.64, the
+report browser's pager turns pages inside Livewire from 2.51, and from 2.50 the report dialog, a `<x-wirekit::modal>`, keeps its header and close button
+in reach when it is taller than the screen. `auto` serves the plain tree below 2.64; check the installed version before
 forcing or publishing the WireKit tree. One thing differs from the plain tree by design: the trigger is an **icon** button
 rather than a text one (its accessible name is the widget heading either way). The corner does
 not differ: `ui.position` follows the writing direction in both trees, so `bottom-end` mirrors

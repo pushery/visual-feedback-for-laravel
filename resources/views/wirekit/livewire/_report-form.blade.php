@@ -131,7 +131,7 @@
             @if ($showName)
                 <x-wirekit::input
                     id="visual-feedback-name" :error="$vfInvalidField === 'name' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-                    :label="$fieldLabels['name']"
+                    :label="$fieldLabels['name']" :help="$fieldHelp['name']"
                     :required="in_array('name', $requiredFields, true)"
                     wire:model="guestName" autocomplete="name" />
             @endif
@@ -139,7 +139,7 @@
                 <x-wirekit::input
                     id="visual-feedback-email" :error="$vfInvalidField === 'email' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="email"
-                    :label="$fieldLabels['email']"
+                    :label="$fieldLabels['email']" :help="$fieldHelp['email']"
                     :required="in_array('email', $requiredFields, true)"
                     wire:model="guestEmail" autocomplete="email" />
             @endif
@@ -147,7 +147,7 @@
                 <x-wirekit::input
                     id="visual-feedback-phone" :error="$vfInvalidField === 'phone' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                     type="tel"
-                    :label="$fieldLabels['phone']"
+                    :label="$fieldLabels['phone']" :help="$fieldHelp['phone']"
                     :required="in_array('phone', $requiredFields, true)"
                     wire:model="guestPhone" autocomplete="tel" />
             @endif
@@ -157,7 +157,7 @@
              by one name regardless of which view tree is published. --}}
         <x-wirekit::select
             id="visual-feedback-category" :error="$vfInvalidField === 'category' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-            :label="__('visual-feedback::messages.widget.category_label')"
+            :label="__('visual-feedback::messages.widget.category_label')" :help="$fieldHelp['category']"
             {{-- Required because the server says so, not because the form looks better with a
                  star: `SubmitReport` validates `category` as `required` unconditionally, so a
                  reporter who leaves it alone is rejected either way. It is not in
@@ -169,7 +169,7 @@
         @if ($showSubject)
             <x-wirekit::input
                 id="visual-feedback-subject" :error="$vfInvalidField === 'subject' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-                :label="$fieldLabels['subject']"
+                :label="$fieldLabels['subject']" :help="$fieldHelp['subject']"
                 :required="in_array('subject', $requiredFields, true)"
                 wire:model="subject" />
         @endif
@@ -189,7 +189,7 @@
         <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
             <x-wirekit::textarea
                 id="visual-feedback-message" :error="$vfInvalidField === 'message' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-                :label="__('visual-feedback::messages.widget.message_label')"
+                :label="__('visual-feedback::messages.widget.message_label')" :help="$fieldHelp['message']"
                 wire:model="message"
                 required
                 x-on:input="measure($event.target.value)"
@@ -346,6 +346,32 @@
              every render, so it could never have been named by anything. `name` is left off
              deliberately — the component only emits `name="…[]"` when it is given one, and the
              plain tree's file input carries none either. --}}
+        {{-- With uploads staged on S3, Livewire refuses `multiple`, so the dropzone takes one file per
+             pick into a slot of its own, and the files already queued are listed below it from the
+             component, which holds them; the dropzone's own list only knows the latest pick. --}}
+        @if ($uploadsOneAtATime)
+        <x-wirekit::file-upload
+            id="visual-feedback-files" :error="$vfInvalidField === 'files' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
+            wire:model="attachmentUpload"
+            :accept="$acceptAttribute"
+            :hint="$attachmentLimit"
+            :removeLabel="__('visual-feedback::messages.widget.remove_file', ['name' => ':name'])"
+            :label="__('visual-feedback::messages.widget.attachments_label')" :help="$fieldHelp['attachments']" />
+
+        @if (count($attachments) > 0)
+            <ul class="visual-feedback-file-list" aria-live="polite">
+                @foreach ($attachments as $index => $file)
+                    @continue (! $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile)
+                    <li class="visual-feedback-file" wire:key="vf-file-{{ $file->getFilename() }}">
+                        <span class="visual-feedback-file-name">{{ $file->getClientOriginalName() }}</span>
+                        <x-wirekit::button type="button" intent="neutral" surface="soft" size="sm"
+                            wire:click="removeAttachment({{ $index }})"
+                            :aria-label="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])">&times;</x-wirekit::button>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+        @else
         <x-wirekit::file-upload
             id="visual-feedback-files" :error="$vfInvalidField === 'files' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
             wire:model="attachments"
@@ -356,7 +382,8 @@
                  the button announced itself in WireKit's language, not the widget's — and the
                  widget ships seven locales. The prop arrived in WireKit 2.20. --}}
             :removeLabel="__('visual-feedback::messages.widget.remove_file', ['name' => ':name'])"
-            :label="__('visual-feedback::messages.widget.attachments_label')" />
+            :label="__('visual-feedback::messages.widget.attachments_label')" :help="$fieldHelp['attachments']" />
+        @endif
 
         {{-- Real-time perimeter errors surfaced from the upload validation.
 
