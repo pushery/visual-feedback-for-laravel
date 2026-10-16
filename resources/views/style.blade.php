@@ -1097,5 +1097,26 @@
         font-size: var(--text-wk-sm, 0.8125rem);
         color: var(--color-wk-text-muted, #6b7280);
     }
+
+    {{-- The question mark WireKit puts beside a field's label is a 24px button, the target size of
+       WCAG 2.2. On a touch screen every other control of this form clears 44px, and this one reaches it
+       the way WireKit's own file-upload remove button does: through a transparent `::before` centered
+       on it, so the mark keeps its size and the label row keeps its height. --}}
+    @media (pointer: coarse) {
+        .visual-feedback-panel [data-wk-field-help] button {
+            position: relative;
+        }
+
+        .visual-feedback-panel [data-wk-field-help] button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: var(--size-wk-touch-target, 2.75rem);
+            height: var(--size-wk-touch-target, 2.75rem);
+            margin-top: calc(var(--size-wk-touch-target, 2.75rem) / -2);
+            margin-left: calc(var(--size-wk-touch-target, 2.75rem) / -2);
+        }
+    }
 </style>
 @endif

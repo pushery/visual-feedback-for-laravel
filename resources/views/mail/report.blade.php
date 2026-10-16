@@ -93,11 +93,14 @@
 @if (count($report->metadata) > 0)
 **{{ __('visual-feedback::messages.mail.technical_details') }}**
 
+{{-- The capture stage is the browser's own statement: the server cannot tell which stage made
+     the file, so the row says whose word it is rather than reading as proof of an exact shot.
+     The comment stands above the table: Blade removes a comment but keeps the line break after
+     it, and CommonMark ends a table at the first blank line, so a comment between the separator
+     row and the rows turns every row into one paragraph of pipes. --}}
 <x-mail::table>
 | {{ __('visual-feedback::messages.mail.field') }} | {{ __('visual-feedback::messages.mail.value') }} |
 | :--- | :--- |
-{{-- The capture stage is the browser's own statement: the server cannot tell which stage made
-     the file, so the row says whose word it is rather than reading as proof of an exact shot. --}}
 @foreach ($report->metadata as $key => $value)
 | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Illuminate\Support\Str::headline((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if ($key === 'capture_method') {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
 @endforeach

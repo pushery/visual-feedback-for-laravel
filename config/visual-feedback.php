@@ -580,6 +580,14 @@ return [
         'to' => env('VISUAL_FEEDBACK_MAIL_TO'),
 
         /*
+         * The mailer reports go through, by its name in `mail.mailers`. Empty sends them through
+         * `mail.default`. Name one when the application's own mail is silent on purpose, on
+         * `array` in a demo tenant for instance, and feedback has to arrive all the same: the
+         * channel then sends through this mailer and checks that this one delivers.
+         */
+        'mailer' => env('VISUAL_FEEDBACK_MAIL_MAILER'),
+
+        /*
          * The addresses a per-instance `recipient` mount prop may name, besides `to` itself.
          *
          * The widget can be mounted with its own recipient, so feedback from one page reaches the

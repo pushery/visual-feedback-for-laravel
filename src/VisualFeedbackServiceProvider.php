@@ -45,13 +45,15 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     /**
      * The oldest WireKit release the WireKit tree is served against.
      *
-     * 2.51 is the release whose pager turns pages inside a Livewire component, which the report
+     * 2.64 is the release whose labeled fields render a help text beside the label, which every
+     * field of the WireKit form carries. 2.51 made the pager turn pages inside a Livewire
+     * component, which the report
      * browser's list uses. 2.50 made the modal panel a column, so the report dialog keeps its
      * header and its close button in reach when it is taller than the screen; from 2.49 the kit
      * also sets its floating trigger the same distance from both edges. Below the floor, `auto`
      * serves the plain tree, which has none of these defects, rather than a tree that shows them.
      */
-    public const string WIREKIT_MINIMUM = '2.51.0';
+    public const string WIREKIT_MINIMUM = '2.64.0';
 
     /**
      * Whether an installed WireKit is new enough for the tree this package ships.

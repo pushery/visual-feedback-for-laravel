@@ -64,7 +64,9 @@
 @if (app(\Pushery\VisualFeedback\Support\WidgetAvailability::class)->forThisRequest())
 {{-- The stylesheet, if the layout did not already ask for it — and this is a self-heal, not a
      second documented way to install the widget. Keep writing @include('visual-feedback::style')
-     in your <head>; that is where it belongs and it is where it will not flash.
+     in your <head>, above this tag; that is where it belongs and it is where it will not flash.
+     The check runs when this tag renders, so an include further down the page has not
+     rendered yet and reads as missing.
 
      A layout that carries the widget and this very tag, and not the include, ships it unstyled —
      no positioning for the floating panel, no dialog styling, and no concealment rule for the
@@ -90,7 +92,7 @@
         'visual-feedback: the widget stylesheet was not included by your layout, so it is being '
         .'emitted from <x-visual-feedback::scripts /> instead. The widget is styled either way, '
         .'but this happens late in the body and can flash unstyled.',
-        ['hint' => "add @include('visual-feedback::style') to your layout <head>"],
+        ['hint' => "add @include('visual-feedback::style') to your layout <head>, above <x-visual-feedback::scripts />"],
     );
 @endphp
 @include('visual-feedback::style', ['nonce' => $nonce])

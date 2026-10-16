@@ -4,6 +4,36 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.21.0] - 2026-10-16
+
+### ✨ Added
+
+- **Reports can go through a mailer of their own.** `visual-feedback.mail.mailer` (`VISUAL_FEEDBACK_MAIL_MAILER`) names a mailer from `config/mail.php`, and the mail channel sends through it and checks that it delivers, whatever `mail.default` is. An application whose own mail stays on `array` on purpose, a demo tenant for instance, still receives feedback. Empty keeps `mail.default`, as before.
+
+- **Every field of the WireKit form explains itself.** Name, email, phone, category, subject, message and attachments carry a sentence beside their label, in all seven locales, and the lengths in them are the ones the submission validates against. Each sentence is a catalog line under `visual-feedback::messages.widget.help`, so a host can override it in its own language files. On a touch screen the question mark that opens a sentence takes a 44px tap target, like every other control of the form, while it keeps its size on the page.
+
+### 🔧 Changed
+
+- **The WireKit tree needs WireKit 2.64 or newer.** 2.64 is the release whose labeled fields render a help text beside the label. `ui.variant = auto` serves the plain tree below it.
+
+  **Upgrade:** an application that serves the WireKit tree needs `pushery/wirekit` 2.64 or newer. Below it, `auto` falls back to the plain tree.
+
+### 🐛 Fixed
+
+- **The report mail shows its technical details as a table again.** From 0.19.0 on, every row under "Technical details" ran together into one paragraph of pipes below a lone header: a template comment between the header and the rows left a blank line, and a blank line ends a Markdown table. The comment now stands above the table.
+
+  **Upgrade:** nothing changes for an application that never published the mail view. A published copy takes the fix with `php artisan vendor:publish --tag=visual-feedback-views --force`, or by moving the comment above `<x-mail::table>`.
+
+- **The report store is found on a PostgreSQL connection that stringifies its fetches.** With `PDO::ATTR_STRINGIFY_FETCHES` on, the lookup read PostgreSQL's answer as the string `'1'` and took the reports table for absent: the database channel stopped storing reports, `visual-feedback:sweep-orphans` deleted the attachments of stored reports, and `prune` and `forget-reporter` did nothing while reporting success. The lookup now asks whether a row comes back, and an index, a sequence or a view under the table's name no longer counts as the table.
+
+- **Screenshots and files upload where Livewire stages its uploads on S3.** Livewire refuses a file input with `multiple` when `livewire.temporary_file_upload.disk` is an `s3` disk, so every pick in the report form failed with `S3DoesntSupportMultipleFileUploads`, however many files it held. On such a disk the form now takes one file per pick, and each one joins the list under the field. On every other disk one pick still takes several.
+
+  **Upgrade:** nothing changes for an application that never published the widget views. A published copy takes the fix with `php artisan vendor:publish --tag=visual-feedback-views --force`, or by bringing the `$uploadsOneAtATime` branch around the file input into it.
+
+- **The warning about a missing stylesheet says where the include goes.** `<x-visual-feedback::scripts />` checks for the stylesheet when it renders, so an `@include('visual-feedback::style')` further down the page reads as missing, and the stylesheet arrives a second time. The warning's hint and the installation guide now say that the include comes above the tag.
+
+  **Upgrade:** a layout that logs that warning while it carries the include has the include below `<x-visual-feedback::scripts />`, and moving it above the tag ends the warning.
+
 ## [0.20.1] - 2026-10-06
 
 ### 🐛 Fixed
@@ -1184,7 +1214,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.18.1...v0.19.0
