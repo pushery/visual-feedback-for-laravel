@@ -1036,7 +1036,7 @@
        host injects something, but `:empty` is only half the question there: an invisible provider
        fills it with elements that take no room, and the slot is then not empty and still zero
        high. The widget measures it and sets `data-visual-feedback-collapsed` while it has no
-       height (watchChallengeHeight in js/widget.js), so its spacing returns the moment it shows.
+       height (watchChallengeHeight in the widget's script), so its spacing returns the moment it shows.
 
        The margin is removed from the element after them as well: the owl selector spaces a child
        from its predecessor, so skipping a zero-height predecessor means the next visible element

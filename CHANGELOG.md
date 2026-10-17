@@ -4,6 +4,12 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.22.0] - 2026-10-17
+
+### ✨ Added
+
+- **Each channel takes its number of attempts from the environment.** `VISUAL_FEEDBACK_MAIL_TRIES`, `VISUAL_FEEDBACK_DATABASE_TRIES` and `VISUAL_FEEDBACK_WEBHOOK_TRIES` set `channels.mail.tries`, `channels.database.tries` and `channels.webhook.tries`, so an application no longer publishes the config to give one channel more attempts than the others. Each defaults to `3`, as before, and a value below `1` or one that is not a whole number falls back to `3`: Laravel reads `0` as no limit at all.
+
 ## [0.21.0] - 2026-10-16
 
 ### ✨ Added
@@ -1214,7 +1220,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.19.0...v0.20.0
