@@ -281,6 +281,9 @@ return [
         'iframe_placeholder' => true,
         'redact_attribute' => 'data-visual-feedback-redact',
         'debug' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+        // The editor a reporter opens on a captured screenshot to crop it before attaching it. Off,
+        // the preview offers no Edit button and the page never fetches the editor's file.
+        'editor' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_EDITOR', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
     ],
 
     /*
@@ -806,6 +809,25 @@ return [
         // `public/` the bytes are already same-origin, and the digest would be checking the file
         // against itself.
         'assets_integrity' => filter_var(env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Standalone widget
+    |--------------------------------------------------------------------------
+    |
+    | The widget for a page without a session and without Livewire, such as a
+    | page served from a shared cache. Its two routes exist only where the host
+    | registers them with StandaloneRoutes::register(). `token_ttl` is how many
+    | seconds the form token the widget fetches on opening stays valid.
+    |
+    */
+    'standalone' => [
+        'token_ttl' => filter_var(
+            env('VISUAL_FEEDBACK_STANDALONE_TOKEN_TTL', 7200),
+            FILTER_VALIDATE_INT,
+            ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
+        ) ?? 7200,
     ],
 
     /*

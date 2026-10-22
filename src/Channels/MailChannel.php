@@ -16,6 +16,7 @@ use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportMail;
 use Pushery\VisualFeedback\Support\ConfiguredLocale;
 use Pushery\VisualFeedback\Support\EnvFlag;
+use Pushery\VisualFeedback\Support\LanguageFallbackLoader;
 
 /**
  * The mail delivery channel: it records a pending receipt and enqueues the channel's own
@@ -238,6 +239,12 @@ final readonly class MailChannel implements ReportChannel
      * and `pt-PT` are different translations, so a host that publishes `pt-BR` must win over the
      * base. Only when nothing renders in the full tag is the region dropped.
      *
+     * The package's translation loader answers a regional tag from the catalog of its language,
+     * so the full tag also renders when only the language does. Such a tag renders in the
+     * language instead: Laravel's plural rules are keyed by names like `de` and `de_DE`, and a
+     * `de-DE` would get the rules of no language. A regional catalog a host published differs
+     * from its language in the probed line, and keeps the tag.
+     *
      * Whether a locale renders is asked of the translator with `$fallback: false` — with the
      * fallback on, every locale on earth answers yes and the probe measures nothing. The key is
      * one this package ships in all seven of its locales, so the question is really "can this
@@ -271,9 +278,19 @@ final readonly class MailChannel implements ReportChannel
         }
 
         foreach (array_unique(array_filter($candidates)) as $candidate) {
-            if ($this->translator->has($probe, $candidate, false)) {
-                return $candidate;
+            if (! $this->translator->has($probe, $candidate, false)) {
+                continue;
             }
+
+            $language = $candidate === $tag ? LanguageFallbackLoader::languageOf($tag) : null;
+
+            if ($language !== null
+                && $this->translator->has($probe, $language, false)
+                && $this->translator->get($probe, [], $candidate) === $this->translator->get($probe, [], $language)) {
+                return $language;
+            }
+
+            return $candidate;
         }
 
         return null;

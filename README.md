@@ -43,6 +43,9 @@ reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3+.
 - **Screenshot capture in two stages**: the browser's own screen capture where it exists,
   falling back silently to a DOM renderer that works everywhere, including iOS. The report
   records which stage the browser says produced the image.
+- **Cropping and marking before it is sent**: the reporter can cut a capture down and mark it
+  with arrows, lines, ellipses, rectangles and freehand lines, by pointer or keyboard alone, and
+  only the edited picture is uploaded.
 - **Region redaction** that holds in *both* stages — the area is blacked out and input values
   cleared before anything is captured.
 - **Two view trees** — framework-free, or WireKit components that inherit your design tokens.

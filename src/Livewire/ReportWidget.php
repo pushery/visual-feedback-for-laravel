@@ -267,6 +267,20 @@ class ReportWidget extends Component
      */
     public bool $screenshotPending = false;
 
+    /**
+     * Whether the screenshot was edited in the browser before it was attached: cropped, or drawn on.
+     *
+     * A cropped picture no longer matches the viewport the report's metadata describes, and the
+     * recipient has to know that. Client-set through the capture module's `onEdited` seam, so it is
+     * the browser's word, as the capture stage is, and recorded only when a screenshot was attached
+     * and only as a real `true` (see submit()).
+     *
+     * Typed `mixed` on purpose. Livewire assigns a client value without strict types, so a `bool`
+     * would read the string `"yes"` as true and answer an array with a 419, and neither is what the
+     * capture module sends. Here any other value is kept and ignored.
+     */
+    public mixed $screenshotEdited = false;
+
     public bool $privacyAcknowledged = false;
 
     public bool $submitted = false;
@@ -1004,6 +1018,10 @@ class ReportWidget extends Component
             $metadata['capture_method'] = $this->screenshotStage;
         }
 
+        if ($this->screenshot instanceof TemporaryUploadedFile && $this->screenshotEdited === true) {
+            $metadata['screenshot_edited'] = true;
+        }
+
         // Which published notice this acknowledgment belongs to. Added after sanitization, from a
         // server-side read — the reporter's browser never sends any of it, and MetadataSanitizer
         // strips the reserved prefix unconditionally so it cannot be forged even if a consuming
@@ -1319,7 +1337,7 @@ class ReportWidget extends Component
     /** Full reset so a second report (including a fresh screenshot) is possible in the same session. */
     public function resetWidget(): void
     {
-        $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'attachments', 'screenshot', 'screenshotStage', 'screenshotPending', 'metadata', 'privacyAcknowledged', 'feedbackReference', 'challenge', 'submitted', 'failed', 'failedField', 'failedMessage', 'failedFieldInvalid']);
+        $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'attachments', 'screenshot', 'screenshotStage', 'screenshotPending', 'screenshotEdited', 'metadata', 'privacyAcknowledged', 'feedbackReference', 'challenge', 'submitted', 'failed', 'failedField', 'failedMessage', 'failedFieldInvalid']);
         // reset() restores the property default — the empty string — which would put the
         // widget back into the mismatch mount() resolves. The second report must start where
         // the first one did.
@@ -1635,10 +1653,10 @@ class ReportWidget extends Component
         // Resolved once, because both are asked twice below and the second question is expensive.
         // Together they are the condition both view trees put the whole privacy block behind
         // (`@if ($showGuestFields && $privacyNoticeUrl)`), and the wording lookup underneath it can
-        // be a database read: with `privacy.source = legal-consent` the bridge reads the published
-        // document once a minute per tenant, document key and locale and answers from the cache in
-        // between. An authenticated reporter never sees the block, so the condition is evaluated
-        // here instead of paying even that for a value the templates will discard.
+        // be a database read: with `privacy.source = legal-consent` the bridge asks legal-consent for
+        // the published version, which legal-consent answers from its own cache once it has read it.
+        // An authenticated reporter never sees the block, so the condition is evaluated here instead
+        // of paying even that for a value the templates will discard.
         $isGuest = app(ResolvesReporter::class)->resolve()->isGuest;
         $privacyNoticeUrl = app(PrivacyNotice::class)->url();
         $requiredFields = array_values(array_filter(

@@ -53,7 +53,7 @@
                 <input type="date" wire:model.live="filterTo">
             </label>
 
-            <button type="button" class="visual-feedback-browser-clear" wire:click="clearFilters">
+            <button type="button" class="visual-feedback-browser-clear" wire:click="clearFilters" wire:loading.attr="disabled" wire:target="clearFilters">
                 {{ __('visual-feedback::browser.clear') }}
             </button>
         </form>
@@ -88,7 +88,7 @@
                                      the normal case rather than a defect. --}}
                                 <td>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
                                 <td class="visual-feedback-browser-actions">
-                                    <button type="button" wire:click="open('{{ $report->uuid }}')">
+                                    <button type="button" wire:click="open('{{ $report->uuid }}')" wire:loading.attr="disabled" wire:target="open('{{ $report->uuid }}')">
                                         {{ __('visual-feedback::browser.open') }}
                                     </button>
                                     {{-- wire:confirm rather than a JS confirm(): it is Livewire's own
@@ -106,6 +106,8 @@
                                         type="button"
                                         wire:click="$wire['delete']('{{ $report->uuid }}')"
                                         wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
+                                        wire:loading.attr="disabled"
+                                        wire:target="delete"
                                     >
                                         {{ __('visual-feedback::browser.delete') }}
                                     </button>
@@ -125,7 +127,7 @@
             <section class="visual-feedback-browser-detail" aria-label="{{ __('visual-feedback::browser.detail') }}">
                 <header>
                     <h2>{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</h2>
-                    <button type="button" wire:click="close">{{ __('visual-feedback::browser.close') }}</button>
+                    <button type="button" wire:click="close" wire:loading.attr="disabled" wire:target="close">{{ __('visual-feedback::browser.close') }}</button>
                 </header>
 
                 <dl>

@@ -51,7 +51,7 @@ Re-run `php artisan vendor:publish --tag="visual-feedback-assets" --force` after
 package update. The bundles under `public/vendor/visual-feedback` are copies, and
 a stale copy is the one failure this setup produces on its own.
 
-There are **three** of them since 0.6.0, and they fail differently.
+There are **four** of them, and they fail differently.
 
 `visual-feedback-widget.iife.js` is under 12 KB, always ships, and registers the Alpine
 components the templates bind to — so a page missing that one renders a widget whose
@@ -63,10 +63,18 @@ It is the capture state machine, not the renderer.
 `visual-feedback-renderer.iife.js` is ~276 KB and is the DOM renderer. Nothing loads it
 until a screenshot is actually taken, and the URL it is fetched from is derived from the
 script that loads it — so it has to sit beside `visual-feedback.iife.js` under the same
-base. `vendor:publish` puts all three there for you. If you serve the bundles from your
+base. `vendor:publish` puts all four there for you. If you serve the bundles from your
 own origin or a CDN instead, upload this one too: without it the capture button gets all
 the way to taking the picture and then reports a failure. A Content-Security-Policy needs
 to allow it under the same `script-src` source as the other two.
+
+`visual-feedback-editor.iife.js` is the screenshot editor, under 32 KB, fetched the same way
+the first time a reporter presses Edit in the preview to crop or mark a capture. It sits beside the
+capture bundle too. Missing, the Edit button says the editor could not be loaded and the
+capture can still be attached as it is. `screenshot.editor = false`
+(`VISUAL_FEEDBACK_SCREENSHOT_EDITOR`) takes the button away, and the file is never fetched.
+An edited screenshot arrives with `screenshot_edited: true` in the report's technical
+details.
 
 `php artisan about` says whether that was needed: under **Visual Feedback** it carries a
 **Published bundle** line reading `up to date`, `OUT OF DATE` with the command to run, or
@@ -270,9 +278,10 @@ which parses under both builds. So `livewire.csp_safe => true` needs nothing con
 
 Two consequences worth knowing:
 
-- If your `script-src` lists paths rather than a directory, list **all three** files:
-  `visual-feedback-widget.iife.js`, `visual-feedback.iife.js` and
-  `visual-feedback-renderer.iife.js`. Missing the widget bundle is the silent failure above.
+- If your `script-src` lists paths rather than a directory, list **all four** files:
+  `visual-feedback-widget.iife.js`, `visual-feedback.iife.js`,
+  `visual-feedback-renderer.iife.js` and `visual-feedback-editor.iife.js`. Missing the widget
+  bundle is the silent failure above.
   Missing the renderer is a louder one that arrives later: the capture button works right up to
   the moment somebody uses it, then reports a failure, because the renderer is fetched at capture
   time rather than on page load.
@@ -402,7 +411,7 @@ which is the copy that gets corrected when a dependency moves.
 
 ### 8. Use a WireKit-styled widget (optional)
 
-**Nothing to do — an application with WireKit 2.64+ installed already gets it.** The shipped
+**Nothing to do — an application with WireKit 2.69+ installed already gets it.** The shipped
 `ui.variant` is `auto`, which serves the WireKit tree when a new enough WireKit is present and
 the framework-free one otherwise. Force either tree when the automatic choice is not what the
 application wants:
@@ -419,9 +428,10 @@ views, which every update then silently leaves behind. That is what `ui.variant`
 replace. The stylesheet needs no attention either way: it carries the same switch and renders
 nothing under the WireKit tree.
 
-**Needs WireKit 2.64 or newer** — every field explains itself beside its label from 2.64, the
+**Needs WireKit 2.69 or newer**, the oldest release this version supports — the soft buttons
+read as buttons on the surface they stand on from 2.66, every field explains itself beside its label from 2.64, the
 report browser's pager turns pages inside Livewire from 2.51, and from 2.50 the report dialog, a `<x-wirekit::modal>`, keeps its header and close button
-in reach when it is taller than the screen. `auto` serves the plain tree below 2.64; check the installed version before
+in reach when it is taller than the screen. `auto` serves the plain tree below 2.69; check the installed version before
 forcing or publishing the WireKit tree. One thing differs from the plain tree by design: the trigger is an **icon** button
 rather than a text one (its accessible name is the widget heading either way). The corner does
 not differ: `ui.position` follows the writing direction in both trees, so `bottom-end` mirrors
@@ -468,14 +478,13 @@ Keep in mind when adopting that:
 - It falls back to the built-in sentence, loudly, if the document is not a privacy notice,
   if its notice mode gates, or if the published sentence is empty. Watch the log after wiring
   it — a fallback means the configuration is not doing what it looks like it is doing.
-- **Needs legal-consent 0.10 or newer.** The bridge reads the acceptance fingerprint and the
-  tenant from the returned document, and both arrived in 0.7 — but the floor is 0.10, because that
-  is where `ui_wording` became nullable and this bridge publishes documents that carry no
-  acceptance sentence. On 0.9 the insert fails outright. Newer is fine: a page that binds nobody
-  may carry no acceptance sentence at all, and the bridge falls back to the built-in wording. Composer cannot refuse
-  for you, because the package is a suggest rather than a requirement. On an older version,
-  switching `privacy.source` to `legal-consent` fails on a page a guest is looking at. Check
-  the installed version first.
+- **Needs legal-consent 0.45 or newer.** The bridge reads the published version through
+  `ConsentManager::publishedVersion()`, which legal-consent serves from its own cache and drops
+  when a version is published, and checks the tenant on it, which arrived in 0.45. On an older
+  release the read fails and the checkbox carries the built-in sentence, with a warning in the
+  log. Composer cannot refuse for you, because the package is a suggest rather than a
+  requirement, so check the installed version before switching `privacy.source` to
+  `legal-consent`.
 - Multi-tenant installs are served: each tenant gets its own published sentence. Before 0.7
   this source declined to read at all when tenancy was on, because nothing on the returned
   document said whose it was.

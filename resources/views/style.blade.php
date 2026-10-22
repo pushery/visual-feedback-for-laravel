@@ -244,7 +244,11 @@
         line-height: 1.3;
     }
 
-    .visual-feedback-dialog label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    {{-- The screenshot editor's field labels are left out inside `:where()`, which adds nothing to
+       the selector's weight. A plain `:not(.class)` would raise it above the two-class rules that
+       dress particular labels further down: the privacy row would lose its flex column and, with it,
+       the 44px region that ticks its box. --}}
+    .visual-feedback-dialog label:where(:not(.visual-feedback-editor-field)) { display: block; margin-top: 0.75rem; font-weight: 600; }
     {{-- The list this replaced named `text` and `email` and was outgrown the same way the buttons
        above were: `tel` (the opt-in phone field) matched nothing at all, so it rendered borderless
        and at the UA's 13.333px — under the iOS threshold the comment below exists to hold, in a
@@ -253,8 +257,10 @@
        radio are their own control, a file input carries its own dropzone rule below, and a hidden
        one renders nothing. The `:not()` chain lifts specificity from (0,2,1) to (0,5,1); nothing
        here depends on the old value — the file input is excluded outright, and the `textarea`
-       override below is a separate selector in this list, not an `input`. --}}
-    .visual-feedback-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+       override below is a separate selector in this list, not an `input`. The screenshot editor's
+       number fields sit inside the panel in this tree and are sized by their own rule; they are
+       left out inside `:where()`, so leaving them out adds no weight. --}}
+    .visual-feedback-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):where(:not(.visual-feedback-editor-field-input)),
     .visual-feedback-dialog select,
     .visual-feedback-dialog textarea {
         width: 100%;
@@ -648,8 +654,11 @@
        dark one alike, and `--vf-fg` on `--vf-bg` is the pair the panel's body text already uses.
 
        The close button keeps its own rule -- it is a borderless glyph in the corner, not a
-       control in the flow -- and is named out rather than left to specificity. --}}
-    .visual-feedback-dialog button[type="button"]:not(.visual-feedback-close) {
+       control in the flow -- and is named out rather than left to specificity. So are the screenshot
+       editor's buttons, which sit inside the panel in this tree and have their own rules: left in,
+       this one would paint over the color of each swatch and the accent of Apply. They are left out
+       inside `:where()`, so the rule keeps the weight the buttons of the panel are overridden against. --}}
+    .visual-feedback-dialog button[type="button"]:not(.visual-feedback-close):where(:not(.visual-feedback-editor-button)) {
         padding: 0.5rem 1rem;
         min-height: 44px;
         border: 1px solid var(--vf-border);
@@ -816,6 +825,221 @@
         color: var(--vf-muted);
         font-size: 0.8125rem;
         word-break: break-all;
+    }
+    {{-- ── The screenshot editor ───────────────────────────────────────────────────────
+       A modal of its own over the panel, opened from the preview. The editor's bundle builds the
+       picture, the crop over it and the controls into the body and positions what moves through
+       CSSOM, so these rules size and paint and nothing else. No motion, as everywhere here.
+
+       The picture keeps the editor's width so it can be read and marked, and the dialog scrolls to
+       the fields and the buttons below it. --}}
+    .visual-feedback-editor {
+        color-scheme: light dark;
+        box-sizing: border-box;
+        margin: auto;
+        width: min(60rem, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        padding: 1rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius);
+        background: var(--vf-bg);
+        color: var(--vf-fg);
+        overflow: auto;
+    }
+    .visual-feedback-editor::backdrop { background: var(--vf-backdrop); }
+    .visual-feedback-editor :focus-visible {
+        outline: 3px solid var(--vf-accent);
+        outline-offset: 2px;
+    }
+    .visual-feedback-editor-title {
+        margin: 0 0 0.75rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+    .visual-feedback-editor-body {
+        display: grid;
+        gap: 0.75rem;
+    }
+    .visual-feedback-editor-stage {
+        position: relative;
+        justify-self: center;
+        max-width: 100%;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    {{-- A 44px handle reaches 22px past the picture's edge. Where the pointer is a finger the picture
+       keeps that much room on either side, so a picture as wide as the editor keeps its handles
+       inside the editor. --}}
+    @media (pointer: coarse) {
+        .visual-feedback-editor-stage { max-width: calc(100% - 44px); }
+    }
+    {{-- The picture takes the editor's whole width and keeps it at any height of the window, and the
+       dialog scrolls to the fields and buttons below it. Fitted to the height, a tall capture in a
+       short window came out too small to read or mark anything in. --}}
+    .visual-feedback-editor-image {
+        display: block;
+        max-width: 100%;
+        width: auto;
+        height: auto;
+    }
+    .visual-feedback-editor-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .visual-feedback-editor-shade { fill: rgba(17, 24, 39, .55); }
+    .visual-feedback-editor-outline {
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 2;
+    }
+    .visual-feedback-editor-region {
+        position: absolute;
+        box-sizing: border-box;
+        cursor: move;
+        touch-action: none;
+    }
+    {{-- 24px handles for a mouse, 44px where the pointer is a finger (WCAG 2.5.5). Centered on the
+       point by a negative margin of half their size. --}}
+    .visual-feedback-editor-handle {
+        position: absolute;
+        box-sizing: border-box;
+        width: 24px;
+        height: 24px;
+        margin: -12px 0 0 -12px;
+        border: 2px solid var(--vf-accent);
+        border-radius: 999px;
+        background: #ffffff;
+        touch-action: none;
+    }
+    @media (pointer: coarse) {
+        .visual-feedback-editor-handle {
+            width: 44px;
+            height: 44px;
+            margin: -22px 0 0 -22px;
+        }
+    }
+    .visual-feedback-editor-handle--nw, .visual-feedback-editor-handle--se { cursor: nwse-resize; }
+    .visual-feedback-editor-handle--ne, .visual-feedback-editor-handle--sw { cursor: nesw-resize; }
+    .visual-feedback-editor-handle--n, .visual-feedback-editor-handle--s { cursor: ns-resize; }
+    .visual-feedback-editor-handle--e, .visual-feedback-editor-handle--w { cursor: ew-resize; }
+    .visual-feedback-editor-fields,
+    .visual-feedback-editor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+    }
+    {{-- The toolbar's two rows. Every button stands the same distance from its neighbor, and between two groups on one line a separating line stands in the middle of a wider gap. --}}
+    .visual-feedback-editor-toolbar {
+        display: grid;
+        gap: 0.5rem;
+    }
+    .visual-feedback-editor-row {
+        --visual-feedback-editor-group-gap: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem var(--visual-feedback-editor-group-gap);
+    }
+    .visual-feedback-editor-actions { justify-content: flex-end; }
+    .visual-feedback-editor-field {
+        display: grid;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+    }
+    {{-- 16px, the size below which iOS zooms the page when the field takes focus. --}}
+    .visual-feedback-editor-field-input {
+        box-sizing: border-box;
+        width: 7rem;
+        min-height: 44px;
+        padding: 0.5rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius-control);
+        background: var(--vf-bg);
+        color: var(--vf-fg);
+        font: inherit;
+        font-size: 16px;
+    }
+    .visual-feedback-editor-button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius-control);
+        background: transparent;
+        color: var(--vf-fg);
+        font: inherit;
+        cursor: pointer;
+    }
+    .visual-feedback-editor-button:disabled { cursor: not-allowed; opacity: .55; }
+    .visual-feedback-editor-apply {
+        border-color: var(--vf-accent);
+        background: var(--vf-accent);
+        color: var(--vf-accent-fg);
+        font-weight: 600;
+    }
+    {{-- The tools, colors and widths are toggles, grouped, and the pressed one carries the accent. --}}
+    .visual-feedback-editor-group {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.25rem;
+    }
+    {{-- The editor marks a group that begins a line, after a wrap too, and such a group carries no line. --}}
+    .visual-feedback-editor-group:not(:first-child, [data-line-start])::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: calc(var(--visual-feedback-editor-group-gap) / -2 - 0.5px);
+        border-inline-start: 1px solid var(--vf-border);
+    }
+    .visual-feedback-editor-button[aria-pressed="true"] {
+        border-color: var(--vf-accent);
+        box-shadow: inset 0 0 0 2px var(--vf-accent);
+        font-weight: 600;
+    }
+    {{-- A color button shows its color, which the editor sets as a custom property through CSSOM. --}}
+    .visual-feedback-editor-color {
+        width: 44px;
+        padding: 0;
+        background: var(--visual-feedback-editor-swatch, transparent);
+    }
+    .visual-feedback-editor-color[aria-pressed="true"] {
+        box-shadow: inset 0 0 0 3px var(--vf-bg), 0 0 0 2px var(--vf-accent);
+    }
+    {{-- In a marking tool the crop stays as it is and takes no pointer, and the marks' handles show. --}}
+    .visual-feedback-editor-stage:not([data-tool="crop"]) { cursor: crosshair; }
+    .visual-feedback-editor-stage:not([data-tool="crop"]) .visual-feedback-editor-region { pointer-events: none; }
+    .visual-feedback-editor-stage:not([data-tool="crop"]) [data-handle] { display: none; }
+    .visual-feedback-editor-stage[data-tool="crop"] .visual-feedback-editor-grips { display: none; }
+    .visual-feedback-editor-targets,
+    .visual-feedback-editor-grips {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+    {{-- A mark's focus target covers its box for the keyboard and takes no pointer: a press reaches
+       the stroke below it, where the editor decides what was hit. --}}
+    .visual-feedback-editor-target {
+        position: absolute;
+        box-sizing: border-box;
+        min-width: 8px;
+        min-height: 8px;
+    }
+    .visual-feedback-editor-grip {
+        pointer-events: auto;
+        cursor: grab;
+    }
+    .visual-feedback-editor-selection-light {
+        stroke: #ffffff;
+        stroke-width: 4;
+    }
+    .visual-feedback-editor-selection-dark {
+        stroke: #111827;
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
     }
 </style>
 @else
@@ -1020,6 +1244,12 @@
        It resolves the three buttons above rather than fighting them: same property, higher
        specificity, so a direct child of the form takes this value and the ones nested deeper
        (the capture button, which is inside `.visual-feedback-screenshot`) keep theirs. --}}
+    {{-- One scrollbar in a short window. WireKit's modal scrolls in its body and keeps the panel's
+       own scrolling as a fallback for a dialog without a body; the form overflowed the panel by a
+       little as well, and both scrollbars showed. This panel has a body, which holds everything. --}}
+    [data-wk-modal-panel]:has(> .visual-feedback-panel) {
+        overflow-y: hidden;
+    }
     .visual-feedback-panel form > * + * {
         margin-block-start: var(--space-wk-md, 1rem);
     }
@@ -1117,6 +1347,204 @@
             margin-top: calc(var(--size-wk-touch-target, 2.75rem) / -2);
             margin-left: calc(var(--size-wk-touch-target, 2.75rem) / -2);
         }
+    }
+    {{-- The screenshot editor, in WireKit tokens with the plain tree's values as fallbacks. Its
+       controls are built by the editor's bundle, not by the kit, so they take their look from the
+       kit's tokens here. A button and a number field are bounded by `--color-wk-border-strong`, the
+       token the kit's own fields use: `--color-wk-border` is a separator, about 1.3:1 against the
+       light surface, and a control's edge needs 3:1. --}}
+    .visual-feedback-editor {
+        color-scheme: light dark;
+        box-sizing: border-box;
+        margin: auto;
+        width: min(60rem, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        padding: var(--space-wk-md, 1rem);
+        border: 1px solid var(--color-wk-border, #7b8390);
+        border-radius: var(--radius-wk-lg, 10px);
+        background: var(--color-wk-bg-elevated, var(--color-wk-bg, #ffffff));
+        color: var(--color-wk-text, #111827);
+        box-shadow: var(--shadow-wk-lg, none);
+        overflow: auto;
+    }
+    .visual-feedback-editor::backdrop { background: var(--color-wk-overlay, rgba(17, 24, 39, .5)); }
+    .visual-feedback-editor :focus-visible {
+        outline: 3px solid var(--color-wk-ring, #2563eb);
+        outline-offset: 2px;
+    }
+    .visual-feedback-editor-title {
+        margin: 0 0 var(--space-wk-sm, 0.75rem);
+        font-size: 1.125rem;
+        font-weight: var(--font-wk-heading-weight, 600);
+    }
+    .visual-feedback-editor-body {
+        display: grid;
+        gap: var(--space-wk-sm, 0.75rem);
+    }
+    .visual-feedback-editor-stage {
+        position: relative;
+        justify-self: center;
+        max-width: 100%;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    @media (pointer: coarse) {
+        .visual-feedback-editor-stage { max-width: calc(100% - 44px); }
+    }
+    .visual-feedback-editor-image {
+        display: block;
+        max-width: 100%;
+        width: auto;
+        height: auto;
+    }
+    .visual-feedback-editor-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .visual-feedback-editor-shade { fill: var(--color-wk-overlay, rgba(17, 24, 39, .55)); }
+    .visual-feedback-editor-outline {
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 2;
+    }
+    .visual-feedback-editor-region {
+        position: absolute;
+        box-sizing: border-box;
+        cursor: move;
+        touch-action: none;
+    }
+    .visual-feedback-editor-handle {
+        position: absolute;
+        box-sizing: border-box;
+        width: 24px;
+        height: 24px;
+        margin: -12px 0 0 -12px;
+        border: 2px solid var(--color-wk-accent, #2563eb);
+        border-radius: var(--radius-wk-full, 50%);
+        background: #ffffff;
+        touch-action: none;
+    }
+    @media (pointer: coarse) {
+        .visual-feedback-editor-handle {
+            width: var(--size-wk-touch-target, 44px);
+            height: var(--size-wk-touch-target, 44px);
+            margin: calc(var(--size-wk-touch-target, 44px) / -2) 0 0 calc(var(--size-wk-touch-target, 44px) / -2);
+        }
+    }
+    .visual-feedback-editor-handle--nw, .visual-feedback-editor-handle--se { cursor: nwse-resize; }
+    .visual-feedback-editor-handle--ne, .visual-feedback-editor-handle--sw { cursor: nesw-resize; }
+    .visual-feedback-editor-handle--n, .visual-feedback-editor-handle--s { cursor: ns-resize; }
+    .visual-feedback-editor-handle--e, .visual-feedback-editor-handle--w { cursor: ew-resize; }
+    .visual-feedback-editor-fields,
+    .visual-feedback-editor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-wk-sm, 0.5rem) var(--space-wk-md, 0.75rem);
+    }
+    .visual-feedback-editor-toolbar {
+        display: grid;
+        gap: var(--space-wk-sm, 0.5rem);
+    }
+    .visual-feedback-editor-row {
+        --visual-feedback-editor-group-gap: var(--space-wk-md, 1rem);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-wk-sm, 0.5rem) var(--visual-feedback-editor-group-gap);
+    }
+    .visual-feedback-editor-actions { justify-content: flex-end; }
+    .visual-feedback-editor-field {
+        display: grid;
+        gap: var(--space-wk-xs, 0.25rem);
+        font-size: var(--text-wk-sm, 0.875rem);
+    }
+    .visual-feedback-editor-field-input {
+        box-sizing: border-box;
+        width: 7rem;
+        min-height: var(--size-wk-touch-target, 44px);
+        padding: var(--space-wk-xs, 0.5rem);
+        border: 1px solid var(--color-wk-border-strong, #7b8390);
+        border-radius: var(--radius-wk-md, 6px);
+        background: var(--color-wk-bg-input, var(--color-wk-bg, #ffffff));
+        color: var(--color-wk-text, #111827);
+        font: inherit;
+        font-size: 16px;
+    }
+    .visual-feedback-editor-button {
+        min-width: var(--size-wk-touch-target, 44px);
+        min-height: var(--size-wk-touch-target, 44px);
+        padding: var(--space-wk-xs, 0.5rem) var(--space-wk-md, 1rem);
+        border: 1px solid var(--color-wk-border-strong, #7b8390);
+        border-radius: var(--radius-wk-md, 6px);
+        background: transparent;
+        color: var(--color-wk-text, #111827);
+        font: inherit;
+        cursor: pointer;
+    }
+    .visual-feedback-editor-button:disabled { cursor: not-allowed; opacity: .55; }
+    .visual-feedback-editor-apply {
+        border-color: var(--color-wk-accent, #2563eb);
+        background: var(--color-wk-accent, #2563eb);
+        color: var(--color-wk-accent-fg, #ffffff);
+        font-weight: 600;
+    }
+    .visual-feedback-editor-group {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-wk-sm, 0.5rem) var(--space-wk-xs, 0.25rem);
+    }
+    .visual-feedback-editor-group:not(:first-child, [data-line-start])::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: calc(var(--visual-feedback-editor-group-gap) / -2 - 0.5px);
+        border-inline-start: 1px solid var(--color-wk-border, #7b8390);
+    }
+    .visual-feedback-editor-button[aria-pressed="true"] {
+        border-color: var(--color-wk-accent, #2563eb);
+        box-shadow: inset 0 0 0 2px var(--color-wk-accent, #2563eb);
+        font-weight: 600;
+    }
+    .visual-feedback-editor-color {
+        width: var(--size-wk-touch-target, 44px);
+        padding: 0;
+        background: var(--visual-feedback-editor-swatch, transparent);
+    }
+    .visual-feedback-editor-color[aria-pressed="true"] {
+        box-shadow: inset 0 0 0 3px var(--color-wk-bg, #ffffff), 0 0 0 2px var(--color-wk-accent, #2563eb);
+    }
+    .visual-feedback-editor-stage:not([data-tool="crop"]) { cursor: crosshair; }
+    .visual-feedback-editor-stage:not([data-tool="crop"]) .visual-feedback-editor-region { pointer-events: none; }
+    .visual-feedback-editor-stage:not([data-tool="crop"]) [data-handle] { display: none; }
+    .visual-feedback-editor-stage[data-tool="crop"] .visual-feedback-editor-grips { display: none; }
+    .visual-feedback-editor-targets,
+    .visual-feedback-editor-grips {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+    .visual-feedback-editor-target {
+        position: absolute;
+        box-sizing: border-box;
+        min-width: 8px;
+        min-height: 8px;
+    }
+    .visual-feedback-editor-grip {
+        pointer-events: auto;
+        cursor: grab;
+    }
+    .visual-feedback-editor-selection-light {
+        stroke: #ffffff;
+        stroke-width: 4;
+    }
+    .visual-feedback-editor-selection-dark {
+        stroke: var(--color-wk-text, #111827);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
     }
 </style>
 @endif

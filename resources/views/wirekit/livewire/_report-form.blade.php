@@ -246,6 +246,7 @@
                 <div class="visual-feedback-capture-status" aria-live="polite">
                     <span x-show="status === 'capturing'">{{ __('visual-feedback::messages.widget.screenshot_capturing') }}</span>
                     <span x-show="status === 'uploading'">{{ __('visual-feedback::messages.widget.screenshot_uploading') }}</span>
+                    <span x-show="editorFailed">{{ __('visual-feedback::messages.widget.editor_failed') }}</span>
                     {{-- The `attached` claim is the one piece of this status line that a server-side
                     rejection can falsify: `WithFileUploads::_finishUpload()` dispatches
                     `upload:finished` before it calls the `updated` hook, so the Alpine
@@ -299,13 +300,33 @@
                             alt="{{ __('visual-feedback::messages.widget.screenshot_preview') }}" decoding="async">
                     </template>
                     <div class="visual-feedback-preview-actions">
-                        <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="primary" surface="soft" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="success" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
+                        @if ($screenshotCaptureConfig['editor'])
+                            <x-wirekit::button type="button" class="visual-feedback-edit" intent="neutral" surface="soft" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</x-wirekit::button>
+                        @endif
                         <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
-                        <x-wirekit::button type="button" surface="soft" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </div>
                 </div>
 
-                <x-wirekit::button type="button" class="visual-feedback-retake" surface="soft" x-ref="attached"
+                @if ($screenshotCaptureConfig['editor'])
+                    {{-- The screenshot editor. The capture component opens it with showModal() and the editor's
+                     bundle builds its controls into the body. `wire:ignore` keeps a Livewire
+                     morph from taking `open` or the controls away while it is open. The texts
+                     come from the language files and travel as data, so the bundle carries
+                     no word of its own. --}}
+                    <dialog class="visual-feedback-editor" id="visual-feedback-editor" x-ref="editor" wire:ignore
+                        aria-labelledby="visual-feedback-editor-title"
+                        data-visual-feedback-editor="{{ json_encode(\Pushery\VisualFeedback\Support\EditorTexts::current(), JSON_THROW_ON_ERROR) }}">
+                        <h2 class="visual-feedback-editor-title" id="visual-feedback-editor-title">{{ __('visual-feedback::messages.widget.editor_title') }}</h2>
+                        {{-- A changed field makes the WireKit modal ask before it closes, and the editor's fields are
+                             not the form's. WireKit leaves out every field under an element marked
+                             data-wk-discard-ignore, so the mark sits here, in the one tree that has the modal. --}}
+                        <div class="visual-feedback-editor-body" data-visual-feedback-editor-body data-wk-discard-ignore></div>
+                    </dialog>
+                @endif
+
+                <x-wirekit::button type="button" class="visual-feedback-retake" intent="neutral" surface="soft" x-ref="attached"
                     x-show="status === 'attached'" x-on:click="retake()">
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
@@ -321,7 +342,7 @@
                     <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown"
                         x-show="status === 'failed'">
                         {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                        <x-wirekit::button type="button" surface="soft" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </x-wirekit::alert>
                 </div>
 
@@ -364,9 +385,16 @@
                     @continue (! $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile)
                     <li class="visual-feedback-file" wire:key="vf-file-{{ $file->getFilename() }}">
                         <span class="visual-feedback-file-name">{{ $file->getClientOriginalName() }}</span>
-                        <x-wirekit::button type="button" intent="neutral" surface="soft" size="sm"
-                            wire:click="removeAttachment({{ $index }})"
-                            :aria-label="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])">&times;</x-wirekit::button>
+                        {{-- The trash icon, never a typed character: a cross means close. The name stays in the
+                             button as visually hidden text and shows in the tooltip, which does not describe the
+                             control with its own name a second time. --}}
+                        <x-wirekit::tooltip :text="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])" :describes="false">
+                            <x-wirekit::button type="button" intent="neutral" surface="soft" size="sm" icon-only
+                                wire:click="removeAttachment({{ $index }})" loading-target="removeAttachment({{ $index }})">
+                                <x-slot:iconLeft><x-wirekit::icon name="trash" size="sm" aria-hidden="true" /></x-slot:iconLeft>
+                                {{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}
+                            </x-wirekit::button>
+                        </x-wirekit::tooltip>
                     </li>
                 @endforeach
             </ul>
