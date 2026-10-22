@@ -15,7 +15,7 @@ namespace Pushery\VisualFeedback\Support;
 final class ClientConfig
 {
     /**
-     * @return array{strategy: string, scale: float|int|string, viewportOnly: bool, maxBytes: int, darkFallback: string, redactAttribute: string, iframePlaceholder: bool, flattenCustomElements: bool, debug: bool}
+     * @return array{strategy: string, scale: float|int|string, viewportOnly: bool, maxBytes: int, darkFallback: string, redactAttribute: string, iframePlaceholder: bool, flattenCustomElements: bool, debug: bool, editor: bool}
      */
     public static function screenshot(): array
     {
@@ -53,6 +53,8 @@ final class ClientConfig
             // said it "turns on the library's own logging" and named the failures that are
             // invisible without it. One line, and the promise is kept.
             'debug' => EnvFlag::boolean(config('visual-feedback.screenshot.debug'), false),
+            // Whether the preview offers the editor. On where a published config predates the key.
+            'editor' => EnvFlag::boolean(config('visual-feedback.screenshot.editor'), true),
         ];
     }
 }

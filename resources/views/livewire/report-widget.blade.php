@@ -274,6 +274,7 @@
                         <p class="visual-feedback-capture-status" aria-live="polite">
                             <span x-show="status === 'capturing'">{{ __('visual-feedback::messages.widget.screenshot_capturing') }}</span>
                             <span x-show="status === 'uploading'">{{ __('visual-feedback::messages.widget.screenshot_uploading') }}</span>
+                            <span x-show="editorFailed">{{ __('visual-feedback::messages.widget.editor_failed') }}</span>
                             {{-- The `attached` claim is the one piece of this status line that a server-side
                             rejection can falsify: `WithFileUploads::_finishUpload()` dispatches
                             `upload:finished` before it calls the `updated` hook, so the Alpine
@@ -321,10 +322,27 @@
                             </template>
                             <div class="visual-feedback-preview-actions">
                                 <button type="button" id="visual-feedback-screenshot" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</button>
+                                @if ($screenshotCaptureConfig['editor'])
+                                    <button type="button" class="visual-feedback-edit" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</button>
+                                @endif
                                 <button type="button" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</button>
                                 <button type="button" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</button>
                             </div>
                         </div>
+
+                        @if ($screenshotCaptureConfig['editor'])
+                            {{-- The screenshot editor. The capture component opens it with showModal() and the editor's
+                             bundle builds its controls into the body. `wire:ignore` keeps a Livewire
+                             morph from taking `open` or the controls away while it is open. The texts
+                             come from the language files and travel as data, so the bundle carries
+                             no word of its own. --}}
+                            <dialog class="visual-feedback-editor" id="visual-feedback-editor" x-ref="editor" wire:ignore
+                                aria-labelledby="visual-feedback-editor-title"
+                                data-visual-feedback-editor="{{ json_encode(\Pushery\VisualFeedback\Support\EditorTexts::current(), JSON_THROW_ON_ERROR) }}">
+                                <h2 class="visual-feedback-editor-title" id="visual-feedback-editor-title">{{ __('visual-feedback::messages.widget.editor_title') }}</h2>
+                                <div class="visual-feedback-editor-body" data-visual-feedback-editor-body></div>
+                            </dialog>
+                        @endif
 
                         <button type="button" class="visual-feedback-retake" x-ref="attached"
                             x-show="status === 'attached'" x-on:click="retake()">
@@ -424,6 +442,8 @@
                                              the morph because the list element itself is keyed and
                                              kept. --}}
                                         x-on:click="vfRemoveAttachment({{ $index }})"
+                                        wire:loading.attr="disabled"
+                                        wire:target="removeAttachment"
                                         aria-label="{{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}"
                                     >&times;</button>
                                 </li>

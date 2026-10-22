@@ -8,6 +8,7 @@ use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Foundation\CachesConfiguration;
+use Illuminate\Contracts\Translation\Loader;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -36,6 +37,7 @@ use Pushery\VisualFeedback\Livewire\ReportWidget;
 use Pushery\VisualFeedback\Reporter\GuardReporterResolver;
 use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\ConfiguredLocale;
+use Pushery\VisualFeedback\Support\LanguageFallbackLoader;
 use Pushery\VisualFeedback\Support\PublishedBundle;
 use Pushery\VisualFeedback\Support\Settings;
 use Pushery\VisualFeedback\Support\StylesheetPresence;
@@ -45,15 +47,18 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     /**
      * The oldest WireKit release the WireKit tree is served against.
      *
-     * 2.64 is the release whose labeled fields render a help text beside the label, which every
-     * field of the WireKit form carries. 2.51 made the pager turn pages inside a Livewire
-     * component, which the report
+     * 2.69 is the oldest release this version supports, the one its suite installs. 2.66 is the release whose soft
+     * buttons take the shade of the surface they stand on, so the tree's soft buttons read as
+     * buttons in the report dialog and in a hovered row of the report browser. 2.64 is the release
+     * whose labeled fields render a help text beside the label, which every field of the WireKit
+     * form carries. 2.51 made the pager turn pages inside a Livewire component, which the report
      * browser's list uses. 2.50 made the modal panel a column, so the report dialog keeps its
      * header and its close button in reach when it is taller than the screen; from 2.49 the kit
      * also sets its floating trigger the same distance from both edges. Below the floor, `auto`
-     * serves the plain tree, which has none of these defects, rather than a tree that shows them.
+     * serves the plain tree rather than a tree that shows these defects or was never checked
+     * against the installed release.
      */
-    public const string WIREKIT_MINIMUM = '2.64.0';
+    public const string WIREKIT_MINIMUM = '2.69.0';
 
     /**
      * Whether an installed WireKit is new enough for the tree this package ships.
@@ -145,6 +150,11 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     #[Override]
     public function register(): void
     {
+        // A regional locale reads this package's catalog of its language, `pt-BR` from `pt`, in this
+        // package's namespace only. Registered here so it wraps the loader before the translator is
+        // built from it.
+        $this->app->extend('translation.loader', static fn (Loader $loader): Loader => new LanguageFallbackLoader($loader, 'visual-feedback'));
+
         $published = $this->app->make(ConfigRepository::class)->get('visual-feedback');
         $this->mergeConfigRecursivelyFrom(__DIR__.'/../config/visual-feedback.php', 'visual-feedback');
         $this->honorTheOlderFieldKeys(is_array($published) ? $published : []);

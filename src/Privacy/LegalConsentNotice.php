@@ -40,17 +40,17 @@ use Throwable;
  * omission would drop the acknowledgment altogether; a substituted locale would show German under
  * an English UI, exactly what legal-consent's reader is written to prevent.
  *
- * The answer is read once a minute per tenant, document key and locale and kept in the default
- * cache store, not on every guest render: the widget renders on every page that carries it and
- * again on every round trip, legal-consent's read returns the whole document with its text, and
- * the answer changes only when a version is published. Every answer is kept, a refusal included,
- * so its log line comes once a minute as well. A version published since reaches the checkbox
- * within that minute, and the report records the version the reporter was shown.
+ * The answer comes from `ConsentManager::publishedVersion()`, which serves the version without its
+ * text from legal-consent's own cache of the active versions per locale and drops that cache when a
+ * version is published. So a guest render reads nothing, a locale with nothing published included,
+ * and a version published since reaches the checkbox at once; the report records the version the
+ * reporter was shown. The log lines below come at most once a minute per tenant, document key and
+ * locale, because the widget renders on every page that carries it and again on every round trip.
  */
 final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
 {
-    /** How long one read answers for its tenant, document key and locale. */
-    private const int REMEMBER_SECONDS = 60;
+    /** How long one log line stands for its tenant, document key and locale before it is written again. */
+    private const int LOG_ONCE_SECONDS = 60;
 
     public function __construct(
         private Container $container,
@@ -88,69 +88,28 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
         $locale = $this->container->make('translator')->getLocale();
         $tenancy = $this->container->make(TenantContext::class);
 
-        // Keyed by the tenant too, so one tenant's sentence is never served to another's guests.
-        // A cache that cannot be reached costs the read it would have saved, nothing more.
-        $entry = 'visual-feedback:privacy-wording:'.hash('sha256', $tenancy->current()."\n".$key."\n".$locale);
-        $remembered = $this->remembered(rescue(fn (): mixed => $this->cache->get($entry), report: false));
-
-        if ($remembered !== false) {
-            return $remembered;
-        }
-
-        $wording = $this->read($key, $locale, $tenancy);
-
-        rescue(fn (): bool => $this->cache->put($entry, ['wording' => $wording instanceof PrivacyNoticeWording ? [
-            'text' => $wording->text,
-            'key' => $wording->key,
-            'locale' => $wording->locale,
-            'version' => $wording->version,
-            'fingerprint' => $wording->acceptanceFingerprint,
-        ] : null], self::REMEMBER_SECONDS), report: false);
-
-        return $wording;
+        return $this->read($key, $locale, $tenancy, $tenancy->current()."\n".$key."\n".$locale);
     }
 
     /**
-     * A remembered answer, or false when there is none to use: a miss, or an entry in a shape this
-     * release did not write, which is read again rather than trusted.
+     * The answer legal-consent gives today, read from the published version.
+     *
+     * @param  string  $scope  the tenant, document key and locale, which one log line stands for
      */
-    private function remembered(mixed $entry): PrivacyNoticeWording|false|null
-    {
-        if (! is_array($entry) || ! array_key_exists('wording', $entry)) {
-            return false;
-        }
-
-        $wording = $entry['wording'];
-
-        if ($wording === null) {
-            return null;
-        }
-
-        if (! is_array($wording) || ! is_string($wording['text'] ?? null)) {
-            return false;
-        }
-
-        $field = static fn (string $name): ?string => is_string($wording[$name] ?? null) ? $wording[$name] : null;
-
-        return new PrivacyNoticeWording(
-            text: $wording['text'],
-            key: $field('key'),
-            locale: $field('locale'),
-            version: $field('version'),
-            acceptanceFingerprint: $field('fingerprint'),
-        );
-    }
-
-    /** The answer legal-consent gives today, read from the published document. */
-    private function read(string $key, string $locale, TenantContext $tenancy): ?PrivacyNoticeWording
+    private function read(string $key, string $locale, TenantContext $tenancy, string $scope): ?PrivacyNoticeWording
     {
         try {
-            $document = $this->container->make(ConsentManager::class)->published($key, $locale);
+            $document = $this->container->make(ConsentManager::class)->publishedVersion($key, $locale);
+
+            // Read here, inside the try, with the call itself: legal-consent below 0.44 has no
+            // publishedVersion(), and 0.44 returns a version without its tenant. Both fail as a read
+            // that cannot be made, so the built-in sentence is used instead of a page that breaks.
+            $documentTenant = $document?->tenantId;
         } catch (Throwable $e) {
             // legal-consent promises never to throw for a missing publication; it promises nothing
             // about a missing table or an unreachable connection. A guest page must not 500 over
             // the wording of a checkbox.
-            return $this->fallback('reading the published legal-consent document failed', [
+            return $this->fallback($scope, 'reading the published legal-consent document failed', [
                 'document_key' => $key,
                 'locale' => $locale,
                 'exception' => $e::class,
@@ -165,7 +124,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // nothing". This package ships seven locales and legal-consent's default config
             // publishes two, so this is the ordinary case rather than an edge one — hence a
             // notice, not an error.
-            $this->logger->notice('visual-feedback: no legal-consent document published for this key and locale — the built-in acknowledgment wording is used', [
+            $this->logOnce($scope, 'notice', 'visual-feedback: no legal-consent document published for this key and locale — the built-in acknowledgment wording is used', [
                 'document_key' => $key,
                 'locale' => $locale,
             ]);
@@ -173,7 +132,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             return null;
         }
 
-        if ($tenancy->enabled() && $document->tenantId !== $tenancy->current()) {
+        if ($tenancy->enabled() && $documentTenant !== $tenancy->current()) {
             // Belt and braces, and worth the line. legal-consent v0.7.0 confines reads to the
             // current tenant with a global scope on its model, so this should be unreachable — but
             // a global scope is exactly the kind of protection a `withoutGlobalScopes()` somewhere
@@ -181,17 +140,17 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // another tenant's legal text with nothing to notice it. The DTO started carrying
             // `tenantId` in that same release for precisely this confirmation, so taking it is the
             // intended use rather than distrust.
-            return $this->fallback('the published legal-consent document belongs to another tenant', [
+            return $this->fallback($scope, 'the published legal-consent document belongs to another tenant', [
                 'document_key' => $key,
                 'expected_tenant' => $tenancy->current(),
-                'document_tenant' => $document->tenantId,
+                'document_tenant' => $documentTenant,
             ]);
         }
 
         if ($document->type !== DocumentType::PrivacyNotice) {
             // "I have read …" over a contract or an opt-in misstates what the reporter is doing,
             // and an opt-in must never be a precondition at all (Art. 7(4)).
-            return $this->fallback('the configured legal-consent document is not a privacy notice, so presenting it as a passive acknowledgment would misstate it', [
+            return $this->fallback($scope, 'the configured legal-consent document is not a privacy notice, so presenting it as a passive acknowledgment would misstate it', [
                 'document_key' => $key,
                 'type' => $document->type->value,
             ]);
@@ -202,7 +161,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // Upstream forbids publishing a privacy notice that way, but the mode is derived for a
             // legacy row (notice_mode null + requires_reconsent true), so the combination is
             // reachable — and a passive checkbox would claim a legal effect that does not occur.
-            return $this->fallback('the configured legal-consent document is in a gating notice mode, which a passive acknowledgment cannot express', [
+            return $this->fallback($scope, 'the configured legal-consent document is in a gating notice mode, which a passive acknowledgment cannot express', [
                 'document_key' => $key,
                 'notice_mode' => $document->noticeMode->value,
             ]);
@@ -236,7 +195,7 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
             // package cannot see, and the failure it would prevent is a TypeError on a public
             // page. Caught by PHPStan on the 0.9 -> 0.10 bump, not by a test: no test could have
             // one, because the combination is unreachable through the documented path.
-            return $this->fallback('the published legal-consent document has no acceptance sentence', [
+            return $this->fallback($scope, 'the published legal-consent document has no acceptance sentence', [
                 'document_key' => $key,
                 'version' => $document->version,
             ]);
@@ -267,12 +226,36 @@ final readonly class LegalConsentNotice implements PrivacyNoticeWordingSource
      *
      * @param  array<string, mixed>  $context
      */
-    private function fallback(string $reason, array $context): null
+    private function fallback(string $scope, string $reason, array $context): null
     {
         // Loud for the same reason AbuseGateRegistry is loud about an unregistered driver: the
         // alternative is a configuration that looks honored and is not.
-        $this->logger->warning('visual-feedback: '.$reason.' — the built-in acknowledgment wording is used instead', $context);
+        $this->logOnce($scope, 'warning', 'visual-feedback: '.$reason.' — the built-in acknowledgment wording is used instead', $context);
 
         return null;
+    }
+
+    /**
+     * Write a log line once a minute for its scope, not once per render. A cache that cannot be
+     * reached costs a line per render, nothing more.
+     *
+     * @param  'notice'|'warning'  $level
+     * @param  array<string, mixed>  $context
+     */
+    private function logOnce(string $scope, string $level, string $message, array $context): void
+    {
+        $entry = 'visual-feedback:privacy-wording-log:'.hash('sha256', $scope."\n".$message);
+
+        if (rescue(fn (): bool => $this->cache->add($entry, true, self::LOG_ONCE_SECONDS), true, report: false) !== true) {
+            return;
+        }
+
+        if ($level === 'warning') {
+            $this->logger->warning($message, $context);
+
+            return;
+        }
+
+        $this->logger->notice($message, $context);
     }
 }

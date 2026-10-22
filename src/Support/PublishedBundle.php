@@ -42,14 +42,16 @@ final class PublishedBundle
     private const array BUNDLES = ['visual-feedback-widget.iife.js', 'visual-feedback.iife.js'];
 
     /**
-     * Hashable, but deliberately not a bundle.
+     * Hashable, but deliberately not bundles: the DOM renderer, appended at capture time, and the
+     * screenshot editor, appended when a reporter opens a capture to edit it.
      *
-     * No `<script>` tag renders it -- the capture bundle appends it at capture time -- so it takes
-     * part in no staleness comparison and has no published path of its own to report. It does need
-     * a digest, because it is fetched from the same foreign origin as the two that have one, and
-     * it is by far the largest of the three.
+     * No `<script>` tag renders either -- the capture bundle appends them -- so they take part in no
+     * staleness comparison and have no published path of their own to report. A publish copies
+     * every file of `dist/` together, and a copy left from an earlier release is already named by the
+     * capture bundle's own comparison. Each does need a token and a digest, because it is fetched
+     * from the same place as the two bundles, by a URL that would otherwise carry neither.
      */
-    private const string RENDERER = 'visual-feedback-renderer.iife.js';
+    private const array SIBLINGS = ['visual-feedback-renderer.iife.js', 'visual-feedback-editor.iife.js'];
 
     private ?PublishedBundleStatus $status = null;
 
@@ -156,15 +158,15 @@ final class PublishedBundle
      * error). Neither can be answered by hashing, and inventing a token there would move the URL
      * for no reason.
      *
-     * The renderer has a token too, although no tag loads it: the capture bundle appends it at
-     * capture time from a URL that would otherwise carry no token at all, so a browser that cached
-     * the renderer once would pair that copy with every later capture bundle. The capture tag
-     * hands the token over as `data-renderer-token`. The renderer's own hash costs one more read
-     * of the file, and only on a page that renders the capture tag.
+     * The renderer and the editor have a token too, although no tag loads them: the capture bundle
+     * appends each from a URL that would otherwise carry no token at all, so a browser that cached
+     * one once would pair that copy with every later capture bundle. The capture tag hands the
+     * tokens over as `data-renderer-token` and `data-editor-token`. Each costs one more read of a
+     * file, and only on a page that renders the capture tag.
      */
     public function cacheToken(string $bundle): string
     {
-        if (! in_array($bundle, self::BUNDLES, true) && $bundle !== self::RENDERER) {
+        if (! in_array($bundle, [...self::BUNDLES, ...self::SIBLINGS], true)) {
             return $this->packageVersion();
         }
 
@@ -258,7 +260,7 @@ final class PublishedBundle
      */
     public function integrity(string $bundle): ?string
     {
-        if (! in_array($bundle, self::BUNDLES, true) && $bundle !== self::RENDERER) {
+        if (! in_array($bundle, [...self::BUNDLES, ...self::SIBLINGS], true)) {
             return null;
         }
 
@@ -267,8 +269,8 @@ final class PublishedBundle
         }
 
         // No `is_file()` guard, and its absence is the point rather than an omission. `dist/` is
-        // part of every release of this package, so inside any tree this code can run in, both
-        // bundles exist, and a branch for their absence could never be entered.
+        // part of every release of this package, so inside any tree this code can run in, every
+        // file it names exists, and a branch for an absent one could never be entered.
         //
         // A missing file is still handled: hash_file() returns false, which is the arm below. The
         // `@` keeps the stream warning out, which Laravel's error handler would otherwise turn

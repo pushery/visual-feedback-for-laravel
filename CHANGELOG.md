@@ -4,6 +4,51 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.23.0] - 2026-10-22
+
+### ✨ Added
+
+- **`Support\MigrationLocks::bound()` bounds how long a migration waits for a lock.** A migration of this package that alters a table calls it first in `up()` and `down()`: on PostgreSQL the transaction then waits three seconds for its lock and holds it thirty at most, on MySQL the session waits three seconds. An ALTER that cannot take its lock fails instead of stalling every query behind it, and running the migration again is the remedy. A published copy of such a migration calls it from the application's namespace, so it is part of the public API.
+
+- **A regional locale reads the package's catalog of its language.** The catalogs ship per language, and Laravel's translator asks for the given locale and then for `app.fallback_locale`, so an application running `pt-BR` or `pt-PT` showed the package's strings in the fallback language. The package now wraps the translation loader so that a regional locale of the `visual-feedback` namespace reads its language, `pt-BR` from `pt` and `en-GB` from `en`, a region nobody listed included. A catalog published for the region under `lang/vendor/visual-feedback/` wins over the language key by key. Every other namespace keeps Laravel's lookup.
+
+- **The widget works on a page without a session and without Livewire.** `<x-visual-feedback::standalone />` renders the configured form from the configuration alone, so a page served from a shared cache keeps one copy for every visitor. When the form opens it fetches a form token signed with the application key, which carries the moment the time trap counts from, and it sends the report with its attachments and the screenshot in one request. The capture, the editor, the honeypot, the rate limits and a configured challenge are the same as in the Livewire widget, and reports reach the same channels. `StandaloneRoutes::register()` adds the two routes without a session or CSRF token, and registering them is the opt-in. `VISUAL_FEEDBACK_STANDALONE_TOKEN_TTL` sets how long a token stays valid, 7200 seconds by default.
+
+  **Upgrade:** nothing for the Livewire widget. An application that serves the bundles from `public/` gets the standalone component's script with `php artisan vendor:publish --tag=visual-feedback-assets --force`.
+
+- **A captured screenshot can be cropped before it is attached.** The preview offers Edit beside Attach, which opens the capture in an editor: the reporter drags the crop or its handles, moves and resizes it with the arrow keys, or types four percentages, and Apply puts the cropped picture in the preview, fitted to `screenshot.max_bytes`. Only that picture is uploaded, and the report's technical details carry `screenshot_edited: true`. Cancel and Escape close the editor without applying and keep what was set for the next opening. The editor is a file of its own, `visual-feedback-editor.iife.js`, fetched the first time somebody presses Edit, and `VISUAL_FEEDBACK_SCREENSHOT_EDITOR=false` takes the button away.
+  **Upgrade:** an application that serves the bundles from `public/` gets the new file with `php artisan vendor:publish --tag=visual-feedback-assets --force`. One that serves them from its own origin or a CDN uploads `visual-feedback-editor.iife.js` beside the other three, and a `script-src` that lists paths lists it too. Published views take the Edit button, and the mail's note that the flag is the browser's word, with `php artisan vendor:publish --tag=visual-feedback-views --force`.
+
+- **The screenshot editor marks what a report is about.** Beside Crop it offers an arrow, a line, an ellipse, a rectangle and a freehand line, in five colors and three widths. A mark is drawn with the pointer, or made from the keyboard by pressing a tool's button, which puts it in the middle of the picture; it is moved by dragging or with the arrow keys, resized by its handles or with Shift, and Delete removes it. Undo and Redo step through every change, and Apply draws each mark into the picture with a light seam under its color, so it reads on a dark page and on a light one.
+  **Upgrade:** nothing beyond the cropping entry above. The marks travel in the same file, and the same `php artisan vendor:publish --tag=visual-feedback-views --force` brings their styles to published views.
+
+### 🔧 Changed
+
+- **In the WireKit tree, Attach under the screenshot preview is the one green button.** It is a filled success button, and Edit, Discard and Retake share one neutral soft look, where the four had carried three shades of gray.
+
+  **Upgrade:** an application that published the WireKit tree republishes it with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`.
+
+- **The WireKit tree needs WireKit 2.69 or newer.** 2.69 is the oldest release this version supports, and from 2.66 a soft button takes the shade of the surface it stands on, which the soft buttons of the report dialog and the report browser rely on. `ui.variant = auto` serves the plain tree below it.
+  **Upgrade:** an application that serves the WireKit tree needs `pushery/wirekit` 2.69 or newer. Below it, `auto` falls back to the plain tree.
+
+- **The legal-consent bridge reads the published version from legal-consent's own cache, and needs legal-consent 0.45 or newer.** With `privacy.source = legal-consent` the guest checkbox takes its sentence through `ConsentManager::publishedVersion()`, which legal-consent caches and drops when a version is published, so a version you publish reaches the checkbox at once instead of within a minute, and the bridge keeps no copy of its own. A refusal or a locale with nothing published is still logged at most once a minute.
+  **Upgrade:** with `privacy.source = legal-consent`, update `pushery/legal-consent-for-laravel` to 0.45 or newer. On an older release the checkbox carries the built-in sentence and a warning is logged.
+
+- **The report browser draws Clear, Open and Close as buttons.** They were `ghost`, with neither border nor fill, so they read as text, and Open sat beside the filled Delete in every row. They are `soft` and neutral now, the surface the report form already gives every action other than its main one.
+  **Upgrade:** an application that published the views gets the change with `php artisan vendor:publish --tag=visual-feedback-views --force`.
+
+### 🐛 Fixed
+
+- **A short window shows one scrollbar in the WireKit panel, not two.** The form scrolls in the modal's body, and the panel around it no longer scrolls beside it.
+
+  **Upgrade:** an application that published the views republishes them with `php artisan vendor:publish --tag=visual-feedback-views --force`, for the stylesheet partial.
+
+- **A second press on a button whose request is still running is no longer sent again.** Livewire queues a press made during a request and sends it afterwards, so a second press on Delete in the report browser deleted the same report twice, and a second press on the remove button of a queued file removed the next one. Delete, Open, Close and Clear in the report browser and the remove button of a queued file are disabled while their own call runs, in both view trees.
+
+  **Upgrade:** an application that published the views republishes them with `php artisan vendor:publish --tag=visual-feedback-views --force`, or with `--tag=visual-feedback-wirekit` for the WireKit tree.
+
+- **The button that removes an attachment in the WireKit form shows the trash icon, named in a tooltip.** It showed the character `×`, with its name only in `aria-label`, and a published view cannot be restyled by the application that publishes it. It shows WireKit's `trash` icon now, keeps its name as visually hidden text, and sits in a tooltip that shows the name.
+
 ## [0.22.0] - 2026-10-17
 
 ### ✨ Added
@@ -1220,7 +1265,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.0...v0.20.1

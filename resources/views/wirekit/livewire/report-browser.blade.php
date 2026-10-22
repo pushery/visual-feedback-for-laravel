@@ -58,7 +58,7 @@
                             :label="__('visual-feedback::browser.filter_to')"
                         />
 
-                        <x-wirekit::button surface="ghost" wire:click="clearFilters">
+                        <x-wirekit::button surface="soft" intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
                             {{ __('visual-feedback::browser.clear') }}
                         </x-wirekit::button>
                     </x-wirekit::stack>
@@ -101,7 +101,7 @@
                                     {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                                 </x-wirekit::table.td>
                                 <x-wirekit::table.td align="right">
-                                    <x-wirekit::button size="sm" surface="ghost" wire:click="open('{{ $report->uuid }}')">
+                                    <x-wirekit::button size="sm" surface="soft" intent="neutral" wire:click="open('{{ $report->uuid }}')" loading-target="open('{{ $report->uuid }}')">
                                         {{ __('visual-feedback::browser.open') }}
                                     </x-wirekit::button>
                                     {{-- wire:confirm rather than an inline handler: Livewire's own
@@ -119,6 +119,7 @@
                                         intent="danger"
                                         wire:click="$wire['delete']('{{ $report->uuid }}')"
                                         wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
+                                        loading-target="delete"
                                     >
                                         {{ __('visual-feedback::browser.delete') }}
                                     </x-wirekit::button>
@@ -184,7 +185,7 @@
                     </x-wirekit::card.body>
 
                     <x-wirekit::card.footer>
-                        <x-wirekit::button surface="ghost" wire:click="close">
+                        <x-wirekit::button surface="soft" intent="neutral" wire:click="close" loading-target="close">
                             {{ __('visual-feedback::browser.close') }}
                         </x-wirekit::button>
                     </x-wirekit::card.footer>
