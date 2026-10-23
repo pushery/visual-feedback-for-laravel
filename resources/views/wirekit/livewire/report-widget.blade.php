@@ -52,7 +52,7 @@
              header id that then never existed. The result was a dialog with no accessible
              name at all. modal.header supplies that id, and with it the keyboard-reachable
              close button the plain tree already had. --}}
-        <x-wirekit::modal name="visual-feedback">
+        <x-wirekit::modal name="visual-feedback" :describedby="$notice !== null ? 'visual-feedback-notice' : null">
             <x-wirekit::modal.header>
                 <h2 id="visual-feedback-heading" tabindex="-1">
                     {{ __('visual-feedback::messages.widget.heading') }}

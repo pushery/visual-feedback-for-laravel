@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Channels;
 use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Psr\Log\LoggerInterface;
+use Pushery\VisualFeedback\Contracts\AppliesToTheRequest;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Support\EnvFlag;
@@ -55,6 +56,9 @@ final class ChannelRegistry
      * true and `mail.to` ships empty, so the very first report a new consumer sends reaches
      * nobody, with nothing in the log to say why.
      *
+     * A third answer is neither: a channel that implements {@see AppliesToTheRequest} and does not
+     * apply to this request is skipped with a debug line, because nothing about it is missing.
+     *
      * @return list<ReportChannel>
      */
     public function channels(): array
@@ -74,6 +78,14 @@ final class ChannelRegistry
             // dispatch() that exists to stop precisely that.
             try {
                 $channel = $factory();
+
+                // A channel that holds for some requests only is not misconfigured where it does
+                // not apply, so it is skipped without the warning below.
+                if ($channel instanceof AppliesToTheRequest && ! $channel->appliesToThisRequest()) {
+                    $logger->debug('visual-feedback: a channel does not apply to this request and was skipped', ['channel' => $key]);
+
+                    continue;
+                }
 
                 if ($channel->isAvailable()) {
                     $channels[] = $channel;

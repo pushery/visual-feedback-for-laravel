@@ -69,9 +69,9 @@ Full docs: **[docs.pushery.com/visual-feedback-for-laravel](https://docs.pushery
 - [Installation](https://docs.pushery.com/visual-feedback-for-laravel/installation) — requirements, publish tags, where the widget goes
 - [Configuration](https://docs.pushery.com/visual-feedback-for-laravel/configuration) — every config key and its environment variable
 - [The capture cascade](https://docs.pushery.com/visual-feedback-for-laravel/capture) — the two stages, and which one produced a report
-- [Placing the trigger](https://docs.pushery.com/visual-feedback-for-laravel/placing-the-trigger) — the built-in button, your own, or the window event
+- [Placing the trigger](https://docs.pushery.com/visual-feedback-for-laravel/placing-the-trigger) — the built-in button, your own, or the window event, and the props of one widget, a notice of yours above the fields among them
 - [View trees](https://docs.pushery.com/visual-feedback-for-laravel/view-trees) — framework-free, or WireKit with your design tokens
-- [Delivery channels](https://docs.pushery.com/visual-feedback-for-laravel/delivery-channels) — mail, database, signed webhook, and adding your own
+- [Delivery channels](https://docs.pushery.com/visual-feedback-for-laravel/delivery-channels) — mail, database, signed webhook, and adding your own, including one that holds for some requests only
 - [Report browser](https://docs.pushery.com/visual-feedback-for-laravel/report-browser) — the optional view over
   the reports table: route it, open the gate
 - [Abuse protection](https://docs.pushery.com/visual-feedback-for-laravel/abuse-protection) — what the floor covers on its own, and the seam for

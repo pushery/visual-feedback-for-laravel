@@ -17,6 +17,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
+use Pushery\VisualFeedback\Livewire\Concerns\RestoresNulledProperties;
 use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
@@ -58,6 +59,7 @@ use Pushery\VisualFeedback\Support\TableLookup;
 final class ReportBrowser extends Component
 {
     use ResolvesReportStorage;
+    use RestoresNulledProperties;
     use WithPagination;
 
     /**
@@ -110,9 +112,14 @@ final class ReportBrowser extends Component
         abort_unless(Gate::allows(self::GATE), 403);
     }
 
-    /** Reset to the first page whenever a filter moves, or page 4 of the old result set shows nothing. */
+    /**
+     * Reset to the first page whenever a filter moves, or page 4 of the old result set shows nothing. A
+     * filter written as `null` first gets its default back (see {@see RestoresNulledProperties}).
+     */
     public function updated(string $property): void
     {
+        $this->restoreANulledProperty($property);
+
         if (str_starts_with($property, 'filter')) {
             $this->resetPage();
         }

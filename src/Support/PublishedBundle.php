@@ -35,9 +35,9 @@ final class PublishedBundle
      * The IIFE builds — the two files that go through `public/`.
      *
      * The ESM builds are imported straight out of `vendor/` by a consumer's own bundler, so they
-     * cannot go stale in this sense; the html2canvas chunk is loaded by the IIFE relative to
-     * itself. Both are checked because a publish that copied one and not the other is exactly
-     * the half-done state this exists to name.
+     * cannot go stale in this sense, and so is the html2canvas chunk the ESM capture build imports.
+     * Both are checked because a publish that copied one and not the other is exactly the
+     * half-done state this exists to name.
      */
     private const array BUNDLES = ['visual-feedback-widget.iife.js', 'visual-feedback.iife.js'];
 

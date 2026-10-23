@@ -60,6 +60,7 @@
         @endif
         class="visual-feedback-dialog"
         aria-label="{{ __('visual-feedback::messages.widget.heading') }}"
+        @if ($notice !== null) aria-describedby="visual-feedback-notice" @endif
     >
         @if ($mode === 'modal')
             <button
@@ -107,6 +108,11 @@
                 <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" @if ($mode === 'modal') autofocus @endif>
                     {{ __('visual-feedback::messages.widget.heading') }}
                 </h2>
+
+                {{-- The host's own sentence, as text, which the dialog names as its description. --}}
+                @if ($notice !== null)
+                    <p id="visual-feedback-notice" class="visual-feedback-notice">{{ $notice }}</p>
+                @endif
 
                 {{-- Honeypot: off-screen, hidden from assistive tech, never tab-reachable.
                      Bots fill it; a non-empty value is silently rejected by the pipeline. --}}
@@ -370,6 +376,7 @@
                     </div>
                 @endif
 
+                @if ($takesAttachments)
                 {{-- Attachments. The file input is visible and focusable — the native
                      keyboard path (Enter/Space opens the picker) — not a hidden-input-over-
                      zone that only works for touch. `accept` is derived from the
@@ -451,6 +458,7 @@
                         </ul>
                     @endif
                 </div>
+                @endif
 
                 {{-- Error region: always present, initially empty (assertive so failures
                      interrupt). On failure focus goes to the field the failure belongs to, and
