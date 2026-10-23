@@ -459,6 +459,12 @@
         color: var(--vf-muted);
     }
 
+    {{-- The host's notice above the fields. Body text rather than muted: it says who reads a report
+       and who gets a copy, which a reporter has to be able to read as easily as the fields. --}}
+    .visual-feedback-notice {
+        margin-block: 0.25rem 0.75rem;
+    }
+
     .visual-feedback-required-mark {
         {{-- `--vf-error`, the token this tree already paints the invalid border with, and not a
            second red of its own: the legend explains the mark the fields carry, so the two have
@@ -1141,6 +1147,11 @@
 
     .visual-feedback-required-legend .visual-feedback-required-mark {
         margin-inline-end: var(--space-wk-xs, 0.25rem);
+    }
+
+    {{-- The host's notice above the fields, in the text tone of the kit, spaced off the first field. --}}
+    .visual-feedback-notice {
+        margin-block-end: var(--space-wk-sm, 0.5rem);
     }
 
     {{-- The preview speaks the dropzone's language: dashed, rounded, with room around it. It sat

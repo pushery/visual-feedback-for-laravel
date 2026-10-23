@@ -301,6 +301,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views/wirekit/livewire/_report-form.blade.php' => $this->app->resourcePath('views/vendor/visual-feedback/wirekit/livewire/_report-form.blade.php'),
             __DIR__.'/../resources/views/wirekit/components/fab.blade.php' => $this->app->resourcePath('views/vendor/visual-feedback/components/fab.blade.php'),
             __DIR__.'/../resources/views/wirekit/components/trigger.blade.php' => $this->app->resourcePath('views/vendor/visual-feedback/components/trigger.blade.php'),
+            __DIR__.'/../resources/views/wirekit/components/standalone.blade.php' => $this->app->resourcePath('views/vendor/visual-feedback/components/standalone.blade.php'),
         ], 'visual-feedback-wirekit');
 
         // The optional DatabaseChannel migrations. Deliberately not in the umbrella (like wirekit):

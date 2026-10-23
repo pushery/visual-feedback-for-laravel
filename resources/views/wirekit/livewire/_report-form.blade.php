@@ -92,6 +92,11 @@
             <x-wirekit::heading level="2" id="visual-feedback-heading" tabindex="-1">{{ __('visual-feedback::messages.widget.heading') }}</x-wirekit::heading>
         @endunless
 
+        {{-- The host's own sentence, as text, which the modal names as its description. --}}
+        @if ($notice !== null)
+            <x-wirekit::text id="visual-feedback-notice" class="visual-feedback-notice">{{ $notice }}</x-wirekit::text>
+        @endif
+
         {{-- Honeypot: off-screen, hidden from at, never tab-reachable. --}}
         <div class="visual-feedback-honeypot" aria-hidden="true"
             {{-- Correction. This said the class carries no rule in this tree because it publishes no
@@ -355,6 +360,7 @@
             </div>
         @endif
 
+        @if ($takesAttachments)
         {{-- Attachments via WireKit's own token-styled dropzone (drag-drop + preview +
              remove). `accept` is derived from the same server allowlist as validation. --}}
         {{-- `hint` is WireKit's own describedby-wired slot, so the caps are announced with the
@@ -426,6 +432,7 @@
                 </x-wirekit::alert>
             @endif
         </div>
+        @endif
 
         {{-- Error region. Two things are keyed on the failure counter rather than on `failed`:
              that flag flips false→true inside one round-trip, so a repeat failure looks unchanged

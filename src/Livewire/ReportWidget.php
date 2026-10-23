@@ -30,6 +30,7 @@ use Pushery\VisualFeedback\Contracts\ResolvesReporter;
 use Pushery\VisualFeedback\Data\ReportContextEntry;
 use Pushery\VisualFeedback\Events\RejectionReason;
 use Pushery\VisualFeedback\Events\ReportRejected;
+use Pushery\VisualFeedback\Livewire\Concerns\RestoresNulledProperties;
 use Pushery\VisualFeedback\Metadata\MetadataSanitizer;
 use Pushery\VisualFeedback\Privacy\PrivacyNotice;
 use Pushery\VisualFeedback\Submission\SubmissionInput;
@@ -56,6 +57,7 @@ use Throwable;
  */
 class ReportWidget extends Component
 {
+    use RestoresNulledProperties;
     use WithFileUploads;
 
     /**
@@ -155,6 +157,16 @@ class ReportWidget extends Component
     public ?bool $withScreenshot = null;
 
     /**
+     * The host's own sentence above the fields, such as who reads a report and who gets a copy.
+     *
+     * Rendered as text, never as markup, and named by the dialog's `aria-describedby`, so a screen
+     * reader reads it when the panel opens. Sealed with the other mount props, so what the reporter
+     * reads is what the host wrote. Null renders nothing.
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request, as above.
+    public ?string $notice = null;
+
+    /**
      * The mount props as this widget received them, sealed so the round trip cannot change them.
      *
      * This is what `#[Locked]` should have been. A lock forbids a write and throws while doing it,
@@ -165,7 +177,7 @@ class ReportWidget extends Component
      * the Blade tag, or from the browser? `mount()` runs once and the tag is never evaluated again,
      * so nothing in Livewire can answer it — unless the answer travels along. It does here, and
      * encrypted rather than signed, so a client can neither forge it nor read the values out of the
-     * page. On every request the four properties are restored from it.
+     * page. On every request the five properties are restored from it.
      *
      * Note: a copy, not a digest, and the difference is the whole design. A digest detects tampering
      * and cannot undo it: the tag values would be gone, the fallback would have to be the
@@ -350,24 +362,24 @@ class ReportWidget extends Component
     public array $challenge = [];
 
     /**
-     * The four properties whose value must come from the tag rather than from the browser.
+     * The five properties whose value must come from the tag rather than from the browser.
      *
      * Named once because three methods walk it, and a list written three times is a list that
-     * disagrees with itself the first time a fifth prop arrives.
+     * disagrees with itself the first time another prop arrives.
      *
      * @var list<string>
      */
-    private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot'];
+    private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot', 'notice'];
 
     /**
-     * What the four hold while the seal will not open: none of the tag's own categories, context
-     * or field modes, so the configuration's are rendered, and no capture.
+     * What the five hold while the seal will not open: none of the tag's own categories, context
+     * or field modes, so the configuration's are rendered, no capture, and no notice.
      *
      * One list for both readers. restoreMountProps() renders from it, and restoreAfterAWrite()
      * compares a write with it, so a page with a broken seal that sends back what it was rendered
      * with stays quiet, and any other value is reported as it would be against an intact seal.
      */
-    private const array UNSEALED = ['availableCategories' => [], 'context' => [], 'fields' => [], 'withScreenshot' => false];
+    private const array UNSEALED = ['availableCategories' => [], 'context' => [], 'fields' => [], 'withScreenshot' => false, 'notice' => null];
 
     /** The request attribute that lists the sealed properties this request has reported a write to. */
     private const string SEALED_WRITES_REPORTED = 'visual-feedback.sealed-writes-reported';
@@ -397,7 +409,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * Restore the four from the sealed copy, or stop accepting if it will not open.
+     * Restore the five from the sealed copy, or stop accepting if it will not open.
      *
      * A copy that will not open leaves nothing trustworthy to restore to. Keeping the arriving
      * values would make a forged seal the way to keep a forged prop, and falling back to the
@@ -417,6 +429,7 @@ class ReportWidget extends Component
         $this->context = $values['context'];
         $this->fields = $values['fields'];
         $this->withScreenshot = $values['withScreenshot'];
+        $this->notice = $values['notice'];
     }
 
     /**
@@ -434,7 +447,7 @@ class ReportWidget extends Component
      * reachable by a test that seals a bad payload itself, and it says something stronger -- a copy
      * that is not what this widget sealed is not partially used.
      *
-     * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool}|null
+     * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool, notice: ?string}|null
      */
     private function openTheSeal(): ?array
     {
@@ -452,12 +465,13 @@ class ReportWidget extends Component
         $context = $values['context'] ?? null;
         $fields = $values['fields'] ?? null;
         $withScreenshot = $values['withScreenshot'] ?? null;
+        $notice = $values['notice'] ?? null;
 
         if (! is_array($categories) || ! is_array($context) || ! is_array($fields)) {
             return null;
         }
 
-        if ($withScreenshot !== null && ! is_bool($withScreenshot)) {
+        if (($withScreenshot !== null && ! is_bool($withScreenshot)) || ($notice !== null && ! is_string($notice))) {
             return null;
         }
 
@@ -501,6 +515,7 @@ class ReportWidget extends Component
             'context' => $shaped,
             'fields' => $keyed,
             'withScreenshot' => $withScreenshot,
+            'notice' => $notice,
         ];
     }
 
@@ -572,6 +587,18 @@ class ReportWidget extends Component
     }
 
     /**
+     * The first hook of every update, before the hook of the property: a property a client wrote
+     * `null` into gets its default back (see {@see RestoresNulledProperties}), and `mode` the
+     * configured shape, the documented meaning of `null` for it.
+     */
+    public function updated(string $property): void
+    {
+        if ($this->restoreANulledProperty($property) === 'mode') {
+            $this->mode = $this->aShapeThisWidgetRenders(null);
+        }
+    }
+
+    /**
      * The same restore for the value being written in this request, one hook per property.
      *
      * Livewire hydrates, then applies the client's updates, then runs methods -- so the hook above
@@ -597,6 +624,11 @@ class ReportWidget extends Component
     public function updatedWithScreenshot(): void
     {
         $this->restoreAfterAWrite('withScreenshot');
+    }
+
+    public function updatedNotice(): void
+    {
+        $this->restoreAfterAWrite('notice');
     }
 
     /**
@@ -639,6 +671,7 @@ class ReportWidget extends Component
             'availableCategories' => $this->availableCategories,
             'context' => $this->context,
             'fields' => $this->fields,
+            'notice' => $this->notice,
             default => $this->withScreenshot,
         };
 
@@ -706,8 +739,9 @@ class ReportWidget extends Component
      * @param  ?string  $recipient  per-instance mail recipient, overriding `mail.to`
      * @param  ?string  $mode  `modal` or `inline`; null takes the default from `ui.trigger`
      * @param  ?bool  $withScreenshot  per-instance capture switch (null = the modal-only default)
+     * @param  ?string  $notice  the host's sentence above the fields; null or blank renders none
      */
-    public function mount(?string $mode = null, array $categories = [], array $context = [], array $fields = [], ?string $recipient = null, ?bool $withScreenshot = null): void
+    public function mount(?string $mode = null, array $categories = [], array $context = [], array $fields = [], ?string $recipient = null, ?bool $withScreenshot = null, ?string $notice = null): void
     {
         if ($recipient !== null && filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
             // A developer-supplied prop: fail at the call site rather than silently mailing
@@ -742,6 +776,7 @@ class ReportWidget extends Component
         $this->availableCategories = array_values(array_filter($categories, is_string(...)));
         $this->context = array_values(array_filter($context, is_array(...)));
         $this->fields = $fields;
+        $this->notice = $notice !== null && trim($notice) !== '' ? $notice : null;
         $this->sealMountProps();
         $this->category = $this->firstCategory();
         // The inline widget is open from the moment it renders, so mount is its open — and
@@ -1671,6 +1706,10 @@ class ReportWidget extends Component
             // places to keep in step, and the numbers come from the policy so they cannot drift
             // from `accept` or the server rules.
             'attachmentLimit' => $this->attachmentLimitLine(),
+            // Whether the form offers a file field at all. A host that takes text only sets
+            // `attachments.max_files` to 0, and the server then refuses every file: a field it
+            // offered anyway would invite a pick the submit refuses, under a hint of zero files.
+            'takesAttachments' => app(AttachmentPolicy::class)->maxFiles() > 0,
             // The sentence beside each labeled field of the WireKit form, built here so its numbers
             // are the ones SubmitReport validates against.
             'fieldHelp' => $this->fieldHelp(),

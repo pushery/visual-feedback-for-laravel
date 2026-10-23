@@ -330,9 +330,9 @@ window.dispatchEvent(new Event('visual-feedback:open'))
 
 ### 5. Override the configuration per widget
 
-Six props override the configuration for one widget, so two pages in the same application
+Seven props set one widget apart from the configuration, so two pages in the same application
 can offer different forms. The browser cannot change or widen any of them after mount:
-`categories`, `context`, `fields` and `withScreenshot` are sealed and restored on every request,
+`categories`, `context`, `fields`, `withScreenshot` and `notice` are sealed and restored on every request,
 `recipient` must stay an address the configuration permits, and `mode` one the widget renders.
 A request that breaks the seal makes the widget refuse to send until the page is reloaded.
 
@@ -344,6 +344,7 @@ A request that breaks the seal makes the widget refuse to send until the page is
 | `fields` | `array` | from `fields` | per-field visibility, e.g. `['subject' => false]` |
 | `recipient` | `?string` | from `mail.to` | where this widget's reports are mailed |
 | `withScreenshot` | `?bool` | `null` | `null` follows the default (capture in modal mode only); `false` removes it, `true` adds it |
+| `notice` | `?string` | `null` | your sentence above the fields, such as who reads a report and who gets a copy; rendered as text and named as the dialog's description |
 
 ```blade
 @livewire('visual-feedback.report-widget', [

@@ -200,6 +200,7 @@ return [
     'attachments' => [
         'disk' => env('VISUAL_FEEDBACK_ATTACHMENTS_DISK', 'local'),
         'directory' => env('VISUAL_FEEDBACK_ATTACHMENTS_DIR', 'visual-feedback'),
+        // 0 takes no file: the forms then show no file field, and the server refuses one.
         'max_files' => filter_var(
             env('VISUAL_FEEDBACK_ATTACHMENTS_MAX_FILES', 5),
             FILTER_VALIDATE_INT,
@@ -767,10 +768,21 @@ return [
     | A `mode` mount prop on the widget overrides this per instance, so a page can
     | carry both an inline form and a modal.
     |
-    | `assets` is the base URL the published JS bundles are served from. There are two:
-    | `visual-feedback-widget.iife.js`, which registers the Alpine components every template
-    | binds to and is always requested, and `visual-feedback.iife.js`, the capture renderer,
-    | requested only while `screenshot.strategy` is not `off`.
+    | `assets` is the base URL the published JS bundles are served from. A host that serves
+    | them from its own origin or a CDN uploads all four IIFE files of `dist/`, each requested
+    | in its own situation:
+    |
+    | - `visual-feedback-widget.iife.js` registers the Alpine components every template binds
+    |   to, and is always requested.
+    | - `visual-feedback.iife.js`, the capture bundle, is requested while `screenshot.strategy`
+    |   is not `off`.
+    | - `visual-feedback-renderer.iife.js`, the DOM renderer, is appended by the capture
+    |   bundle when a screenshot is taken.
+    | - `visual-feedback-editor.iife.js` is appended when a reporter opens a screenshot to edit
+    |   it, while `screenshot.editor` is on.
+    |
+    | The ESM builds and `visual-feedback.chunk.js` are for a bundler that imports them from
+    | `vendor/`, and nothing requests them from this URL.
     |
     */
     'ui' => [

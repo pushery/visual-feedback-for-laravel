@@ -4,6 +4,32 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.24.0] - 2026-10-23
+
+### ✨ Added
+
+- **A notice of the host's above the fields, in both widgets.** `notice` on the Livewire widget and on `<x-visual-feedback::standalone />` takes a sentence such as who reads a report and who gets a copy. It stands below the heading, is rendered as text, and the dialog names it in `aria-describedby`, so a screen reader reads it when the panel opens. On the Livewire widget it is sealed with the other mount props. Without it both widgets render as before.
+
+  **Upgrade:** an application that published the views republishes them with `php artisan vendor:publish --tag=visual-feedback-views --force` before it uses `notice`.
+
+- **A channel can hold for some requests only, without a warning everywhere else.** A channel that implements the new `Contracts\AppliesToTheRequest` is asked `appliesToThisRequest()` before `isAvailable()`, and `false` skips it for that report with a debug line. Until now a channel for one tenant, host or shop could only answer `isAvailable()` with `false` elsewhere, and every report from there logged the warning about an incomplete configuration, which buried a real one of the same wording. `isAvailable()` keeps its meaning and its warning.
+
+- **The widget for a page without Livewire has a WireKit form.** While the WireKit tree is served, `<x-visual-feedback::standalone />` draws its fields, buttons and alerts with WireKit's components instead of falling back to the plain markup. It keeps the native dialog, the ids and the field names, so it opens, sends and marks a rejected field as before. On such a page Alpine comes from WireKit's `csp` bundle through `@wirekitScripts`. The `visual-feedback-wirekit` tag publishes the new view with the others.
+
+  **Upgrade:** an application that published the WireKit views republishes them with `php artisan vendor:publish --tag=visual-feedback-wirekit --force` to get the new form.
+
+### 🐛 Fixed
+
+- **A request that writes `null` into a property of the widget or the report browser no longer answers 500.** Livewire sets a typed property that does not take `null` by unsetting it, and the hook or the render that read it afterwards failed with an error that reached the application's error tracker, for every such request and from any guest on a page that renders the widget. Each property now gets its default back first; `mode` gets the configured shape, as for a widget placed without one.
+
+- **With `attachments.max_files` at 0, no form offers a file field.** The server refused every file, while the Livewire widget in both view trees and the widget without Livewire still showed the field under a hint of "up to 0 files". The field and its hint are now left out, as the capture block is when `screenshot.strategy` is `off`.
+
+  **Upgrade:** an application that published the views republishes them with `php artisan vendor:publish --tag=visual-feedback-views --force`.
+
+### 📚 Documentation
+
+- **The comment on `ui.assets` in the config names all four bundles a host uploads**, and when each is requested: the widget bundle always, the capture bundle while screenshots are on, the DOM renderer when a screenshot is taken, and the editor when a reporter edits one. It named two since the renderer moved into a file of its own. A published config keeps the old comment until it is published again; nothing else changes.
+
 ## [0.23.0] - 2026-10-22
 
 ### ✨ Added
@@ -1265,7 +1291,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.20.1...v0.21.0

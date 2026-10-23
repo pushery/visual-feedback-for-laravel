@@ -12,11 +12,14 @@
 
     Props:
       position — the corner of the floating trigger; the configured one by default.
+      notice — a sentence of the host's above the fields, such as who reads a report; rendered as text and named by
+               the dialog's aria-describedby. None by default.
 --}}
-@props(['position' => null])
+@props(['position' => null, 'notice' => null])
 @php
     $vfSettings = app(\Pushery\VisualFeedback\Support\Settings::class);
     $vfAvailable = $vfSettings->enabled() && ! $vfSettings->requiresAuthentication();
+    $vfNotice = is_string($notice) && trim($notice) !== '' ? $notice : null;
 @endphp
 @if ($vfAvailable)
 @php
@@ -63,7 +66,7 @@
         <x-visual-feedback::fab :position="$position ?? (is_string($vfPosition = config('visual-feedback.ui.position')) ? $vfPosition : 'bottom-end')" />
     @endif
 
-    <dialog x-ref="dialog" class="visual-feedback-dialog" aria-label="{{ __('visual-feedback::messages.widget.heading') }}">
+    <dialog x-ref="dialog" class="visual-feedback-dialog" aria-label="{{ __('visual-feedback::messages.widget.heading') }}" @if ($vfNotice !== null) aria-describedby="visual-feedback-notice" @endif>
         <button type="button" class="visual-feedback-close" aria-label="{{ __('visual-feedback::messages.widget.close') }}" x-on:click="$refs.dialog.close()">&times;</button>
 
         {{-- Always present and empty at first, so a screen reader announces the success without a focus jump. --}}
@@ -85,6 +88,10 @@
             <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" autofocus>
                 {{ __('visual-feedback::messages.widget.heading') }}
             </h2>
+
+            @if ($vfNotice !== null)
+                <p id="visual-feedback-notice" class="visual-feedback-notice">{{ $vfNotice }}</p>
+            @endif
 
             {{-- Off-screen, hidden from assistive technology and never reachable by tab. A filled value is refused
                  silently. The inline style hides it where the stylesheet is missing; the class hides it where a
@@ -192,6 +199,8 @@
                 </div>
             @endif
 
+            {{-- No file field where the server takes no file: `attachments.max_files` of 0. --}}
+            @if ($vfPolicy->maxFiles() > 0)
             <div class="visual-feedback-attachments">
                 <label for="visual-feedback-files">{{ __('visual-feedback::messages.widget.attachments_label') }}</label>
                 <input id="visual-feedback-files" class="visual-feedback-file-input" type="file" name="attachments[]" multiple
@@ -199,6 +208,7 @@
                     :aria-invalid="vfInvalid('files')">
                 <p id="visual-feedback-files-limit" class="visual-feedback-hint">{{ trans_choice('visual-feedback::messages.widget.attachment_limit', $vfPolicy->maxFiles(), ['count' => $vfPolicy->maxFiles(), 'size' => $vfPolicy->maxFileSizeForHumans()]) }}</p>
             </div>
+            @endif
 
             <div class="visual-feedback-error visual-feedback-alert" :class="{ 'visual-feedback-alert--shown': vfFailureCount > 0 }"
                 id="visual-feedback-error" role="alert" aria-live="assertive" x-text="vfFailure"></div>
