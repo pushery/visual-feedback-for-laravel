@@ -173,6 +173,8 @@ return [
     'validation' => [
         'privacy_required' => 'Confirma que leste o aviso de privacidade.',
         'screenshot_not_attached' => 'Fizeste uma captura de ecrã mas ainda não a anexaste. Escolhe Anexar para a enviares ou Descartar para enviares sem ela.',
+        'screenshot_expired' => 'A captura de ecrã expirou enquanto o formulário estava aberto. Anexa-a de novo ou envia sem ela.',
+        'attachment_expired' => 'Um anexo expirou enquanto o formulário estava aberto e foi removido. Anexa-o de novo ou envia sem ele.',
         'form_expired' => 'Este formulário expirou. Copia a tua mensagem, recarrega a página e envia-a de novo.',
         'required' => 'Falta :attribute.',
         'in' => ':attribute tem de ser um dos valores oferecidos.',

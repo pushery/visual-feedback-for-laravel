@@ -177,6 +177,8 @@ return [
     'validation' => [
         'privacy_required' => 'Please confirm that you have read the privacy notice.',
         'screenshot_not_attached' => 'You captured a screenshot but have not attached it yet. Choose Attach to send it along, or Discard to send without it.',
+        'screenshot_expired' => 'The screenshot expired while the form was open. Attach it again, or send without it.',
+        'attachment_expired' => 'An attachment expired while the form was open and was removed. Attach it again, or send without it.',
         'form_expired' => 'This form has expired. Copy your message, reload the page and send it again.',
         'required' => ':attribute is still missing.',
         'in' => ':attribute has to be one of the offered values.',

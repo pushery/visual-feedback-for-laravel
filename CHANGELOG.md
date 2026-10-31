@@ -4,6 +4,35 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.24.1] - 2026-10-31
+
+### 🔧 Changed
+
+- **An empty `VISUAL_FEEDBACK_ENABLED=` keeps the widget on.** The master switch read a set but empty variable as false, so an empty line in a server's `.env` switched the widget off, and nothing said so: no report arrived, which looks like nobody having anything to report. It reads like the protective switches now. An empty value takes the default, and `false`, `off`, `no` or `0` still switch the widget off.
+
+  **Upgrade:** a host that relied on an empty value to switch the widget off writes `VISUAL_FEEDBACK_ENABLED=false`. A published config keeps its own reading until it is published again.
+
+### 🐛 Fixed
+
+- **A screenshot or an attachment whose temporary file is gone is answered at its field, and the report stays in the form.** Livewire deletes temporary uploads older than a day whenever a component finishes an upload, and an application may clear them sooner, so a report sent from a form left open overnight met a file that was no longer there: reading its size threw, storing it threw, and the submit ended with a 500. The widget now takes such a file out before anything reads it and names the field, the screenshot or the attachments, with a sentence saying it expired; an attachment that is still there stays queued, and what the reporter wrote is kept.
+- **The stylesheet partial no longer leaves a Livewire morph block open.** `visual-feedback::style` opened its stylesheet in both branches of the `@if` that decides the nonce. Livewire writes no morph markers inside a style element and pairs each closing tag with the last one opened, so in the view of a Livewire component it wrote the start marker of that `@if` and no end marker, and its morph cannot add a node to a block without an end. A layout that includes the partial in its `<head>`, outside any component, was not affected. Each branch now opens the stylesheet in one tag, which carries the nonce only when there is one; without a nonce the tag reads `<style >`.
+
+  **Upgrade:** an application that published the views republishes them with `php artisan vendor:publish --tag=visual-feedback-views --force`, for the stylesheet partial.
+
+- **A screenshot no longer shows the report form when the dialog has only just opened.** The widget hid its own surfaces on the page before the renderer copied it, and a surface the page rendered again between the two was drawn: the first capture after a page load could show the form instead of the page. The surfaces are hidden in the copy as well now.
+- **Text in a screenshot wraps as it does on the page, in Safari as well.** The renderer's copy of the page laid out a face from a CSS `@font-face` rule with its fallback when it had not asked for the face yet, so a line of prose could wrap differently, and everything below it moved by a line. The copy loads the faces the page has loaded before it is drawn, for three seconds at most.
+- **The sender of a report is named when `APP_NAME` is not set either.** `mail.from.name` fell back to `APP_NAME` without a default of its own, so with neither variable set the mail arrived from a bare address. It falls back to `Laravel` now, as the framework's own mail config does.
+
+### 🔒 Security
+
+- **A form that takes no file no longer hands out an upload address.** Livewire signs an address for whatever property a request names and checks only that the component takes uploads at all, so a widget whose form took no attachment (`attachments.max_files` at 0) and no screenshot (`screenshot.strategy` at `off`) still gave every visitor an address to store files under until it expired. The widget now answers that handshake with 403 for every property its form does not take, the end of an upload included. The attachments keep their address while a file is allowed, and the screenshot while the capture is offered.
+- **An erasure holds on a cache that hands numbers back as text, Redis among them.** `visual-feedback:forget` leaves a marker, and the delivery jobs withhold a report whose reporter it erased. The marker was read as an integer only, while Redis returns a stored number as a string, so on Redis no marker ever matched, and a report still queued, backing off or retried from the failed jobs was stored, mailed or posted after the erasure. It is read as a number now.
+
+### 📚 Documentation
+
+- **The Boost skill names the `visual-feedback-lang` and `visual-feedback-views` publish tags**: it named every other tag the package registers and left these two out, so the way to publish only the translations or only the views was missing from it. Nothing else changes.
+- **The comment on `ui.assets_integrity` in the config names all four bundles the switch writes a digest for**: the two script tags, `visual-feedback-widget.iife.js` and `visual-feedback.iife.js`, and the renderer and the editor the capture bundle appends from the same origin. It spoke of the two script tags only, so a host judging from it whether a CDN that rewrites the renderer tolerates the switch got the wrong answer. A published config keeps the old comment until it is published again; nothing else changes.
+
 ## [0.24.0] - 2026-10-23
 
 ### ✨ Added
@@ -1291,7 +1320,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.21.0...v0.22.0

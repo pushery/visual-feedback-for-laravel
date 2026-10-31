@@ -39,7 +39,9 @@ return [
     // Two edges, measured rather than assumed, and left as they are because they match what
     // Laravel itself does with an env value: an empty value (`KEY=`) and a literal `KEY=null`
     // both read as `false`, not as the default -- `filter_var` calls them readable-and-false, so
-    // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for.
+    // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for. The
+    // master switch and `mail.require_deliverable_transport` are read through
+    // `EnvFlag::protection()` instead, where an empty value takes the default.
 
     // Master switch — a kill switch that needs no code change.
     //
@@ -52,7 +54,11 @@ return [
     // switch tells its reporter the form is off, rather than showing a success screen for a
     // report nobody received. A `ReportRejected` event carries `RejectionReason::Disabled`, so
     // an operator can tell "switched off" from "under attack" in the same listener.
-    'enabled' => filter_var(env('VISUAL_FEEDBACK_ENABLED', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+    //
+    // An empty `VISUAL_FEEDBACK_ENABLED=` keeps the widget on: only `false`, `off`, `no` or `0`
+    // switches it off. On a host where the widget is the way to report a barrier, an empty line
+    // in a server's environment would otherwise take that way away without anybody noticing.
+    'enabled' => EnvFlag::protection(env('VISUAL_FEEDBACK_ENABLED', true), true),
 
     // Sign-in only. True means: no floating button, no trigger, no form for a guest, and a submit
     // from a guest session refused with `RejectionReason::AuthenticationRequired` — an enum case
@@ -628,7 +634,7 @@ return [
             // Without a default this key was worse than the framework value it overrides: the
             // From header arrived as a bare address, and a report from a product nobody can name
             // reads like an unattended relay rather than like feedback somebody just gave.
-            'name' => env('VISUAL_FEEDBACK_MAIL_FROM_NAME', env('APP_NAME')),
+            'name' => env('VISUAL_FEEDBACK_MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
         ],
         'reply_to_reporter' => true,
         'locale' => env('VISUAL_FEEDBACK_MAIL_LOCALE'), // null|<locale>|reporter
@@ -811,11 +817,14 @@ return [
         'fab_icon' => env('VISUAL_FEEDBACK_UI_FAB_ICON', 'message'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
 
-        // Subresource Integrity on the two script tags. Off by default, and the default is the
-        // careful answer rather than the lazy one: turning it on says the origin in `assets`
-        // mirrors this release's bundles byte for byte. A CDN that re-minifies, or that still
-        // carries the previous version, then fails the check — the browser drops the script, and
-        // a widget whose bundle never loaded renders perfectly and does nothing.
+        // Subresource Integrity on all four bundles: the two script tags, `visual-feedback-widget.iife.js`
+        // and `visual-feedback.iife.js`, and the two files the capture bundle appends from the same
+        // origin, `visual-feedback-renderer.iife.js` and, while `screenshot.editor` is on,
+        // `visual-feedback-editor.iife.js`. Off by default, and the default is the careful answer
+        // rather than the lazy one: turning it on says the origin in `assets` mirrors this release's
+        // bundles byte for byte. A CDN that re-minifies, or that still carries the previous version,
+        // then fails the check — the browser drops the script, and a widget whose bundle never loaded
+        // renders perfectly and does nothing.
         //
         // It only does anything when `assets` points somewhere else. Served from your own
         // `public/` the bytes are already same-origin, and the digest would be checking the file

@@ -173,6 +173,8 @@ return [
     'validation' => [
         'privacy_required' => 'Confirma que has leído el aviso de privacidad.',
         'screenshot_not_attached' => 'Has hecho una captura pero todavía no la has adjuntado. Elige Adjuntar para enviarla o Descartar para enviar sin ella.',
+        'screenshot_expired' => 'La captura caducó mientras el formulario estaba abierto. Adjúntala de nuevo o envía sin ella.',
+        'attachment_expired' => 'Un archivo adjunto caducó mientras el formulario estaba abierto y se ha quitado. Adjúntalo de nuevo o envía sin él.',
         'form_expired' => 'Este formulario ha caducado. Copia tu mensaje, recarga la página y vuelve a enviarlo.',
         'required' => 'Falta :attribute.',
         'in' => ':attribute tiene que ser uno de los valores ofrecidos.',

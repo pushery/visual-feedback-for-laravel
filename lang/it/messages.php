@@ -173,6 +173,8 @@ return [
     'validation' => [
         'privacy_required' => 'Conferma di aver letto l\'informativa sulla privacy.',
         'screenshot_not_attached' => 'Hai acquisito uno screenshot ma non lo hai ancora allegato. Scegli Allega per inviarlo oppure Elimina per inviare senza.',
+        'screenshot_expired' => 'Lo screenshot è scaduto mentre il modulo era aperto. Allegalo di nuovo oppure invia senza.',
+        'attachment_expired' => 'Un allegato è scaduto mentre il modulo era aperto ed è stato rimosso. Allegalo di nuovo oppure invia senza.',
         'form_expired' => 'Questo modulo è scaduto. Copia il tuo messaggio, ricarica la pagina e invialo di nuovo.',
         'required' => 'Manca :attribute.',
         'in' => ':attribute deve essere uno dei valori proposti.',
