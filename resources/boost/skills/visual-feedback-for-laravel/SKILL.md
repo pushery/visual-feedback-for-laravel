@@ -39,8 +39,10 @@ php artisan vendor:publish --tag="visual-feedback-config"
 ```
 
 The first is **not** everything, and reading it that way is the mistake this line exists to
-prevent. It covers the config, the translations, the views and the bundles. Two tags stand
-outside it on purpose, because each is a decision rather than a default:
+prevent. It covers the config, the translations, the views and the bundles, and each of those
+has a tag of its own: `visual-feedback-config`, `visual-feedback-lang`, `visual-feedback-views`
+and `visual-feedback-assets`. Two tags stand outside it on purpose, because each is a decision
+rather than a default:
 `visual-feedback-migrations` (the reports table — see the `database` channel below) and
 `visual-feedback-wirekit` (the WireKit view tree, which is selected by configuration and does
 not need publishing at all).

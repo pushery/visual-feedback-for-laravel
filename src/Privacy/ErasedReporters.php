@@ -72,7 +72,9 @@ final readonly class ErasedReporters
     {
         $erasedAt = $this->cache->get($key);
 
-        return is_int($erasedAt) && $erasedAt >= $submittedAt;
+        // Redis stores a number without serializing it and hands it back as a numeric string, while an
+        // in-memory store returns the int that went in, so the marker is read as a number.
+        return is_numeric($erasedAt) && (int) $erasedAt >= $submittedAt;
     }
 
     /** The cache key of a marker: its kind and a hash of what it names. */

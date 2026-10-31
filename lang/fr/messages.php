@@ -173,6 +173,8 @@ return [
     'validation' => [
         'privacy_required' => 'Merci de confirmer que tu as lu la politique de confidentialité.',
         'screenshot_not_attached' => 'Tu as pris une capture mais tu ne l\'as pas encore jointe. Choisis Joindre pour l\'envoyer, ou Supprimer pour envoyer sans elle.',
+        'screenshot_expired' => 'La capture a expiré pendant que le formulaire était ouvert. Joins-la à nouveau ou envoie sans elle.',
+        'attachment_expired' => 'Une pièce jointe a expiré pendant que le formulaire était ouvert et a été retirée. Joins-la à nouveau ou envoie sans elle.',
         'form_expired' => 'Ce formulaire a expiré. Copie ton message, recharge la page et envoie-le à nouveau.',
         'required' => 'Il manque :attribute.',
         'in' => ':attribute doit être une des valeurs proposées.',

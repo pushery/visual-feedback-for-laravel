@@ -173,6 +173,8 @@ return [
     'validation' => [
         'privacy_required' => 'Bitte bestätige, dass du die Datenschutzhinweise gelesen hast.',
         'screenshot_not_attached' => 'Du hast einen Screenshot aufgenommen, aber noch nicht angehängt. Wähle Anhängen, um ihn mitzuschicken, oder Verwerfen, um ohne ihn zu senden.',
+        'screenshot_expired' => 'Der Screenshot ist abgelaufen, während das Formular offen war. Häng ihn noch einmal an oder sende ohne ihn.',
+        'attachment_expired' => 'Ein Anhang ist abgelaufen, während das Formular offen war, und wurde entfernt. Häng ihn noch einmal an oder sende ohne ihn.',
         'form_expired' => 'Dieses Formular ist abgelaufen. Kopier deine Nachricht, lade die Seite neu und schick sie noch einmal ab.',
         'required' => ':attribute fehlt noch.',
         'in' => ':attribute muss einer der angebotenen Werte sein.',

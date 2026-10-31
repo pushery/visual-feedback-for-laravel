@@ -44,11 +44,11 @@
      over a plain widget — no positioning, no dialog styling, and no concealment rule for the
      honeypot, which lives in here. --}}
 @if (! app(\Pushery\VisualFeedback\Support\ServedViewTree::class)->servingWireKit())
-@if ($nonce !== null)
-<style nonce="{{ $nonce }}">
-@else
-<style>
-@endif
+{{-- One opening tag per branch, with the nonce decided inside it. Livewire writes no morph
+     markers inside a style element and pairs each closing tag with the last one opened before
+     it, so a stylesheet opened in both branches of a condition would leave that condition
+     without its end marker in the view of a Livewire component. --}}
+<style @if ($nonce !== null) nonce="{{ $nonce }}" @endif>
     :root {
         --vf-bg: #ffffff;
         --vf-fg: #111827;
@@ -1069,11 +1069,7 @@
      is filled in by real people, and a honeypot hit is answered with the success screen on
      purpose -- so their report would be thanked for and discarded. That is the one failure here
      worth more than a margin. --}}
-@if ($nonce !== null)
-<style nonce="{{ $nonce }}">
-@else
-<style>
-@endif
+<style @if ($nonce !== null) nonce="{{ $nonce }}" @endif>
     {{-- Concealment, not decoration. See the note above. --}}
     .visual-feedback-honeypot {
         position: absolute;

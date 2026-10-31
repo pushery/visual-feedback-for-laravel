@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -58,7 +59,10 @@ use Throwable;
 class ReportWidget extends Component
 {
     use RestoresNulledProperties;
-    use WithFileUploads;
+    use WithFileUploads {
+        _startUpload as private startLivewireUpload;
+        _finishUpload as private finishLivewireUpload;
+    }
 
     /**
      * The shapes this widget renders, and the only values `$mode` may hold.
@@ -863,6 +867,35 @@ class ReportWidget extends Component
     }
 
     /**
+     * Livewire's upload handshake, answered only for a property this form takes.
+     *
+     * Livewire signs an upload address for whatever property a request names and checks only that
+     * the method exists. A widget whose form takes no file and no screenshot would hand every
+     * visitor an address to store files under until it expires, so such a request is answered
+     * with 403 before an address exists.
+     *
+     * @param  array<int, array<string, mixed>>  $fileInfo
+     */
+    #[Renderless]
+    public function _startUpload(string $name, array $fileInfo, bool $isMultiple): void
+    {
+        $this->refuseAnUploadTheFormDoesNotTake($name);
+
+        $this->startLivewireUpload($name, $fileInfo, $isMultiple);
+    }
+
+    /**
+     * The end of the handshake, with the same check: an address handed out before the host
+     * switched uploads off stays valid until it expires.
+     */
+    public function _finishUpload(string $name, mixed $tmpPath, bool $isMultiple, bool $append = true): void
+    {
+        $this->refuseAnUploadTheFormDoesNotTake($name);
+
+        $this->finishLivewireUpload($name, $tmpPath, $isMultiple, $append);
+    }
+
+    /**
      * Real-time upload perimeter: every uploaded file is validated the moment it lands
      * (not only at submit), against the MIME allowlist and byte cap derived from config
      * via the AttachmentPolicy, the count against max_files and the sum against
@@ -1156,6 +1189,19 @@ class ReportWidget extends Component
         // perimeter in updatedAttachments() keeps a reporter's own uploads within the caps, so
         // only a request that wrote the property past it reaches this, and it is answered as the
         // AttachmentValidator would answer it after the store.
+        // A held upload whose temporary file is gone is answered at its field, and what the reporter
+        // wrote stays in the form. Livewire deletes temporary uploads older than a day whenever any
+        // component finishes an upload, and an application may clear them sooner, so a form left open
+        // overnight reached the caps and the stores below with a file that was no longer there:
+        // reading its size threw, storing it threw, and the reporter lost the text to a 500.
+        $expired = $storeIsWorthIt ? $this->dropExpiredUploads() : null;
+
+        if ($expired !== null) {
+            $this->fail($expired['field'], $expired['message'], invalid: true);
+
+            return;
+        }
+
         $capsRefusal = $storeIsWorthIt ? $this->uploadCapsRefusal(app(AttachmentPolicy::class)) : null;
 
         if ($capsRefusal !== null) {
@@ -1318,6 +1364,39 @@ class ReportWidget extends Component
     }
 
     /**
+     * Take every held upload whose temporary file is gone out of the component, and name the field
+     * the reporter has to look at: the screenshot where it was among them, the attachments otherwise.
+     * Null while every held file is still there.
+     *
+     * The property is emptied rather than kept, so the next submit goes without the file or with a
+     * new one, and an attachment that is still there stays queued.
+     *
+     * @return array{field: string, message: string}|null
+     */
+    private function dropExpiredUploads(): ?array
+    {
+        $screenshotGone = $this->screenshot instanceof TemporaryUploadedFile && ! $this->screenshot->exists();
+
+        if ($screenshotGone) {
+            $this->screenshot = null;
+        }
+
+        $kept = array_values(array_filter(
+            $this->attachments,
+            static fn (mixed $file): bool => ! $file instanceof TemporaryUploadedFile || $file->exists(),
+        ));
+
+        $attachmentsGone = count($kept) !== count($this->attachments);
+        $this->attachments = $kept;
+
+        return match (true) {
+            $screenshotGone => ['field' => 'screenshot', 'message' => (string) trans('visual-feedback::messages.validation.screenshot_expired')],
+            $attachmentsGone => ['field' => 'files', 'message' => (string) trans('visual-feedback::messages.validation.attachment_expired')],
+            default => null,
+        };
+    }
+
+    /**
      * Record a failed submit so the view can announce it and move focus to the field it belongs to.
      *
      * `$message` is the reason in the reporter's words where the pipeline knew one. Without it the
@@ -1444,6 +1523,23 @@ class ReportWidget extends Component
         } catch (Throwable) {
             // Left to the orphan sweep, which exists for exactly this residue.
         }
+    }
+
+    /**
+     * Answer 403 when $name is no upload property this form takes.
+     *
+     * The attachments and their one-file slot are taken while the attachment policy allows a
+     * file, the screenshot while the capture is offered, and no other property takes an upload.
+     */
+    private function refuseAnUploadTheFormDoesNotTake(string $name): void
+    {
+        $taken = match (explode('.', $name, 2)[0]) {
+            'attachments', 'attachmentUpload' => app(AttachmentPolicy::class)->maxFiles() > 0,
+            'screenshot' => $this->screenshotEnabled(),
+            default => false,
+        };
+
+        abort_unless($taken, 403, 'This form takes no upload there.');
     }
 
     /**

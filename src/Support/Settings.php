@@ -69,8 +69,9 @@ final readonly class Settings
 
     public function enabled(): bool
     {
-        // Cosmetic-ish master switch: absence defaults to enabled (the documented default).
-        return EnvFlag::boolean($this->config()->get('visual-feedback.enabled'), true);
+        // Read like a protective switch: absence and a blank value keep the widget on, the
+        // documented default, and only an explicit false switches it off.
+        return EnvFlag::protection($this->config()->get('visual-feedback.enabled'), true);
     }
 
     /**
