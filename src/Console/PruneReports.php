@@ -69,7 +69,7 @@ final class PruneReports extends Command
         }
 
         $cutoff = Carbon::now()->subDays((int) $days);
-        $deliveredOnly = EnvFlag::boolean($config->get('visual-feedback.retention.prune_delivered_only'), true);
+        $deliveredOnly = EnvFlag::protection($config->get('visual-feedback.retention.prune_delivered_only'), true);
         $disk = $filesystem->disk($this->attachmentsDisk($config));
         $root = $this->attachmentsDirectory($config);
         $pruned = 0;

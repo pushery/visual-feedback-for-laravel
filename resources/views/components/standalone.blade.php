@@ -137,7 +137,7 @@
                     @required(in_array('subject', $vfRequired, true))>
             @endif
 
-            <div x-data="visualFeedbackCounter({ max: {{ is_numeric($vfMax = config('visual-feedback.fields.message.max_length')) ? (int) $vfMax : 50000 }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">
+            <div x-data="visualFeedbackCounter({ max: {{ is_numeric($vfMax = config('visual-feedback.fields.message.max_length')) ? (int) $vfMax : 50000 }}, locale: {{ json_encode(str_replace('_', '-', app()->getLocale()), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }} })">
                 <label for="visual-feedback-message">
                     {{ __('visual-feedback::messages.widget.message_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                 </label>

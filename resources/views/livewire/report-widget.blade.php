@@ -206,7 +206,7 @@
                      Blade-encoded array: `@js()` on a scalar renders a plain literal, but on an
                      array it renders `JSON.parse('…')` — and `JSON` is an identifier Alpine's
                      CSP evaluator cannot resolve. --}}
-                <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
+                <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: {{ json_encode($appLocale, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }} })">
                     <label for="visual-feedback-message">
                         {{ __('visual-feedback::messages.widget.message_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                     </label>

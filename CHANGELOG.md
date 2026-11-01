@@ -4,6 +4,20 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.24.2] - 2026-11-01
+
+### 🔧 Changed
+
+- **An empty line keeps the default of four more switches, the mail channel among them.** `VISUAL_FEEDBACK_CHANNEL_MAIL=`, `VISUAL_FEEDBACK_FIELD_SUBJECT=`, `VISUAL_FEEDBACK_SCREENSHOT_EDITOR=` and `VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY=` read a set but empty variable as false, as the master switch did before 0.24.1. With the other channels at their defaults, an empty mail line left every report undelivered and nothing said so, and an empty pruning line deleted reports no channel had delivered. They read like the master switch now: an empty value takes the default, and `false`, `off`, `no` or `0` still switch off. `VISUAL_FEEDBACK_WEBHOOK_INCLUDE_REPORTER=` keeps reading an empty value as false, so an empty line never adds the reporter's name and email to a payload that leaves the application.
+
+  **Upgrade:** a host that relied on an empty value to switch one of the four off writes `false` there. A published config keeps its own reading until it is published again.
+
+### 🐛 Fixed
+
+- **The message counter passes `wirekit:csp-audit` from WireKit 2.70.0.** Its four `x-data` attributes, in both view trees and in the standalone form, wrote the locale with `@js()`, the encoder for a `<script>` block, which the audit of WireKit 2.70.0 refuses in an attribute whatever the value holds. The WireKit views now write it with `AlpinePayload::from()`, the plain views, which render without WireKit, with `json_encode()`. The counter reads the same locale, quoted `"de"` instead of `'de'`.
+
+  **Upgrade:** an application that published the views publishes them again, with `php artisan vendor:publish --tag=visual-feedback-views --force` for the plain ones and `--tag=visual-feedback-wirekit --force` for the WireKit ones.
+
 ## [0.24.1] - 2026-10-31
 
 ### 🔧 Changed
@@ -1320,7 +1334,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.22.0...v0.23.0
