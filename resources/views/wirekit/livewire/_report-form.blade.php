@@ -191,7 +191,7 @@
         {{-- A scalar object literal rather than one Blade-encoded array: `@js()` on a scalar
              renders a plain literal, but on an array it renders `JSON.parse('…')`, and `JSON` is
              an identifier Alpine's CSP evaluator cannot resolve. --}}
-        <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: @js($appLocale) })">
+        <div x-data="visualFeedbackCounter({ max: {{ (int) $messageMax }}, locale: {{ \Pushery\WireKit\Support\AlpinePayload::from($appLocale) }} })">
             <x-wirekit::textarea
                 id="visual-feedback-message" :error="$vfInvalidField === 'message' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 :label="__('visual-feedback::messages.widget.message_label')" :help="$fieldHelp['message']"

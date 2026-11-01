@@ -54,7 +54,7 @@ final class ClientConfig
             // invisible without it. One line, and the promise is kept.
             'debug' => EnvFlag::boolean(config('visual-feedback.screenshot.debug'), false),
             // Whether the preview offers the editor. On where a published config predates the key.
-            'editor' => EnvFlag::boolean(config('visual-feedback.screenshot.editor'), true),
+            'editor' => EnvFlag::protection(config('visual-feedback.screenshot.editor'), true),
         ];
     }
 }

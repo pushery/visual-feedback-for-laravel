@@ -184,7 +184,9 @@ final class ChannelRegistry
      */
     private function isEnabled(string $key): bool
     {
-        return EnvFlag::boolean(
+        // A blank flag means "not set" and takes the channel's default: mail stays on, every other
+        // channel stays off.
+        return EnvFlag::protection(
             app(Repository::class)->get("visual-feedback.channels.{$key}.enabled"),
             self::ENABLED_BY_DEFAULT[$key] ?? false,
         );

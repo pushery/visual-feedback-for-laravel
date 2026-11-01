@@ -40,7 +40,8 @@ return [
     // Laravel itself does with an env value: an empty value (`KEY=`) and a literal `KEY=null`
     // both read as `false`, not as the default -- `filter_var` calls them readable-and-false, so
     // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for. The
-    // master switch and `mail.require_deliverable_transport` are read through
+    // master switch, `mail.require_deliverable_transport`, the mail channel, the subject field,
+    // the screenshot editor and `retention.prune_delivered_only` are read through
     // `EnvFlag::protection()` instead, where an empty value takes the default.
 
     // Master switch — a kill switch that needs no code change.
@@ -133,7 +134,7 @@ return [
     'fields' => [
         'subject' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_SUBJECT_MODE')
-                ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false ? 'off' : 'optional'),
+                ?? (EnvFlag::protection(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), true) ? 'optional' : 'off'),
             'max_length' => filter_var(
                 env('VISUAL_FEEDBACK_FIELD_SUBJECT_MAX_LENGTH', 150),
                 FILTER_VALIDATE_INT,
@@ -290,7 +291,7 @@ return [
         'debug' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
         // The editor a reporter opens on a captured screenshot to crop it before attaching it. Off,
         // the preview offers no Edit button and the page never fetches the editor's file.
-        'editor' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_EDITOR', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+        'editor' => EnvFlag::protection(env('VISUAL_FEEDBACK_SCREENSHOT_EDITOR', true), true),
     ],
 
     /*
@@ -553,7 +554,10 @@ return [
     */
     'channels' => [
         'mail' => [
-            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_MAIL', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+            // An empty `VISUAL_FEEDBACK_CHANNEL_MAIL=` keeps mail on. With the other channels at
+            // their defaults a report leaves by mail alone, and an empty line would drop every
+            // report without anybody noticing.
+            'enabled' => EnvFlag::protection(env('VISUAL_FEEDBACK_CHANNEL_MAIL', true), true),
             'connection' => env('VISUAL_FEEDBACK_MAIL_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_MAIL_QUEUE'),
             'tries' => filter_var(
@@ -712,7 +716,8 @@ return [
         ) ?? 5,
         // The receiver may be a third party, so the payload never carries attachment
         // paths/binaries. Set this false to also drop reporter PII (name/email/id),
-        // leaving only `is_guest` in the reporter block.
+        // leaving only `is_guest` in the reporter block. An empty value drops it as well:
+        // an empty line never adds personal data to a payload that leaves the application.
         'include_reporter' => filter_var(env('VISUAL_FEEDBACK_WEBHOOK_INCLUDE_REPORTER', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
     ],
 
@@ -757,8 +762,9 @@ return [
             ['flags' => FILTER_NULL_ON_FAILURE, 'options' => ['min_range' => 1]],
         ) ?? 1440,
         // `true` holds a report back from pruning while one of its channels has not delivered it;
-        // `false` makes `reports_days` a hard ceiling.
-        'prune_delivered_only' => filter_var(env('VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true,
+        // `false` makes `reports_days` a hard ceiling. An empty value keeps `true`: an empty line
+        // must not delete a report no channel has delivered.
+        'prune_delivered_only' => EnvFlag::protection(env('VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY', true), true),
     ],
 
     /*

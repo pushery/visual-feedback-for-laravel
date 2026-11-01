@@ -146,7 +146,7 @@
                     x-bind:aria-invalid="vfInvalid('subject')" x-bind:aria-describedby="vfDescribedBy('subject')" />
             @endif
 
-            <div x-data="visualFeedbackCounter({ max: {{ is_numeric($vfMax = config('visual-feedback.fields.message.max_length')) ? (int) $vfMax : 50000 }}, locale: @js(str_replace('_', '-', app()->getLocale())) })">
+            <div x-data="visualFeedbackCounter({ max: {{ is_numeric($vfMax = config('visual-feedback.fields.message.max_length')) ? (int) $vfMax : 50000 }}, locale: {{ \Pushery\WireKit\Support\AlpinePayload::from(str_replace('_', '-', app()->getLocale())) }} })">
                 <x-wirekit::textarea
                     id="visual-feedback-message" name="message"
                     :label="__('visual-feedback::messages.widget.message_label')"
