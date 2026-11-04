@@ -10,6 +10,7 @@ use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportWebhook;
+use Pushery\VisualFeedback\Support\Backoff;
 use Pushery\VisualFeedback\Support\EnvFlag;
 
 /**
@@ -115,10 +116,9 @@ final readonly class WebhookChannel implements ReportChannel
         return is_numeric($tries) && (int) $tries > 0 ? (int) $tries : 3;
     }
 
-    private function backoff(): int
+    /** @return int|non-empty-list<int> */
+    private function backoff(): int|array
     {
-        $backoff = $this->config->get('visual-feedback.channels.webhook.backoff');
-
-        return is_numeric($backoff) && (int) $backoff >= 0 ? (int) $backoff : 30;
+        return Backoff::from($this->config->get('visual-feedback.channels.webhook.backoff'));
     }
 }

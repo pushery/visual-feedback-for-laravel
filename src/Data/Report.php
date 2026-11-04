@@ -46,6 +46,13 @@ final readonly class Report
          * payload and the database row must not carry a maintainer address.
          */
         public ?string $recipient = null,
+        /**
+         * The instance name of the widget the report came from, which the mail channel reads for the
+         * sender's name and the subject pattern under `mail.instances`. Delivery routing like the
+         * recipient, so it is absent from toArray() too. A report a job carried from before the
+         * instance existed is never asked for it: the channel reads it while the report is fresh.
+         */
+        public ?string $instance = null,
     ) {}
 
     /**
@@ -66,6 +73,7 @@ final readonly class Report
         string $mode,
         DateTimeImmutable $submittedAt,
         ?string $recipient = null,
+        ?string $instance = null,
     ): self {
         return new self(
             id: Str::uuid()->toString(),
@@ -79,6 +87,7 @@ final readonly class Report
             mode: $mode,
             submittedAt: $submittedAt,
             recipient: $recipient,
+            instance: $instance,
         );
     }
 

@@ -10,6 +10,7 @@ use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Contracts\RetainsReport;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportToDatabase;
+use Pushery\VisualFeedback\Support\Backoff;
 use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
@@ -88,10 +89,9 @@ final readonly class DatabaseChannel implements ReportChannel, RetainsReport
         return is_numeric($tries) && (int) $tries > 0 ? (int) $tries : 3;
     }
 
-    private function backoff(): int
+    /** @return int|non-empty-list<int> */
+    private function backoff(): int|array
     {
-        $backoff = $this->config->get('visual-feedback.channels.database.backoff');
-
-        return is_numeric($backoff) && (int) $backoff >= 0 ? (int) $backoff : 30;
+        return Backoff::from($this->config->get('visual-feedback.channels.database.backoff'));
     }
 }

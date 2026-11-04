@@ -52,6 +52,16 @@ final readonly class ReportAttempt
          * @var array<string, mixed>
          */
         public array $challenge = [],
+        /**
+         * The instance name of the widget the attempt came through, sealed by the widget, or null.
+         * Together with the reporter it keys the pot `widgetRateLimit` counts in.
+         */
+        public ?string $widget = null,
+        /**
+         * Attempts an hour one reporter may make through widgets of that name, counted on top of
+         * the built-in limits and never instead of them. Null sets no pot.
+         */
+        public ?int $widgetRateLimit = null,
     ) {}
 
     /** Seconds the reporter spent on the form, or null when the open time was not tracked. */

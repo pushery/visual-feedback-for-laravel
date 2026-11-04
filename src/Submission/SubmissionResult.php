@@ -26,6 +26,8 @@ final readonly class SubmissionResult
         public ?RejectionReason $rejectionReason,
         public ?ValidationFailure $failure = null,
         public bool $handedToAChannel = false,
+        /** Seconds until a rate limit that refused the submission frees again, where the gate knows. */
+        public ?int $retryAfter = null,
     ) {}
 
     /**
@@ -62,9 +64,10 @@ final readonly class SubmissionResult
      *
      * `$failure` names the field and carries the message where there is one, so the widget can
      * point at the control that failed instead of at the message box. Without it the widget can
-     * only say "something went wrong", for every rejection alike.
+     * only say "something went wrong", for every rejection alike. `$retryAfter` is how long a rate
+     * limit that refused the submission stays closed, so the reporter can be told when to try again.
      */
-    public static function rejected(RejectionReason $reason, ?ValidationFailure $failure = null): self
+    public static function rejected(RejectionReason $reason, ?ValidationFailure $failure = null, ?int $retryAfter = null): self
     {
         return new self(
             accepted: false,
@@ -72,6 +75,7 @@ final readonly class SubmissionResult
             report: null,
             rejectionReason: $reason,
             failure: $failure,
+            retryAfter: $retryAfter,
         );
     }
 }

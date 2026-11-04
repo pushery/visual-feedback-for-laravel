@@ -41,14 +41,15 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
     use SerializesModels;
 
     /**
-     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, mailer?: ?string}  $mail
+     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, mailer?: ?string, subject_pattern?: ?string}  $mail
      */
     public function __construct(
         public readonly Report $report,
         public readonly array $mail,
         public readonly ?string $locale,
         public readonly int $tries,
-        private readonly int $backoffSeconds,
+        /** @var int|non-empty-list<int> seconds, or one entry per retry */
+        private readonly int|array $backoffSeconds,
     ) {}
 
     public function handle(Mailers $mailers, ReportDeliveryTracker $tracker, CategoryLabels $labels, LoggerInterface $logger, ErasedReporters $erased): void
@@ -95,7 +96,8 @@ final class SendReportMail implements ShouldBeEncrypted, ShouldQueue
             ->settleFailed($this->report, 'mail', $exception);
     }
 
-    public function backoff(): int
+    /** @return int|non-empty-list<int> seconds between retries, or one entry per retry */
+    public function backoff(): int|array
     {
         return $this->backoffSeconds;
     }

@@ -83,7 +83,7 @@ final readonly class StandaloneController
             $settings->fieldIsShown('phone') ? $this->text($request, 'phone') : null,
         );
 
-        if ($enabled && $reporter->isGuest && ! $request->boolean('privacy') && app(PrivacyNotice::class)->required()) {
+        if ($enabled && ! $request->boolean('privacy') && app(PrivacyNotice::class)->askedOf($reporter->isGuest)) {
             return $this->failed('privacy', (string) trans('visual-feedback::messages.validation.privacy_required'), invalid: true);
         }
 
@@ -99,7 +99,7 @@ final readonly class StandaloneController
         $screenshot = $screenshot instanceof UploadedFile ? $screenshot : null;
         $attachments = $this->uploads($request->file('attachments'));
 
-        $metadata = $this->metadata($request, $screenshot instanceof UploadedFile, $enabled && $reporter->isGuest);
+        $metadata = $this->metadata($request, $screenshot instanceof UploadedFile, $enabled && app(PrivacyNotice::class)->askedOf($reporter->isGuest));
         $honeypot = $this->text($request, 'feedback_reference');
         $challenge = $this->challenge($request);
 
@@ -194,7 +194,7 @@ final readonly class StandaloneController
             $metadata['screenshot_edited'] = true;
         }
 
-        return $noticeShown && app(PrivacyNotice::class)->required()
+        return $noticeShown
             ? array_merge($metadata, app(PrivacyNotice::class)->wording()?->toMetadata() ?? [])
             : $metadata;
     }

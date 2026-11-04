@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Pushery\VisualFeedback\Channels\Mail;
 
+use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Str;
+
 /**
  * Renders one piece of user-influenced text safe for a Markdown mail body.
  * Blade's `{{ }}` already HTML-escapes, but Markdown has its own injection surface that HTML
@@ -31,6 +34,46 @@ final class MailCell
         $folded = (string) preg_replace('/[\r\n]+/', ' ', $value);
 
         return (string) preg_replace('/[\\\\\[\]|]/', '\\\\$0', $folded);
+    }
+
+    /**
+     * A context entry's value as a link to the URL its host gave it, or the value alone.
+     *
+     * The URL comes from the host, from the `context` mount prop sealed at mount or from a context
+     * provider that runs on the server, never from the reporter. It is still held to what a link in a
+     * maintainer's inbox may be: an absolute http or https URL with no white space and no angle
+     * bracket. Parentheses are percent-encoded, because an unbalanced one would end the link's target
+     * early. A URL that is no such URL renders the value and no link, and the text is escaped as a
+     * cell either way, so it cannot open a second link of its own.
+     */
+    public static function link(string $text, ?string $url): string
+    {
+        $label = self::cell($text);
+
+        if (! is_string($url) || preg_match('#^https?://[^\s<>]+$#i', $url) !== 1 || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return $label;
+        }
+
+        return '['.$label.']('.str_replace(['(', ')'], ['%28', '%29'], $url).')';
+    }
+
+    /** A context entry's value, linked where the host gave it a URL, with its identifier after it. */
+    public static function contextValue(string $value, ?string $url, ?string $identifier): string
+    {
+        $shown = self::link($value, $url);
+
+        return is_string($identifier) && trim($identifier) !== '' ? $shown.' ('.self::cell(trim($identifier)).')' : $shown;
+    }
+
+    /**
+     * The label of a metadata key in the mail's language, or the key as a headline where the package
+     * has no word for it, as for a key a host collects on its own.
+     */
+    public static function metadataLabel(string $key): string
+    {
+        $translationKey = 'visual-feedback::messages.mail.metadata.'.$key;
+
+        return Lang::has($translationKey) ? (string) __($translationKey) : Str::headline($key);
     }
 
     /**

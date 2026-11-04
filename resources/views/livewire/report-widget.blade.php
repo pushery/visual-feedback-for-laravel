@@ -30,11 +30,22 @@
          <x-visual-feedback::fab> / <x-visual-feedback::trigger>, and a host's own
          $dispatch('visual-feedback:open')). Each dispatches this window event; the handler here
          re-measures metadata and opens the native modal. --}}
-    x-on:visual-feedback:open.window="vfOpen()"
+    x-on:visual-feedback:open.window="vfOpen($event)"
+    {{-- The name this widget answers to, read by the handler above: an open event opens the widget
+         it names, and one that names none opens a widget without a name. --}}
+    @if ($instance !== null)
+        data-visual-feedback-instance="{{ $instance }}"
+    @endif
+    {{-- Inline only: the first focus into the form anchors the time trap where this session
+         holds no anchor, which is the case on a page a full-page cache served. It never moves an
+         anchor that is there. --}}
+    @if ($mode === 'inline')
+        x-on:focusin.once="vfInlineFocus()"
+    @endif
 >
     @if ($showFab)
         {{-- Built-in FAB (modal mode) — the same component a host can also place itself. --}}
-        <x-visual-feedback::fab :position="$fabPosition" />
+        <x-visual-feedback::fab :position="$fabPosition" :instance="$instance" :label="$widgetTexts['heading']" />
     @endif
 
     {{-- The panel. In modal mode it is a real modal <dialog> (top layer, focus-trapped by the
@@ -59,7 +70,7 @@
             wire:ignore.self
         @endif
         class="visual-feedback-dialog"
-        aria-label="{{ __('visual-feedback::messages.widget.heading') }}"
+        aria-label="{{ $widgetTexts['heading'] }}"
         @if ($notice !== null) aria-describedby="visual-feedback-notice" @endif
     >
         @if ($mode === 'modal')
@@ -78,7 +89,7 @@
                  to the "report another" button instead of letting it fall to <body>. --}}
             x-effect="vfFocusReportAnother()">
             @if ($submitted)
-                <p class="visual-feedback-success"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ __('visual-feedback::messages.widget.success') }}</p>
+                <p class="visual-feedback-success"><span class="visual-feedback-success-glyph" aria-hidden="true">✓</span>{{ $widgetTexts['success'] }}</p>
                 {{-- Resetting removes this very button, so the round-trip hands focus on to
                      the message field of the fresh form instead of leaving it on <body>. --}}
                 <button type="button" class="visual-feedback-report-another" x-ref="reportAnother"
@@ -106,7 +117,7 @@
                      in inline mode the widget is part of the page and must never steal focus on
                      load. tabindex="-1" makes the heading focusable without adding a tab stop. --}}
                 <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" @if ($mode === 'modal') autofocus @endif>
-                    {{ __('visual-feedback::messages.widget.heading') }}
+                    {{ $widgetTexts['heading'] }}
                 </h2>
 
                 {{-- The host's own sentence, as text, which the dialog names as its description. --}}
@@ -184,7 +195,7 @@
                 @endif
 
                 <label for="visual-feedback-category">
-                    {{ __('visual-feedback::messages.widget.category_label') }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
+                    {{ $widgetTexts['category'] }}<span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                 </label>
                 <select id="visual-feedback-category" required @if ($vfInvalidField === 'category') aria-invalid="true" aria-describedby="visual-feedback-error" @endif wire:model="category">
                     @foreach ($categoryOptions as $key => $label)
@@ -479,13 +490,22 @@
                     @if ($failed){{ $failedMessage ?? __('visual-feedback::messages.widget.error') }}@endif
                 </div>
 
-                {{-- Guest privacy acknowledgment — required only when a notice URL is configured.
-                     `required` can be stated unconditionally inside this branch because the branch
-                     is the same condition the server checks: PrivacyNotice::required() is literally
-                     `url() !== null`, and submit() rejects on exactly that. The two cannot drift.
-                     Like the message field it is safe next to `novalidate` — no native bubble, no
-                     browser-language text. --}}
-                @if ($showGuestFields && $privacyNoticeUrl)
+                {{-- The privacy acknowledgment, where this reporter is asked for it. `required` can be
+                     stated unconditionally inside this branch because the branch is the condition
+                     the server checks: `$privacyAsked` is PrivacyNotice::askedOf(), and submit()
+                     rejects on exactly that. The two cannot drift. Like the message field it is safe
+                     next to `novalidate` — no native bubble, no browser-language text. --}}
+                @if ($privacyAsked)
+                    @if ($privacyNoticeContent !== null)
+                        {{-- The notice itself, where the source hands it over: readable here before the box is
+                             ticked, without leaving the form. A disclosure rather than a second dialog inside the
+                             dialog, so no focus trap stacks on the widget's own; wire:ignore.self keeps it open
+                             across a render. The host's own markup, never what a reporter typed. --}}
+                        <details class="visual-feedback-privacy-notice" wire:ignore.self>
+                            <summary>{{ __('visual-feedback::messages.widget.privacy_read') }}</summary>
+                            <div class="visual-feedback-privacy-notice-text">{!! $privacyNoticeContent !!}</div>
+                        </details>
+                    @endif
                     <label class="visual-feedback-privacy" for="visual-feedback-privacy">
                         <input id="visual-feedback-privacy" @if ($vfInvalidField === 'privacy') aria-invalid="true" aria-describedby="visual-feedback-error" @endif type="checkbox" wire:model="privacyAcknowledged" required>
                         {{-- The link is what makes the acknowledgment informed, so it stays the
@@ -498,9 +518,13 @@
                              navigates and runs no label activation behavior at all — so the
                              tickable target is the column the stylesheet keeps to its left, not
                              the sentence. That is what `.visual-feedback-privacy` sizes. --}}
-                        <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">
-                            {{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}
-                        </a>
+                        @if ($privacyNoticeUrl !== null)
+                            <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">
+                                {{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}
+                            </a>
+                        @else
+                            <span>{{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</span>
+                        @endif
                         <span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                     </label>
                 @endif
@@ -513,7 +537,7 @@
                     {{ __('visual-feedback::messages.widget.required_legend') }}
                 </p>
 
-                <button type="submit" class="visual-feedback-submit">{{ __('visual-feedback::messages.widget.submit') }}</button>
+                <button type="submit" class="visual-feedback-submit">{{ $widgetTexts['submit'] }}</button>
             </form>
         @endunless
     </dialog>

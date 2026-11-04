@@ -44,7 +44,7 @@ final class ReportMail extends Mailable
     public $theme = 'visual-feedback::mail.theme';
 
     /**
-     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files?: bool, disk?: ?string, subject_excerpt_length?: int}  $mail
+     * @param  array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files?: bool, disk?: ?string, subject_excerpt_length?: int, mailer?: ?string, subject_pattern?: ?string}  $mail
      */
     public function __construct(
         public readonly Report $report,
@@ -76,7 +76,9 @@ final class ReportMail extends Mailable
      */
     private function reporterReplyTo(): array
     {
-        $email = $this->mail['reply_to_reporter'] ? $this->report->reporter->email : null;
+        // Where a signed-in reporter named another address in the form, the reply goes there. Read
+        // with `??`, so a report a job carried from before the property existed answers as before.
+        $email = $this->mail['reply_to_reporter'] ? ($this->report->reporter->replyEmail ?? $this->report->reporter->email) : null;
 
         if (! is_string($email) || $email === '' || preg_match('/[\x00-\x1F\x7F]/', $email) === 1) {
             return [];
@@ -136,8 +138,31 @@ final class ReportMail extends Mailable
     private function subjectLine(): string
     {
         $given = $this->oneLine($this->report->subject ?? '');
+        $pattern = $this->mail['subject_pattern'] ?? null;
+
+        if (is_string($pattern) && $pattern !== '') {
+            return $this->patternedSubject($pattern, $given);
+        }
 
         return $given !== '' ? $given : $this->composedSubject();
+    }
+
+    /**
+     * The subject a widget instance asked for under `mail.instances`, its placeholders filled in.
+     *
+     * `{category}` is the category's label, `{subject}` the reporter's subject or, where there is
+     * none, the first words of the message, and `{name}` the reporter's name or nothing. Every
+     * value goes through the same one-line rule as the subject, and so does the result, so neither
+     * the reporter nor the pattern can open a second header. A host that puts `{name}` into the
+     * subject puts it where notifications and lock screens show it, which is its decision to make.
+     */
+    private function patternedSubject(string $pattern, string $given): string
+    {
+        return $this->oneLine(strtr($pattern, [
+            '{category}' => $this->categoryLabel(),
+            '{subject}' => $given !== '' ? $given : $this->messageExcerpt(),
+            '{name}' => $this->oneLine($this->report->reporter->name ?? ''),
+        ]));
     }
 
     /**

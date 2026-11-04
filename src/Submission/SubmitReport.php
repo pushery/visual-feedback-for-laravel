@@ -117,6 +117,8 @@ final readonly class SubmitReport
             formOpenedAt: $input->formOpenedAt,
             submittedAt: Carbon::now()->toImmutable(),
             challenge: $input->challenge,
+            widget: $input->instance,
+            widgetRateLimit: $input->rateLimit,
         ));
 
         if ($decision->reason instanceof RejectionReason) {
@@ -128,7 +130,7 @@ final readonly class SubmitReport
             // screen. A person who fails an interactive challenge would have been shown "thanks,
             // sent" for a report that was never sent.
             if ($decision->visible) {
-                return SubmissionResult::rejected($decision->reason);
+                return SubmissionResult::rejected($decision->reason, retryAfter: $decision->retryAfter);
             }
 
             // A silent rejection answers with the success screen, which is the right answer to a
@@ -180,6 +182,7 @@ final readonly class SubmitReport
             mode: $input->mode,
             submittedAt: Carbon::now()->toImmutable(),
             recipient: $input->recipient,
+            instance: $input->instance,
         );
 
         // 3. ReportSubmitting — a synchronous listener may cancel.
@@ -283,10 +286,10 @@ final readonly class SubmitReport
      *
      * @return array<string, string>
      */
-    private function attributeNames(): array
+    private function attributeNames(?string $categoryLabel = null): array
     {
         return array_map(FieldLabel::withoutOptionalMarker(...), [
-            'category' => (string) trans('visual-feedback::messages.widget.category_label'),
+            'category' => $categoryLabel !== null && trim($categoryLabel) !== '' ? $categoryLabel : (string) trans('visual-feedback::messages.widget.category_label'),
             'subject' => (string) trans('visual-feedback::messages.widget.subject_label'),
             'message' => (string) trans('visual-feedback::messages.widget.message_label'),
             'guest_name' => (string) trans('visual-feedback::messages.widget.name_label'),
@@ -328,6 +331,11 @@ final readonly class SubmitReport
         $subjectMax = $this->configInt('visual-feedback.fields.subject.max_length', 150);
         $messageMax = $this->configInt('visual-feedback.fields.message.max_length', 50_000);
 
+        // A widget may ask for a shorter message than the configuration allows, never a longer one.
+        if ($input->messageMaxLength !== null && $input->messageMaxLength >= 1) {
+            $messageMax = min($messageMax, $input->messageMaxLength);
+        }
+
         $data = ['category' => $input->category];
         $rules = ['category' => ['required', 'string', Rule::in($categories)]];
 
@@ -349,9 +357,10 @@ final readonly class SubmitReport
         $data['message'] = $this->trimmed($input->message);
         $rules['message'] = ['required', 'string', "max:{$messageMax}"];
 
-        // Guest identity fields, each governed by its own `fields.<f>.mode`, by the same rule. An
-        // authenticated reporter's identity comes from the guard, so none of this applies to them.
-        if ($input->reporter->isGuest) {
+        // The identity fields, each governed by its own `fields.<f>.mode`, by the same rule. A
+        // signed-in reporter's identity comes from the guard, so they apply to one only where the
+        // widget showed the fields: an empty field there keeps the account's value.
+        if ($input->reporter->isGuest || $input->identityOfSignedIn) {
             $lengths = [
                 'name' => $this->configInt('visual-feedback.fields.name.max_length', 150),
                 'email' => $this->configInt('visual-feedback.fields.email.max_length', 254),
@@ -359,8 +368,8 @@ final readonly class SubmitReport
             ];
 
             $given = [
-                'name' => $this->trimmed($input->reporter->name),
-                'email' => $this->trimmed($input->reporter->email),
+                'name' => $this->trimmed($input->reporter->replyName ?? $input->reporter->name),
+                'email' => $this->trimmed($input->reporter->replyEmail ?? $input->reporter->email),
                 'phone' => $this->trimmed($input->reporter->phone),
             ];
 
@@ -384,7 +393,7 @@ final readonly class SubmitReport
         // Messages and attribute names come from this package, in all seven locales. Leaving them
         // to the host's `validation.*` lines would show whatever that app happens to have — often
         // English only, and with `guest_email` as the field name.
-        $validator = $this->validator->make($data, $rules, $this->messages(), $this->attributeNames());
+        $validator = $this->validator->make($data, $rules, $this->messages(), $this->attributeNames($input->categoryLabel));
 
         if (! $validator->fails()) {
             return null;
@@ -408,7 +417,23 @@ final readonly class SubmitReport
         $reporter = $input->reporter;
 
         if (! $reporter->isGuest) {
-            return $reporter;
+            // What the form said for a signed-in reporter rides only where the widget showed the
+            // fields, and only for the ones it did not switch off.
+            if (! $input->identityOfSignedIn) {
+                return new Reporter($reporter->id, $reporter->name, $reporter->email, false, $reporter->phone);
+            }
+
+            $own = fn (string $field, ?string $value): ?string => $this->modeOf($input, $field) === Settings::FIELD_OFF ? null : $value;
+
+            return new Reporter(
+                $reporter->id,
+                $reporter->name,
+                $reporter->email,
+                false,
+                $own('phone', $reporter->phone),
+                $own('name', $reporter->replyName),
+                $own('email', $reporter->replyEmail),
+            );
         }
 
         $kept = fn (string $field, ?string $value): ?string => $this->modeOf($input, $field) === Settings::FIELD_OFF ? null : $this->trimmed($value);

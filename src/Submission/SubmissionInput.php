@@ -94,5 +94,30 @@ final readonly class SubmissionInput
          * @var array<string, string>|null
          */
         public ?array $fieldModes = null,
+        /**
+         * The instance name of the widget, when it has one: the sender's name and the subject
+         * pattern under `mail.instances` and the pot of `rateLimit` are read for it. The widget
+         * seals it with its mount props. Another caller can name any instance, and the most it
+         * reaches is one the host declared: nothing there moves a report elsewhere.
+         */
+        public ?string $instance = null,
+        /**
+         * The longest message this widget accepts; the pipeline holds it to at most
+         * `fields.message.max_length`, so a caller can ask for less and never for more.
+         */
+        public ?int $messageMaxLength = null,
+        /**
+         * Reports an hour one reporter may send through widgets of this instance name, counted by
+         * the abuse floor on top of its own limits.
+         */
+        public ?int $rateLimit = null,
+        /** The widget's own word for the category field, for the `:attribute` of its messages. */
+        public ?string $categoryLabel = null,
+        /**
+         * Whether the widget showed a signed-in reporter the identity fields as well. Their values
+         * are then judged by the field modes, as a guest's are: the address becomes the mail's
+         * Reply-To, so it is held to the rules for an address in a header.
+         */
+        public bool $identityOfSignedIn = false,
     ) {}
 }

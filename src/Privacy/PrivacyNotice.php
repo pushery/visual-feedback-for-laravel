@@ -6,6 +6,8 @@ namespace Pushery\VisualFeedback\Privacy;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Support\Htmlable;
+use Pushery\VisualFeedback\Contracts\PrivacyNoticeContentSource;
 use Pushery\VisualFeedback\Contracts\PrivacyNoticeSource;
 use Pushery\VisualFeedback\Contracts\PrivacyNoticeWordingSource;
 use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
@@ -21,12 +23,17 @@ use Pushery\VisualFeedback\Data\PrivacyNoticeWording;
  *                      published acknowledgment sentence as the label,
  *  - a FQCN          → a host PrivacyNoticeSource resolved from the container.
  *
- * A notice is required exactly when there is a URL, whatever the source. That is deliberate and
- * load-bearing: the URL is the full text the reporter can actually open, and a required checkbox
- * whose text cannot be opened is an uninformed clickwrap. So a wording source raises the quality
- * of the label and never the question of whether a notice exists — which also keeps the views and
- * the submit-time check keyed on one and the same condition. They diverged once; a checkbox that
- * validation demands and the template never renders is unfixable from the reporter's side.
+ * A notice is required exactly when there is something the reporter can read: a URL to open, or
+ * the text a PrivacyNoticeContentSource hands the form. That is deliberate and load-bearing: a
+ * required checkbox whose text cannot be read is an uninformed clickwrap. So a wording source raises
+ * the quality of the label and never the question of whether a notice exists, which also keeps the
+ * views and the submit-time check keyed on one and the same condition. They diverged once; a
+ * checkbox that validation demands and the template never renders is unfixable from the reporter's
+ * side.
+ *
+ * A guest is asked wherever a notice is there. A signed-in reporter is asked where `privacy.ask` is
+ * `everyone`, for every widget or for one under `privacy.instances`, as a contact form asks everybody
+ * who writes to it.
  */
 final readonly class PrivacyNotice
 {
@@ -62,10 +69,44 @@ final readonly class PrivacyNotice
         return $source instanceof PrivacyNoticeWordingSource ? $source->wording() : null;
     }
 
-    /** Whether a guest must acknowledge a notice before submitting. */
-    public function required(): bool
+    /**
+     * The text of the notice for a widget, which the form shows beside the checkbox, or null where the
+     * source supplies none. `$instance` is the widget's name, null for one without a name and for the
+     * standalone page.
+     */
+    public function content(?string $instance = null): ?Htmlable
     {
-        return $this->url() !== null;
+        $source = $this->source();
+
+        return $source instanceof PrivacyNoticeContentSource ? $source->content($instance) : null;
+    }
+
+    /** Whether a notice is there to acknowledge: a page to open, or a text the form shows. */
+    public function required(?string $instance = null): bool
+    {
+        return $this->url() !== null || $this->content($instance) instanceof Htmlable;
+    }
+
+    /**
+     * Whether this reporter acknowledges the notice in this widget before submitting: a guest wherever
+     * a notice is there, a signed-in reporter where the widget asks everyone.
+     */
+    public function askedOf(bool $isGuest, ?string $instance = null): bool
+    {
+        return ($isGuest || $this->asksEveryone($instance)) && $this->required($instance);
+    }
+
+    /**
+     * Whether the widget asks signed-in reporters too: `privacy.instances.<name>.ask` for a widget of
+     * that name, otherwise `privacy.ask`. Only `everyone` asks them, so a typo keeps the guests-only
+     * default rather than turning the form against every signed-in reporter.
+     */
+    private function asksEveryone(?string $instance): bool
+    {
+        $instances = $this->config->get('visual-feedback.privacy.instances');
+        $own = $instance !== null && is_array($instances) && is_array($instances[$instance] ?? null) ? ($instances[$instance]['ask'] ?? null) : null;
+
+        return (is_string($own) ? $own : $this->config->get('visual-feedback.privacy.ask')) === 'everyone';
     }
 
     /**

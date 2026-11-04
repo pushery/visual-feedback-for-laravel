@@ -10,9 +10,10 @@
     the concealment rule for the honeypot. Leave the include out and the scripts component emits
     the sheet itself, late in the body, and logs a warning that names the missing line.
 
-    In the plain tree every color is a CSS custom property with a `prefers-color-scheme: dark`
-    fallback, so the widget is dark-mode-neutral out of the box and a host can retint it by
-    overriding the `--vf-*` properties. Publish and edit it with:
+    In the plain tree every color is a CSS custom property with a dark value, under
+    `prefers-color-scheme: dark` by default or under the application's own selector where
+    `ui.dark_mode` is `class`, so the widget is dark-mode-neutral out of the box and a host can
+    retint it by overriding the `--vf-*` properties. Publish and edit it with:
 
         php artisan vendor:publish --tag=visual-feedback-views
 
@@ -48,6 +49,18 @@
      markers inside a style element and pairs each closing tag with the last one opened before
      it, so a stylesheet opened in both branches of a condition would leave that condition
      without its end marker in the view of a Livewire component. --}}
+@php
+    // The dark colors stand under the operating system's preference, or under the application's
+    // own selector where `ui.dark_mode` is `class`. Resolved here, so the one copy of the dark
+    // values below is wrapped by whichever rule applies; DarkScheme holds the selector to what
+    // cannot leave that rule, because it is written into the sheet as it stands.
+    $vfDarkSelector = \Pushery\VisualFeedback\Support\DarkScheme::selector(
+        config('visual-feedback.ui.dark_mode'),
+        config('visual-feedback.ui.dark_selector'),
+    );
+    $vfDarkOpen = $vfDarkSelector === null ? '@media (prefers-color-scheme: dark) { :root {' : $vfDarkSelector.' {';
+    $vfDarkClose = $vfDarkSelector === null ? '} }' : '}';
+@endphp
 <style @if ($nonce !== null) nonce="{{ $nonce }}" @endif>
     :root {
         --vf-bg: #ffffff;
@@ -79,10 +92,15 @@
         --vf-radius-control: 6px;
         --vf-fab-size: 3.5rem;
         --vf-gap: 1rem;
+        {{-- The scheme the browser paints its own controls in on the package's surfaces: the
+           checkbox, the native file button, the select popup and the privacy link. Beside the
+           colors, so the two switch together and cannot disagree: light here, dark wherever the
+           dark colors below apply. --}}
+        --vf-color-scheme: light;
     }
 
-    @media (prefers-color-scheme: dark) {
-        :root {
+    {{-- Stands after the light colors, so a selector of class weight wins on <html> too. --}}
+    {!! $vfDarkOpen !!}
             --vf-bg: #1f2937;
             --vf-fg: #f9fafb;
             --vf-muted: #9ca3af;
@@ -97,8 +115,8 @@
             --vf-success: #4ade80;
             --vf-warning: #f59e0b;
             --vf-backdrop: rgba(0, 0, 0, .6);
-        }
-    }
+            --vf-color-scheme: dark;
+    {!! $vfDarkClose !!}
 
     {{-- x-cloak gotcha: without this rule an [x-cloak] element flashes before
        Alpine boots. Shipping the rule with the stylesheet keeps it never-undefined. --}}
@@ -111,8 +129,10 @@
            file" button, the checkbox, the select popup, the default focus ring — stays in
            light-scheme colors unless it is told. Untold, the privacy link rendered at
            1.56:1 on the dark dialog. It is set on the package's own surfaces, never on
-           :root: a library must not repaint the host application's form controls. --}}
-        color-scheme: light dark;
+           :root: a library must not repaint the host application's form controls. The value
+           is the one --vf-color-scheme names beside the colors, so a widget that follows the
+           application's dark class is told the application's scheme, not the system's. --}}
+        color-scheme: var(--vf-color-scheme, light dark);
         position: fixed;
         z-index: 2147483000;
         display: inline-flex;
@@ -154,7 +174,7 @@
     {{-- Native <dialog>: the browser provides the top layer, focus trap, Esc-to-close and
        focus return to the trigger, so this sheet only styles the surface. --}}
     .visual-feedback-dialog {
-        color-scheme: light dark;   {{-- see the FAB rule above — it inherits to every control inside --}}
+        color-scheme: var(--vf-color-scheme, light dark);   {{-- see the FAB rule above — it inherits to every control inside --}}
         {{-- border-box, or the width below is only the content: the 1.5rem padding and the 1px
            border are then added on top and the panel is 50px wider than it says. On a 320px
            phone that is the difference between fitting and the page scrolling sideways. --}}
@@ -295,8 +315,8 @@
     {{-- The privacy acknowledgment is the one control a guest cannot submit without, and it was
        the UA default: a 13x13 box on a 20px-tall label block. Sized here rather than restyled —
        `appearance: none` would hand this package the tick, the checked, indeterminate and focus
-       states, and the dark scheme that `color-scheme: light dark` above currently gets from the
-       UA for free. 1.5rem clears the 24x24 WCAG 2.5.8 floor on its own. --}}
+       states, and the dark scheme that `color-scheme` above gets from the UA for free. 1.5rem
+       clears the 24x24 WCAG 2.5.8 floor on its own. --}}
     .visual-feedback-dialog input[type="checkbox"] {
         flex: none;
         inline-size: 1.5rem;
@@ -325,6 +345,26 @@
         gap: 1.25rem;
         min-height: 44px;
         font-weight: 400;
+    }
+
+    {{-- The text of the notice, where a source hands it over: a disclosure above the checkbox, its
+       summary a 44px target, the text scrolling inside a bounded box so a long notice does not push
+       the submit button out of the dialog. --}}
+    .visual-feedback-privacy-notice summary {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        color: var(--vf-accent);
+    }
+
+    .visual-feedback-privacy-notice-text {
+        max-height: 16rem;
+        overflow: auto;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--vf-border, var(--vf-muted));
+        border-radius: var(--vf-radius-control);
+        font-size: 0.875rem;
     }
 
     .visual-feedback-close {
@@ -840,7 +880,7 @@
        The picture keeps the editor's width so it can be read and marked, and the dialog scrolls to
        the fields and the buttons below it. --}}
     .visual-feedback-editor {
-        color-scheme: light dark;
+        color-scheme: var(--vf-color-scheme, light dark);
         box-sizing: border-box;
         margin: auto;
         width: min(60rem, calc(100vw - 2rem));
@@ -1359,9 +1399,13 @@
        controls are built by the editor's bundle, not by the kit, so they take their look from the
        kit's tokens here. A button and a number field are bounded by `--color-wk-border-strong`, the
        token the kit's own fields use: `--color-wk-border` is a separator, about 1.3:1 against the
-       light surface, and a control's edge needs 3:1. --}}
+       light surface, and a control's edge needs 3:1.
+
+       No color-scheme of its own: the kit declares it on the root and on its `.dark` and `.light`
+       scopes, from WireKit 2.29.0 on, below this tree's floor, and the editor inherits the page's.
+       `light dark` here followed the operating system while the kit's tokens followed the class,
+       so the editor's own controls came out light on a dark page, and the reverse. --}}
     .visual-feedback-editor {
-        color-scheme: light dark;
         box-sizing: border-box;
         margin: auto;
         width: min(60rem, calc(100vw - 2rem));

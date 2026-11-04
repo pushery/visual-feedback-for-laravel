@@ -40,7 +40,8 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
     public function __construct(
         public readonly Report $report,
         public readonly int $tries,
-        private readonly int $backoffSeconds,
+        /** @var int|non-empty-list<int> seconds, or one entry per retry */
+        private readonly int|array $backoffSeconds,
     ) {}
 
     public function handle(Config $config, ConnectionResolver $db, ReceiptStore $receipts, ReportDeliveryTracker $tracker, ErasedReporters $erased): void
@@ -101,7 +102,8 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
             ->settleFailed($this->report, 'database', $exception);
     }
 
-    public function backoff(): int
+    /** @return int|non-empty-list<int> seconds between retries, or one entry per retry */
+    public function backoff(): int|array
     {
         return $this->backoffSeconds;
     }

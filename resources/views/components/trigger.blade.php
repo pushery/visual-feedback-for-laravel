@@ -5,6 +5,9 @@
     widget opens its modal in response. The slot is the label; `label` is the fallback.
 --}}
 @props([
+    // The widget this opens on a page with more than one, by its instance name; null opens the
+    // widget without a name.
+    'instance' => null,
     'label' => null,
 ])
 {{-- Master switch. A host places this trigger in its own layout, so the widget cannot take it
@@ -18,6 +21,6 @@
     x-data
     {{ $attributes->merge(['class' => 'visual-feedback-trigger']) }}
     aria-haspopup="dialog"
-    x-on:click="$dispatch('visual-feedback:open')"
+    x-on:click="{{ \Pushery\VisualFeedback\Support\WidgetInstance::openExpression($instance) }}"
 >{{ $slot->isEmpty() ? ($label ?? __('visual-feedback::messages.widget.heading')) : $slot }}</button>
 @endif

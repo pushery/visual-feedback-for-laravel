@@ -14,6 +14,7 @@ use Pushery\VisualFeedback\Channels\Mail\TransportDeliverability;
 use Pushery\VisualFeedback\Contracts\ReportChannel;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Jobs\SendReportMail;
+use Pushery\VisualFeedback\Support\Backoff;
 use Pushery\VisualFeedback\Support\ConfiguredLocale;
 use Pushery\VisualFeedback\Support\EnvFlag;
 use Pushery\VisualFeedback\Support\LanguageFallbackLoader;
@@ -150,15 +151,14 @@ final readonly class MailChannel implements ReportChannel
         return is_numeric($tries) && (int) $tries > 0 ? (int) $tries : 3;
     }
 
-    private function backoff(): int
+    /** @return int|non-empty-list<int> */
+    private function backoff(): int|array
     {
-        $backoff = $this->config->get('visual-feedback.channels.mail.backoff');
-
-        return is_numeric($backoff) && (int) $backoff >= 0 ? (int) $backoff : 30;
+        return Backoff::from($this->config->get('visual-feedback.channels.mail.backoff'));
     }
 
     /**
-     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, subject_excerpt_length: int, mailer: ?string}
+     * @return array{to: ?string, from: array{address: ?string, name: ?string}, reply_to_reporter: bool, attach_files: bool, disk: ?string, subject_excerpt_length: int, mailer: ?string, subject_pattern: ?string}
      */
     private function mailConfig(Report $report): array
     {
@@ -167,6 +167,7 @@ final readonly class MailChannel implements ReportChannel
         $from = isset($mail['from']) && is_array($mail['from']) ? $mail['from'] : [];
         $disk = new AttachmentPolicy($this->config)->disk();
         $excerpt = $mail['subject_excerpt_length'] ?? null;
+        $instance = $this->instanceMail($report->instance);
 
         return [
             // A per-report recipient overrides `mail.to` — the widget can be mounted with
@@ -181,7 +182,9 @@ final readonly class MailChannel implements ReportChannel
             'to' => $report->recipient ?? (is_string($mail['to'] ?? null) ? $mail['to'] : null),
             'from' => [
                 'address' => is_string($from['address'] ?? null) ? $from['address'] : null,
-                'name' => is_string($from['name'] ?? null) ? $from['name'] : null,
+                // An instance may name its own sender, `Contact` beside `Feedback`; the address
+                // stays the configured one, which is the one the mail is signed for.
+                'name' => $instance['from_name'] ?? (is_string($from['name'] ?? null) ? $from['name'] : null),
             ],
             'reply_to_reporter' => EnvFlag::boolean($mail['reply_to_reporter'] ?? null, false),
             'attach_files' => EnvFlag::boolean($mail['attach_files'] ?? null, true),
@@ -194,7 +197,36 @@ final readonly class MailChannel implements ReportChannel
             // The name travels with the job, as the rest of the mail configuration does, so the
             // worker sends through the mailer the report was accepted for.
             'mailer' => is_string($mail['mailer'] ?? null) && $mail['mailer'] !== '' ? $mail['mailer'] : null,
+            // The subject an instance asked for, with its placeholders; null keeps the subject as it is.
+            'subject_pattern' => $instance['subject'] ?? null,
         ];
+    }
+
+    /**
+     * The sender's name and the subject pattern of the report's widget instance, from `mail.instances`.
+     *
+     * A widget names its instance in the page, so a client can change it, and the most it reaches
+     * then is another instance's sender name and subject pattern, both written by the host. Nothing
+     * under `mail.instances` can move a report to another address. Each value is held to one line,
+     * so a host's typo cannot break a header either, and an empty one counts as absent.
+     *
+     * @return array{from_name?: string, subject?: string}
+     */
+    private function instanceMail(?string $instance): array
+    {
+        $instances = $this->config->get('visual-feedback.mail.instances');
+        $entry = $instance !== null && is_array($instances) && is_array($instances[$instance] ?? null) ? $instances[$instance] : [];
+        $settings = [];
+
+        foreach (['from_name', 'subject'] as $key) {
+            $value = is_string($entry[$key] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $entry[$key])) : '';
+
+            if ($value !== '') {
+                $settings[$key] = $value;
+            }
+        }
+
+        return $settings;
     }
 
     /**

@@ -154,8 +154,11 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         $max = $attempt->reporter->isGuest ? $this->settings->guestRateLimit() : $this->settings->rateLimit();
         $cap = $this->settings->globalRateLimit();
 
+        $pot = $this->widgetPot($attempt);
+
         try {
             return $this->limiter->tooManyAttempts($this->rateLimitKey($attempt), $max)
+                || ($pot !== null && $this->limiter->tooManyAttempts($this->widgetPotKey($attempt), $pot))
                 || ($cap > 0 && $this->limiter->tooManyAttempts(self::GLOBAL_KEY, $cap));
         } catch (Throwable) {
             return false;
@@ -191,7 +194,15 @@ final readonly class BuiltinAbuseGate implements AbuseGate
         }
 
         if ($hits > $max) {
-            return AbuseDecision::reject(RejectionReason::RateLimited, visible: true);
+            return AbuseDecision::reject(RejectionReason::RateLimited, visible: true, retryAfter: $this->retryAfter($this->rateLimitKey($attempt)));
+        }
+
+        // The pot of the widget's own `rateLimit` comes next, for the reason the instance bucket
+        // below comes last: a sender locked out of their own share cannot spend a form's.
+        $widget = $this->widgetPotVerdict($attempt);
+
+        if ($widget instanceof AbuseDecision) {
+            return $widget;
         }
 
         // Only now, and the order is load-bearing. The instance bucket is hit for attempts that
@@ -246,7 +257,75 @@ final readonly class BuiltinAbuseGate implements AbuseGate
             $this->events->dispatch(new InstanceRateLimitReached($cap, self::DECAY_SECONDS));
         }
 
-        return $hits > $cap ? AbuseDecision::reject(RejectionReason::GlobalRateLimited, visible: true) : null;
+        return $hits > $cap
+            ? AbuseDecision::reject(RejectionReason::GlobalRateLimited, visible: true, retryAfter: $this->retryAfter(self::GLOBAL_KEY))
+            : null;
+    }
+
+    /**
+     * The verdict of the pot a widget's `rateLimit` asks for, or null where it sets none or the
+     * attempt is under it.
+     *
+     * On top of the sender's limit and the instance cap, never instead of either, so a widget can
+     * only be stricter than the floor: a reporter who switched to a widget without a pot still
+     * meets every limit above. The pot is keyed by the widget's instance name, which the widget
+     * seals, and by the subject of the sender's own limit, so two widgets of one name share a pot
+     * and a client cannot reach a fresh one by renaming its widget. A backend error is answered by
+     * the same `on_error` switch as the other two.
+     */
+    private function widgetPotVerdict(ReportAttempt $attempt): ?AbuseDecision
+    {
+        $limit = $this->widgetPot($attempt);
+
+        if ($limit === null) {
+            return null;
+        }
+
+        $key = $this->widgetPotKey($attempt);
+
+        try {
+            $hits = $this->limiter->hit($key, self::DECAY_SECONDS);
+        } catch (Throwable $exception) {
+            $this->logger->warning('visual-feedback: builtin rate limiter errored', [
+                'exception' => $exception::class,
+                'message' => RedactedFailure::message($exception),
+                'floor' => 'widget_rate_limit_only',
+            ]);
+
+            return $this->settings->abuseOpensOnError()
+                ? null
+                : AbuseDecision::reject(RejectionReason::RateLimited, visible: true, detail: 'widget_rate_limit');
+        }
+
+        return $hits > $limit
+            ? AbuseDecision::reject(RejectionReason::RateLimited, visible: true, detail: 'widget_rate_limit', retryAfter: $this->retryAfter($key))
+            : null;
+    }
+
+    /** The widget's pot, or null where the attempt names none a limiter can count against. */
+    private function widgetPot(ReportAttempt $attempt): ?int
+    {
+        return $attempt->widgetRateLimit !== null && $attempt->widgetRateLimit >= 1 ? $attempt->widgetRateLimit : null;
+    }
+
+    /** Hashed whole, so a name with the separator in it cannot reach another widget's pot. */
+    private function widgetPotKey(ReportAttempt $attempt): string
+    {
+        return 'visual-feedback:abuse:widget:'.hash('sha256', ($attempt->widget ?? '')."\0".$this->rateLimitKey($attempt));
+    }
+
+    /**
+     * Seconds until the pot under this key frees again, at least one, or null where the backend
+     * cannot say. Asked only after a hit on the same backend has just answered, and never allowed
+     * to turn a refusal into an error.
+     */
+    private function retryAfter(string $key): ?int
+    {
+        try {
+            return max(1, $this->limiter->availableIn($key));
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function rateLimitKey(ReportAttempt $attempt): string

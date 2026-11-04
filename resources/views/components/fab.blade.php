@@ -12,6 +12,9 @@
       label    — button text; falls back to the widget heading. A slot overrides both.
 --}}
 @props([
+    // The widget this opens on a page with more than one, by its instance name; null opens the
+    // widget without a name.
+    'instance' => null,
     'position' => 'bottom-end',
     'label' => null,
 ])
@@ -26,6 +29,6 @@
     x-data
     {{ $attributes->class(['visual-feedback-fab', 'visual-feedback-fab--'.\Pushery\VisualFeedback\Support\FabCorner::of($position)]) }}
     aria-haspopup="dialog"
-    x-on:click="$dispatch('visual-feedback:open')"
+    x-on:click="{{ \Pushery\VisualFeedback\Support\WidgetInstance::openExpression($instance) }}"
 >{{ $slot->isEmpty() ? ($label ?? __('visual-feedback::messages.widget.heading')) : $slot }}</button>
 @endif

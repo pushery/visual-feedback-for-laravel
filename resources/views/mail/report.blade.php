@@ -75,6 +75,9 @@
 @if (is_string($report->reporter->phone) && trim($report->reporter->phone) !== '')
 - **{{ __('visual-feedback::messages.mail.phone') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->reporter->phone) }}
 @endif
+@if (is_string($report->reporter->replyName ?? null) || is_string($report->reporter->replyEmail ?? null))
+- **{{ __('visual-feedback::messages.mail.reply_to') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text(trim(($report->reporter->replyName ?? '').' '.($report->reporter->replyEmail ?? ''))) }}
+@endif
 - **{{ __('visual-feedback::messages.mail.submitted_at') }}:** {{ $report->submittedAt->format(DATE_ATOM) }}
 - **{{ __('visual-feedback::messages.mail.mode') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->mode) }}
 
@@ -82,7 +85,7 @@
 **{{ __('visual-feedback::messages.mail.context') }}**
 
 @foreach ($report->context as $entry)
-- **{{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell($entry->label) }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell($entry->value) }}
+- **{{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell($entry->label) }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::contextValue($entry->value, $entry->url, $entry->identifier) }}
 @endforeach
 @endif
 
@@ -103,7 +106,7 @@
 | {{ __('visual-feedback::messages.mail.field') }} | {{ __('visual-feedback::messages.mail.value') }} |
 | :--- | :--- |
 @foreach ($report->metadata as $key => $value)
-| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Illuminate\Support\Str::headline((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
+| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Pushery\VisualFeedback\Channels\Mail\MailCell::metadataLabel((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
 @endforeach
 </x-mail::table>
 @endif
