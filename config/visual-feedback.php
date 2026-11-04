@@ -335,6 +335,12 @@ return [
         // Add it back if you need it and know your policy. The sanitizer will keep only its
         // scheme and host either way — see MetadataSanitizer — so the path cannot come with it.
         // `url` already says where the reporter was, which is the question a bug report asks.
+        //
+        // `connection_type` is not in the list either: the effective type of the connection, `4g`
+        // down to `slow-2g`, which only Chromium browsers report. A report from a signed-in member
+        // carries the account, so it would be personal data on every report, and a bug report
+        // rarely needs it. Add it where a slow connection is part of what you investigate, and
+        // name it in your privacy notice.
         'collect' => [
             'url', 'title', 'user_agent',
             'viewport_width', 'viewport_height',
@@ -342,7 +348,6 @@ return [
             'device_pixel_ratio', 'scroll_y',
             'language', 'languages', 'timezone', 'platform',
             'touch', 'online', 'cookies_enabled', 'dark_mode',
-            'connection_type',
         ],
         'max_value_length' => filter_var(
             env('VISUAL_FEEDBACK_CONTEXT_MAX_VALUE_LENGTH', 2000),
