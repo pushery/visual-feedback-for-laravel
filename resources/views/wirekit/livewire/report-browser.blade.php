@@ -108,7 +108,7 @@
                                 <x-wirekit::table.td>{{ $report->created_at }}</x-wirekit::table.td>
                                 <x-wirekit::table.td>{{ $report->mode }}</x-wirekit::table.td>
                                 <x-wirekit::table.td>{{ $report->category }}</x-wirekit::table.td>
-                                <x-wirekit::table.td>{{ $report->subject ?: '—' }}</x-wirekit::table.td>
+                                <x-wirekit::table.td :attributes="$redact">{{ $report->subject ?: '—' }}</x-wirekit::table.td>
                                 <x-wirekit::table.td :attributes="$redact">
                                     {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                                 </x-wirekit::table.td>
@@ -153,7 +153,7 @@
                 <x-wirekit::card>
                     {{-- An h2, as in the plain tree, at the size the card header gives its text. --}}
                     <x-wirekit::card.header>
-                        <x-wirekit::heading :level="$sectionLevel" size="lg">{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</x-wirekit::heading>
+                        <x-wirekit::heading :level="$sectionLevel" size="lg" :attributes="$redact">{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</x-wirekit::heading>
                     </x-wirekit::card.header>
 
                     <x-wirekit::card.body>
