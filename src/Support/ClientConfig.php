@@ -14,6 +14,9 @@ namespace Pushery\VisualFeedback\Support;
  */
 final class ClientConfig
 {
+    /** The attribute the capture blanks where `screenshot.redact_attribute` names none an element can carry. */
+    public const string DEFAULT_REDACT_ATTRIBUTE = 'data-visual-feedback-redact';
+
     /**
      * @return array{strategy: string, scale: float|int|string, viewportOnly: bool, maxBytes: int, darkFallback: string, redactAttribute: string, iframePlaceholder: bool, flattenCustomElements: bool, debug: bool, editor: bool}
      */
@@ -44,7 +47,7 @@ final class ClientConfig
             // capture takes only a positive one; any other leaves its captures as they are.
             'maxBytes' => is_numeric($bytes = config('visual-feedback.screenshot.max_bytes')) ? (int) $bytes : 8 * 1024 * 1024,
             'darkFallback' => is_string($color = config('visual-feedback.screenshot.dark_fallback_color')) ? $color : '#111827',
-            'redactAttribute' => is_string($attr = config('visual-feedback.screenshot.redact_attribute')) ? $attr : 'data-visual-feedback-redact',
+            'redactAttribute' => self::redactAttribute(),
             'iframePlaceholder' => EnvFlag::boolean(config('visual-feedback.screenshot.iframe_placeholder'), true),
             'flattenCustomElements' => EnvFlag::boolean(config('visual-feedback.screenshot.flatten_custom_elements'), true),
             // The capture module has accepted a `debug` option since it was written, and this
@@ -56,5 +59,22 @@ final class ClientConfig
             // Whether the preview offers the editor. On where a published config predates the key.
             'editor' => EnvFlag::protection(config('visual-feedback.screenshot.editor'), true),
         ];
+    }
+
+    /**
+     * The attribute the capture blanks: `screenshot.redact_attribute` where it is a name an element
+     * can carry, the default otherwise.
+     *
+     * The capture reads it with `hasAttribute()`, and the report browser puts it on what it shows of
+     * a reporter, so both read this one answer. A name with a space, a quote or another character no
+     * attribute name takes would mark nothing on either side.
+     */
+    public static function redactAttribute(): string
+    {
+        $configured = config('visual-feedback.screenshot.redact_attribute');
+
+        return is_string($configured) && preg_match('/^[A-Za-z_:][A-Za-z0-9_.:-]*$/', $configured) === 1
+            ? $configured
+            : self::DEFAULT_REDACT_ATTRIBUTE;
     }
 }

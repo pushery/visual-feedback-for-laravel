@@ -173,6 +173,7 @@ can paste into `.env` whole. The ones a consuming application reaches for most:
 | `VISUAL_FEEDBACK_UI_VARIANT` | `auto` | `auto`, `plain` or `wirekit` |
 | `VISUAL_FEEDBACK_UI_TRIGGER` | `fab` | `fab`, `inline` or `none` when you place the trigger yourself |
 | `VISUAL_FEEDBACK_UI_POSITION` | `bottom-end` | which corner the floating button sits in, read in the writing direction |
+| `VISUAL_FEEDBACK_UI_DARK_MODE` | `media` | what turns the plain tree dark: `media` follows the operating system, `class` the application's `VISUAL_FEEDBACK_UI_DARK_SELECTOR`, `.dark` by default |
 | `VISUAL_FEEDBACK_SCREENSHOT_STRATEGY` | `auto` | `auto`, `native`, `dom` or `off` |
 | `VISUAL_FEEDBACK_ATTACHMENTS_DISK` | `local` | keep it private: screenshots carry whatever was on screen |
 | `VISUAL_FEEDBACK_CHANNEL_DATABASE` | `false` | also store reports in the optional table |
@@ -330,12 +331,18 @@ Any code can open the widget without the component:
 window.dispatchEvent(new Event('visual-feedback:open'))
 ```
 
+On a page with two modal widgets, give the second an `instance` name and aim its trigger at it,
+`<x-visual-feedback::trigger instance="project">`, or name it in the event:
+`new CustomEvent('visual-feedback:open', { detail: { instance: 'project' } })`. An event that
+names an instance opens that widget alone, and one that names none opens the widget without a name.
+
 ### 5. Override the configuration per widget
 
-Seven props set one widget apart from the configuration, so two pages in the same application
+Eight props set one widget apart from the configuration, so two pages in the same application
 can offer different forms. The browser cannot change or widen any of them after mount:
 `categories`, `context`, `fields`, `withScreenshot` and `notice` are sealed and restored on every request,
-`recipient` must stay an address the configuration permits, and `mode` one the widget renders.
+`recipient` must stay an address the configuration permits, `mode` one the widget renders, and
+`instance` a name or none.
 A request that breaks the seal makes the widget refuse to send until the page is reloaded.
 
 | Prop | Type | Default | What it does |
@@ -654,7 +661,8 @@ are isolated from each other: one failing never stops the rest.
 - Do not store attachments on a public disk, and do not point `attachments.disk` at the
   same disk the application serves user uploads from.
 - Do not rely on any CSS effect — `filter`, `mask`, `content-visibility` — to hide sensitive
-  content from a screenshot; use `data-visual-feedback-redact`.
+  content from a screenshot; use `data-visual-feedback-redact`. The report browser marks what it
+  shows of a reporter itself, and a published copy of its views keeps `$redact` on those elements.
 - Do not publish the WireKit tree in order to **select** it. `ui.variant` chooses the tree, and
   publishing to choose leaves the application maintaining a copy of the package's templates that
   every update silently leaves behind. Publish it when you want to edit it, not otherwise.

@@ -51,7 +51,8 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
         public readonly Report $report,
         public readonly bool $includeReporter,
         public readonly int $tries,
-        private readonly int $backoffSeconds,
+        /** @var int|non-empty-list<int> seconds, or one entry per retry */
+        private readonly int|array $backoffSeconds,
     ) {}
 
     public function handle(WebhooksPlatform $platform, HttpWebhookSender $sender, Config $config, ReportDeliveryTracker $tracker, ErasedReporters $erased): void
@@ -86,8 +87,13 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
             ->settleFailed($this->report, 'webhook', $exception);
     }
 
-    /** Seconds between retries — the channel resolves it from `channels.webhook.backoff`. */
-    public function backoff(): int
+    /**
+     * Seconds between retries, or one entry per retry — the channel resolves it from
+     * `channels.webhook.backoff`.
+     *
+     * @return int|non-empty-list<int>
+     */
+    public function backoff(): int|array
     {
         return $this->backoffSeconds;
     }

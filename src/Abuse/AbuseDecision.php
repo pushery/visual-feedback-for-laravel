@@ -30,6 +30,7 @@ final readonly class AbuseDecision
         public ?RejectionReason $reason,
         public bool $visible,
         public ?string $detail = null,
+        public ?int $retryAfter = null,
     ) {}
 
     public static function allow(): self
@@ -48,10 +49,12 @@ final readonly class AbuseDecision
      *                           lets a host tell three different situations apart when the enum
      *                           gives them one name. Optional: a gate that says nothing loses
      *                           nothing.
+     * @param  ?int  $retryAfter  seconds until a rate limit that refused the attempt frees again,
+     *                            so the reporter can be told when to try again
      */
-    public static function reject(RejectionReason $reason, bool $visible = false, ?string $detail = null): self
+    public static function reject(RejectionReason $reason, bool $visible = false, ?string $detail = null, ?int $retryAfter = null): self
     {
-        return new self(false, $reason, $visible, $detail);
+        return new self(false, $reason, $visible, $detail, $retryAfter);
     }
 
     public function rejected(): bool

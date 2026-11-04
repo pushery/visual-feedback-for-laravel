@@ -12,12 +12,14 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\View\ComponentAttributeBag;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Livewire\Concerns\RestoresNulledProperties;
+use Pushery\VisualFeedback\Support\ClientConfig;
 use Pushery\VisualFeedback\Support\TableLookup;
 
 /**
@@ -94,9 +96,33 @@ final class ReportBrowser extends Component
     /** The answer tableExists() gave in this request, kept for the rest of it. */
     private ?bool $reportsTableExists = null;
 
-    public function mount(): void
+    /**
+     * The level of the browser's title: 1 for a page that shows the browser alone, 2 to 5 for a host
+     * page with a title of its own, 0 for no title at all. Its sections, the empty states and an open
+     * report, stand one level below, or at 2 without a title.
+     *
+     * Clamped rather than locked, as the widget's props are: it decides the page's headings and
+     * nothing else, a lock would throw on a write where a clamp keeps the page, and a value a request
+     * writes is held to the same range the mount is.
+     */
+    public int $headingLevel = 1;
+
+    public function mount(int $headingLevel = 1): void
     {
         $this->authorizeBrowsing();
+        $this->headingLevel = $this->aHeadingLevel($headingLevel);
+    }
+
+    /** The clamp of {@see mount()} on a value a request writes. */
+    public function updatedHeadingLevel(): void
+    {
+        $this->headingLevel = $this->aHeadingLevel($this->headingLevel);
+    }
+
+    /** A title level the views render: 0 to 5, and 1 for anything else. */
+    private function aHeadingLevel(int $level): int
+    {
+        return $level >= 0 && $level <= 5 ? $level : 1;
     }
 
     /**
@@ -422,12 +448,18 @@ final class ReportBrowser extends Component
         // (`Route::livewire(...)`): Livewire hands it to the layout as `$title`. Embedded in a view
         // of the host's own, the component has no say over the document title, and this does nothing.
         return view('visual-feedback::livewire.report-browser', [
+            // The level of the sections below the title, or of the first ones on a page without it.
+            'sectionLevel' => max(1, $this->headingLevel) + 1,
             'tableExists' => $this->tableExists(),
             'reports' => $reports,
             'detail' => $detail,
             'attachments' => $detail === null ? [] : $this->attachmentsShown($detail->attachments ?? null),
             'categories' => $this->categories(),
             'modes' => $this->modes(),
+            // The attribute the capture blanks, on what the browser shows of a reporter. The browser
+            // renders on a page the widget appears on, and a report filed from it would carry the
+            // name, the address and the message of other reporters in its screenshot.
+            'redact' => new ComponentAttributeBag([ClientConfig::redactAttribute() => true]),
         ])->title(__('visual-feedback::browser.title'));
     }
 }

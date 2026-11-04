@@ -4,6 +4,60 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.25.0] - 2026-11-04
+
+### ✨ Added
+
+- **A contact form shows signed-in reporters the identity fields too.** `fields: ['signed_in' => true]` shows a signed-in reporter the name, email and phone fields, filled from the account and held to their modes as a guest's are. The account stays the reporter; a changed name or address is where the reply goes, in the mail's Reply-To and under "Reply to" in the mail, and a phone number is stored with the report. Without the key a signed-in reporter sees no identity fields, as before.
+
+- **The privacy notice can be a text in the form, and a widget can ask signed-in reporters too.** A source implementing `PrivacyNoticeContentSource` hands the form the text of the notice for each widget name, and the form shows it above the checkbox, folded, with the tick required on that text alone. `privacy.ask` set to `everyone` asks signed-in reporters as well, for every widget or for one under `privacy.instances`, as a contact form does. The block now renders exactly where submit demands the tick, also where every identity field is off.
+
+- **A report carries the connection type, and one widget can keep the query of its page.** `connection_type` joins the shipped `metadata.collect`, the effective type the Network Information API reports in Chromium browsers and empty elsewhere. The sealed `urlQuery` mount prop keeps the query of `url` for a page whose filters are its query, or drops it where `metadata.url_query` keeps it. The referrer stays its origin: the path of the page before is where a reset or magic-link token travels.
+
+  **Upgrade:** `connection_type` is collected from this version on. A published `config/visual-feedback.php` keeps its own `collect` list, so an application that published it adds the key there to collect it, and names it in its privacy notice.
+
+- **A widget can speak in its own words and keep its own limits.** The `texts` mount prop takes this widget's heading, button, confirmation, failure line, category label, rate-limit sentence and failed-challenge sentence, `messageMaxLength` lowers the longest message for this widget, and `rateLimit` opens a pot of its own for every widget of one `instance` name, counted on top of the built-in limits and never instead of them. All three are sealed with the other mount props. See [A contact form beside the feedback widget](https://docs.pushery.com/visual-feedback-for-laravel/placing-the-trigger#a-contact-form-beside-the-feedback-widget).
+
+- **A rate limit and a failed challenge say what happened.** Both showed the generic failure line. A rate limit now says when the reporter may send again, in minutes rounded up, and a failed challenge asks to try the check again.
+
+- **The Matomo event of a report can be named, switched off, and skipped.** `matomo.event` sets its category and action, with `{mode}` for the widget's mode, `matomo.instances` overrides both for a widget mounted with a declared `instance` name, `matomo.enabled` switches tracking off with the analytics package installed, and `matomo.skip` names an invokable class that leaves a report out, an administrator's for example. Without any of them the event is `visual-feedback`, `submit` and the report's category, as before. See [The Matomo bridge](https://docs.pushery.com/visual-feedback-for-laravel/delivery-channels#the-matomo-bridge).
+
+  **Upgrade:** a subclass of `MatomoBridge` that overrode `recordSubmission()` to rename the event is no longer called by the listener, which calls `track()` with the configured names. Set the names in `matomo.event` instead, or move the override to `track()`.
+
+- **The plain tree can follow the application's dark mode.** With `ui.dark_mode` set to `class`, the widget turns dark while `ui.dark_selector`, `.dark` by default, matches `<html>` or an element around it, instead of following the operating system. A light application on a dark system keeps a light widget, and the browser's own controls on the widget switch with the colors through `--vf-color-scheme`. See [Dark mode](https://docs.pushery.com/visual-feedback-for-laravel/view-trees#dark-mode).
+
+- **The report browser takes the level of its title from a host page that has one.** `<livewire:visual-feedback.report-browser :heading-level="2" />` renders the title as `h2`, and `0` renders none, so a page with its own header no longer carries two `h1`. The empty states and an open report stand one level below the title, as they did below the `h1`.
+
+- **A widget instance can mail under its own sender name and subject.** `mail.instances` takes, per `instance` name, a `from_name` and a `subject` pattern with `{category}`, `{subject}` and `{name}`. The address stays `mail.from`, every part is held to one line, and a widget without a name keeps the configured sender and subject.
+
+- **A channel's backoff takes a list, one wait per retry.** `channels.mail.backoff`, `channels.webhook.backoff` and `channels.database.backoff` take a list of seconds besides one number, `[30, 120, 300]`, and the queue repeats its last entry. A value that is neither falls back to 30 seconds, as before.
+
+- **The report mail links a context entry to its URL, names its identifier, and labels the technical table in the mail's language.** A context entry's `url`, from the `context` prop or a context provider, becomes a link on its value when it is an absolute http or https URL, and its `identifier` stands in parentheses after it. The technical table names each metadata key in the mail's language, and a key a host collects on its own keeps its headline.
+
+- **Two modal widgets on one page open one at a time.** Every modal widget listened for `visual-feedback:open`, so a page with the page-wide widget and a second one with its own context opened both dialogs on one click. A widget takes an `instance` name now, `<x-visual-feedback::trigger>`, `<x-visual-feedback::fab>` and `<x-visual-feedback::standalone>` take one to aim at it, and an open event names it in its detail, `{ instance: 'project' }`. An event that names an instance opens the widget of that name, and one that names none opens the widget without a name, as before. The WireKit modal of a named widget carries its name.
+
+### 🔧 Changed
+
+- **The report browser's filters stand two to a row.** In the WireKit tree mode stands beside category and from beside until, each label, control and message aligned with its neighbor's, under each other on a phone, and the reset keeps its own width. The plain tree lays them side by side already.
+
+### 🐛 Fixed
+
+- **A screenshot no longer makes Chrome warn about repeated canvas readbacks.** The check whether a capture came out blank, and the one whether a native frame is a single color, read the captured canvas in bands, and that canvas's context was created by the renderer or the capture without `willReadFrequently`, so every band was a readback, and Chrome wrote "Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true" into the console of the page. Each band is drawn into a canvas of its own, made for reading, and read there, which keeps the memory at one band.
+
+- **A guest's report from an inline widget on a cached page arrives instead of vanishing.** An inline widget anchored its time trap only when it rendered, in the session that rendered it. On a page a full-page cache served, that was someone else's session, so the visitor's session held no open time, the trap refused every submission as a form that cannot say when it was opened, and the visitor saw the decoy success while nothing was delivered. The first focus into the inline form now anchors the trap where the session holds no anchor, and never moves one that is there.
+
+### 🔒 Security
+
+- **A widget's `instance` name is sealed with its other mount props.** It decides the sender and subject under `mail.instances`, the analytics names under `matomo.instances` and the pot a widget's `rateLimit` counts in, so a request that rewrites it is undone from the sealed copy, as a write to `context` is.
+
+- **The report browser marks what it shows of a reporter for the screenshot redactor.** The name in the list, the name and the address in the detail, and the message carry `screenshot.redact_attribute` now, in both trees. The browser renders in a host's console, a page the widget appears on, so a report filed from there carried the data of other reporters, guests among them, in its screenshot. A configured name that no element can carry, one with a space or a quote in it, falls back to `data-visual-feedback-redact` in the capture and in the browser alike.
+
+  **Upgrade:** a host that published the report browser's views publishes them again, or puts `$redact` on the elements that show a reporter the way the shipped views do.
+
+### 📚 Documentation
+
+- **The testing guide says how a per-instance prop answers a write.** It said each one was locked and that setting one in a test threw. A write is undone instead, from the copy sealed at mount or by the clamp on the value, and the guide's example asserts the mounted value in the submitted report.
+
 ## [0.24.2] - 2026-11-01
 
 ### 🔧 Changed
@@ -1334,7 +1388,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.23.0...v0.24.0

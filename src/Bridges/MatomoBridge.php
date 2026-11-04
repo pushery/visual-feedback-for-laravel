@@ -7,6 +7,7 @@ namespace Pushery\VisualFeedback\Bridges;
 use Illuminate\Container\Container;
 use MatomoAnalytics\Contracts\Tracker;
 use MatomoAnalytics\Facades\Matomo;
+use Pushery\VisualFeedback\Support\MatomoEvent;
 
 /**
  * The optional bridge to pushery/matomo-analytics-for-laravel. When that package
@@ -56,9 +57,19 @@ class MatomoBridge
             && Container::getInstance()->bound(self::TRACKER);
     }
 
-    /** Track an accepted submission — never a rejection, so bot traffic is not faked into analytics. */
+    /**
+     * Track an accepted submission under the shipped names — never a rejection, so bot traffic is
+     * not faked into analytics. The listener calls {@see track()} with the names `matomo.event` and
+     * `matomo.instances` give, so an override that renames the event belongs there.
+     */
     public function recordSubmission(string $category): void
     {
-        Matomo::event('visual-feedback', 'submit', $category);
+        $this->track(MatomoEvent::CATEGORY, MatomoEvent::ACTION, $category);
+    }
+
+    /** Track one event: a category, an action, and the report's own category as its name. */
+    public function track(string $category, string $action, string $name): void
+    {
+        Matomo::event($category, $action, $name);
     }
 }

@@ -342,6 +342,7 @@ return [
             'device_pixel_ratio', 'scroll_y',
             'language', 'languages', 'timezone', 'platform',
             'touch', 'online', 'cookies_enabled', 'dark_mode',
+            'connection_type',
         ],
         'max_value_length' => filter_var(
             env('VISUAL_FEEDBACK_CONTEXT_MAX_VALUE_LENGTH', 2000),
@@ -534,6 +535,21 @@ return [
         // your own privacy page; this source only replaces the checkbox label with the sentence
         // that document actually publishes, in the reporter's locale.
         'document_key' => env('VISUAL_FEEDBACK_PRIVACY_DOCUMENT_KEY', 'privacy'),
+
+        /*
+         * Who acknowledges the notice before a report goes out: `guests`, or `everyone`, signed-in
+         * reporters included, for a form where everybody who writes confirms it, such as a contact
+         * form. Per widget under `instances`, keyed by the `instance` name it is mounted with:
+         *
+         *     'instances' => [
+         *         'contact' => ['ask' => 'everyone'],
+         *     ],
+         *
+         * A source implementing PrivacyNoticeContentSource hands the form the text of the notice for
+         * each widget, which it shows beside the checkbox, so the notice needs no page of its own.
+         */
+        'ask' => 'guests',
+        'instances' => [],
     ],
 
     /*
@@ -631,6 +647,23 @@ return [
          * and a developer can fix it; the alternative was a value a visitor could rewrite.
          */
         'allowed_recipients' => [],
+
+        /*
+         * The sender's name and the subject of the mail a widget instance sends, keyed by the
+         * `instance` name the widget is mounted with. An instance not listed, and a widget without
+         * a name, keep `mail.from.name` and the subject as it is.
+         *
+         *     'instances' => [
+         *         'contact' => [
+         *             'from_name' => 'Example Contact',
+         *             'subject' => '[Contact] {subject}: a message from {name}',
+         *         ],
+         *     ],
+         *
+         * `{category}` is the category's label, `{subject}` the reporter's subject or the first
+         * words of the message, and `{name}` the reporter's name. The address stays `mail.from`.
+         */
+        'instances' => [],
         'from' => [
             'address' => env('VISUAL_FEEDBACK_MAIL_FROM_ADDRESS'),
             // Falls back to the application name, as a new Laravel application's `.env.example`
@@ -821,6 +854,16 @@ return [
         // WireKit does not declare, or a WireKit older than v2.27.0, keeps the plus. The plain tree's trigger is
         // a text button and ignores this.
         'fab_icon' => env('VISUAL_FEEDBACK_UI_FAB_ICON', 'message'),
+
+        // What turns the plain tree dark. `media` follows the operating system. `class` follows
+        // your application instead: the widget is dark while `dark_selector` matches <html> or an
+        // element around the widget, and light on a dark system while your application is light.
+        // `.dark` is the class Tailwind's `dark` variant and WireKit's theme script set; a selector
+        // such as `[data-theme="dark"]` works too. One that could break out of its rule, with a
+        // brace, a semicolon, a slash or a bracket left open, is `.dark`. The WireKit tree takes its
+        // colors from the kit and ignores both keys.
+        'dark_mode' => env('VISUAL_FEEDBACK_UI_DARK_MODE', 'media'), // media|class
+        'dark_selector' => env('VISUAL_FEEDBACK_UI_DARK_SELECTOR', '.dark'),
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
 
         // Subresource Integrity on all four bundles: the two script tags, `visual-feedback-widget.iife.js`
@@ -868,5 +911,32 @@ return [
     |
     */
     'context_providers' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Matomo
+    |--------------------------------------------------------------------------
+    |
+    | With pushery/matomo-analytics-for-laravel installed, every accepted
+    | report is tracked as a Matomo event: the category and the action below,
+    | and the report's own category as its name. `{mode}` in either is the
+    | widget's mode, `modal` or `inline`. `instances` overrides both for a
+    | widget mounted with that `instance` name, and only for a name listed
+    | there. `skip` names an invokable class, resolved from the container,
+    | whose `__invoke(ReportSubmitted $event): bool` answers true for a report
+    | that is not tracked, an administrator's for example. Without the
+    | package nothing is tracked, whatever these say.
+    |
+    */
+    'matomo' => [
+        'enabled' => EnvFlag::boolean(env('VISUAL_FEEDBACK_MATOMO_ENABLED', true), true),
+        'event' => [
+            'category' => env('VISUAL_FEEDBACK_MATOMO_EVENT_CATEGORY', 'visual-feedback'),
+            'action' => env('VISUAL_FEEDBACK_MATOMO_EVENT_ACTION', 'submit'),
+        ],
+        //     'instances' => ['contact' => ['category' => 'contact']],
+        'instances' => [],
+        'skip' => null,
+    ],
 
 ];

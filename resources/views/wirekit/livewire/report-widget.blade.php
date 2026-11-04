@@ -31,18 +31,30 @@
          Same outcome, so this is parity — not a new rule.
 
          Nothing is lost by dropping the listener inline: `mount()` anchors an inline widget
-         itself — it is open from the moment it renders, and nothing else would ever anchor it,
-         because this listener is the modal path — and the metadata is re-measured on the form's
-         own `submit.capture`. (A modal is deliberately not anchored at mount, so it is refused
+         itself — it is open from the moment it renders — and the metadata is re-measured on the
+         form's own `submit.capture`. The one other anchor an inline widget takes is its first
+         focus below, and only where this session holds none. (A modal is deliberately not anchored at mount, so it is refused
          rather than exempted while the trap is armed. The anchor is held on the server and never
          reaches the markup, so no mode puts a moving value into a rendered page.) --}}
     @if ($mode === 'modal')
-        x-on:visual-feedback:open.window="vfOpenWireKit()"
+        x-on:visual-feedback:open.window="vfOpenWireKit($event)"
+    @endif
+    {{-- The name this widget answers to, and the name of its modal, which the kit opens by name:
+         two modals of one name open together. --}}
+    @if ($instance !== null)
+        data-visual-feedback-instance="{{ $instance }}"
+    @endif
+    data-visual-feedback-modal="{{ \Pushery\VisualFeedback\Support\WidgetInstance::modalName($instance) }}"
+    {{-- Inline only: the first focus into the form anchors the time trap where this session
+         holds no anchor, which is the case on a page a full-page cache served. It never moves an
+         anchor that is there. --}}
+    @if ($mode === 'inline')
+        x-on:focusin.once="vfInlineFocus()"
     @endif
 >
     @if ($mode === 'modal')
         @if ($showFab)
-            <x-visual-feedback::fab :position="$fabPosition" />
+            <x-visual-feedback::fab :position="$fabPosition" :instance="$instance" :label="$widgetTexts['heading']" />
         @endif
 
         {{-- The dialog is named through WireKit's own header, never with aria-label on the
@@ -52,10 +64,10 @@
              header id that then never existed. The result was a dialog with no accessible
              name at all. modal.header supplies that id, and with it the keyboard-reachable
              close button the plain tree already had. --}}
-        <x-wirekit::modal name="visual-feedback" :describedby="$notice !== null ? 'visual-feedback-notice' : null">
+        <x-wirekit::modal :name="\Pushery\VisualFeedback\Support\WidgetInstance::modalName($instance)" :describedby="$notice !== null ? 'visual-feedback-notice' : null">
             <x-wirekit::modal.header>
                 <h2 id="visual-feedback-heading" tabindex="-1">
-                    {{ __('visual-feedback::messages.widget.heading') }}
+                    {{ $widgetTexts['heading'] }}
                 </h2>
             </x-wirekit::modal.header>
 

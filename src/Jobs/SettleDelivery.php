@@ -38,7 +38,8 @@ final class SettleDelivery implements ShouldBeEncrypted, ShouldQueue
         public readonly Report $report,
         public readonly string $channel,
         public readonly int $tries,
-        private readonly int $backoffSeconds,
+        /** @var int|non-empty-list<int> seconds, or one entry per retry */
+        private readonly int|array $backoffSeconds,
     ) {}
 
     /**
@@ -47,8 +48,10 @@ final class SettleDelivery implements ShouldBeEncrypted, ShouldQueue
      * Nothing a delivering job does after this line may fail it. When even the hand-off cannot be
      * queued, both failures are reported and the delivery stays unsettled, which leaves its
      * files to the orphan sweep; that is the better outcome than a second copy of the report.
+     *
+     * @param  int|non-empty-list<int>  $backoffSeconds  seconds between retries, or one entry per retry
      */
-    public static function afterDelivery(ReportDeliveryTracker $tracker, Report $report, string $channel, ?string $connection, ?string $queue, int $tries, int $backoffSeconds): void
+    public static function afterDelivery(ReportDeliveryTracker $tracker, Report $report, string $channel, ?string $connection, ?string $queue, int $tries, int|array $backoffSeconds): void
     {
         try {
             $tracker->settleDelivered($report, $channel);
@@ -76,7 +79,8 @@ final class SettleDelivery implements ShouldBeEncrypted, ShouldQueue
         }
     }
 
-    public function backoff(): int
+    /** @return int|non-empty-list<int> seconds between retries, or one entry per retry */
+    public function backoff(): int|array
     {
         return $this->backoffSeconds;
     }

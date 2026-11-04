@@ -35,6 +35,7 @@ use Pushery\VisualFeedback\Livewire\Concerns\RestoresNulledProperties;
 use Pushery\VisualFeedback\Metadata\MetadataSanitizer;
 use Pushery\VisualFeedback\Privacy\PrivacyNotice;
 use Pushery\VisualFeedback\Submission\SubmissionInput;
+use Pushery\VisualFeedback\Submission\SubmissionResult;
 use Pushery\VisualFeedback\Submission\SubmitReport;
 use Pushery\VisualFeedback\Submission\ValidationFailure;
 use Pushery\VisualFeedback\Support\CategoryLabels;
@@ -42,6 +43,8 @@ use Pushery\VisualFeedback\Support\ClientConfig;
 use Pushery\VisualFeedback\Support\FieldLabel;
 use Pushery\VisualFeedback\Support\Settings;
 use Pushery\VisualFeedback\Support\WidgetAvailability;
+use Pushery\VisualFeedback\Support\WidgetInstance;
+use Pushery\VisualFeedback\Support\WidgetTexts;
 use Throwable;
 
 /**
@@ -169,6 +172,51 @@ class ReportWidget extends Component
      */
     // Client-writable in the snapshot and restored from the sealed copy on every request, as above.
     public ?string $notice = null;
+
+    /**
+     * The name this widget answers to, for a page with more than one modal widget: an open event
+     * that names it opens it, and one that names no widget opens a widget without a name
+     * ({@see WidgetInstance}). Sealed with the other mount props: the name decides the sender and
+     * subject under `mail.instances`, the event under `matomo.instances` and the pot `rateLimit`
+     * counts in, so it has to be the tag's. A client that rewrote it could otherwise leave a
+     * stricter pot for a fresh one on every request.
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request.
+    public ?string $instance = null;
+
+    /**
+     * This widget's own words for its heading, button, confirmation, failure line, category label,
+     * rate limit and failed challenge ({@see WidgetTexts}). Sealed with the other mount props, so
+     * what the reporter reads is what the host wrote. Empty takes the catalog's lines.
+     *
+     * @var array<string, string>
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request.
+    public array $texts = [];
+
+    /**
+     * The longest message this widget accepts, at most `fields.message.max_length`: a widget can
+     * ask for less than the configuration, never for more. Null takes the configured length.
+     * Sealed, because the server validates against it.
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request.
+    public ?int $messageMaxLength = null;
+
+    /**
+     * Reports an hour one reporter may send through the widgets of this instance name, counted on
+     * top of `abuse.rate_limit`, `abuse.guest_rate_limit` and `abuse.global_rate_limit`, never
+     * instead of them. Sealed, because the abuse floor counts against it. Null sets no pot.
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request.
+    public ?int $rateLimit = null;
+
+    /**
+     * Whether the report keeps the query of the page it was filed from, for a page whose filters
+     * are its query. Null leaves it to `metadata.url_query`. Sealed, because the query can carry a
+     * signed URL or an address, and whether it is kept is the host's call for each page.
+     */
+    // Client-writable in the snapshot and restored from the sealed copy on every request.
+    public ?bool $urlQuery = null;
 
     /**
      * The mount props as this widget received them, sealed so the round trip cannot change them.
@@ -366,24 +414,28 @@ class ReportWidget extends Component
     public array $challenge = [];
 
     /**
-     * The five properties whose value must come from the tag rather than from the browser.
+     * The properties whose value must come from the tag rather than from the browser.
      *
      * Named once because three methods walk it, and a list written three times is a list that
      * disagrees with itself the first time another prop arrives.
      *
      * @var list<string>
      */
-    private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot', 'notice'];
+    private const array SEALED = ['availableCategories', 'context', 'fields', 'withScreenshot', 'notice', 'instance', 'texts', 'messageMaxLength', 'rateLimit', 'urlQuery'];
 
     /**
-     * What the five hold while the seal will not open: none of the tag's own categories, context
-     * or field modes, so the configuration's are rendered, no capture, and no notice.
+     * What the sealed properties hold while the seal will not open: none of the tag's own
+     * categories, context or field modes, so the configuration's are rendered, no capture, no
+     * notice, no name, the catalog's texts and the configured limits.
      *
      * One list for both readers. restoreMountProps() renders from it, and restoreAfterAWrite()
      * compares a write with it, so a page with a broken seal that sends back what it was rendered
      * with stays quiet, and any other value is reported as it would be against an intact seal.
      */
-    private const array UNSEALED = ['availableCategories' => [], 'context' => [], 'fields' => [], 'withScreenshot' => false, 'notice' => null];
+    private const array UNSEALED = [
+        'availableCategories' => [], 'context' => [], 'fields' => [], 'withScreenshot' => false, 'notice' => null,
+        'instance' => null, 'texts' => [], 'messageMaxLength' => null, 'rateLimit' => null, 'urlQuery' => null,
+    ];
 
     /** The request attribute that lists the sealed properties this request has reported a write to. */
     private const string SEALED_WRITES_REPORTED = 'visual-feedback.sealed-writes-reported';
@@ -413,7 +465,7 @@ class ReportWidget extends Component
     }
 
     /**
-     * Restore the five from the sealed copy, or stop accepting if it will not open.
+     * Restore the sealed properties from the copy, or stop accepting if it will not open.
      *
      * A copy that will not open leaves nothing trustworthy to restore to. Keeping the arriving
      * values would make a forged seal the way to keep a forged prop, and falling back to the
@@ -434,6 +486,11 @@ class ReportWidget extends Component
         $this->fields = $values['fields'];
         $this->withScreenshot = $values['withScreenshot'];
         $this->notice = $values['notice'];
+        $this->instance = $values['instance'];
+        $this->texts = $values['texts'];
+        $this->messageMaxLength = $values['messageMaxLength'];
+        $this->rateLimit = $values['rateLimit'];
+        $this->urlQuery = $values['urlQuery'];
     }
 
     /**
@@ -451,7 +508,12 @@ class ReportWidget extends Component
      * reachable by a test that seals a bad payload itself, and it says something stronger -- a copy
      * that is not what this widget sealed is not partially used.
      *
-     * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool, notice: ?string}|null
+     * A copy sealed before `instance`, `texts`, `messageMaxLength`, `rateLimit` and `urlQuery` were
+     * sealed has none of them, and reads as a widget mounted without them: open pages keep working across
+     * the update rather than being refused until a reload. Present, each one has to have the shape
+     * mount() gave it.
+     *
+     * @return array{availableCategories: list<string>, context: list<array<string, mixed>>, fields: array<string, mixed>, withScreenshot: ?bool, notice: ?string, instance: ?string, texts: array<string, string>, messageMaxLength: ?int, rateLimit: ?int, urlQuery: ?bool}|null
      */
     private function openTheSeal(): ?array
     {
@@ -477,6 +539,30 @@ class ReportWidget extends Component
 
         if (($withScreenshot !== null && ! is_bool($withScreenshot)) || ($notice !== null && ! is_string($notice))) {
             return null;
+        }
+
+        $instance = $values['instance'] ?? null;
+        $texts = $values['texts'] ?? [];
+        $messageMaxLength = $values['messageMaxLength'] ?? null;
+        $rateLimit = $values['rateLimit'] ?? null;
+        $urlQuery = $values['urlQuery'] ?? null;
+
+        if (($instance !== null && (! is_string($instance) || WidgetInstance::name($instance) !== $instance))
+            || ! is_array($texts)
+            || ($messageMaxLength !== null && (! is_int($messageMaxLength) || $messageMaxLength < 1))
+            || ($rateLimit !== null && (! is_int($rateLimit) || $rateLimit < 1))
+            || ($urlQuery !== null && ! is_bool($urlQuery))) {
+            return null;
+        }
+
+        $ownTexts = [];
+
+        foreach ($texts as $key => $text) {
+            if (! is_string($key) || ! array_key_exists($key, WidgetTexts::KEYS) || ! is_string($text)) {
+                return null;
+            }
+
+            $ownTexts[$key] = $text;
         }
 
         $strings = array_values(array_filter($categories, is_string(...)));
@@ -520,6 +606,12 @@ class ReportWidget extends Component
             'fields' => $keyed,
             'withScreenshot' => $withScreenshot,
             'notice' => $notice,
+            // Narrowed again rather than trusted from the check above, so every reader meets the type.
+            'instance' => is_string($instance) ? $instance : null,
+            'texts' => $ownTexts,
+            'messageMaxLength' => is_int($messageMaxLength) ? $messageMaxLength : null,
+            'rateLimit' => is_int($rateLimit) ? $rateLimit : null,
+            'urlQuery' => is_bool($urlQuery) ? $urlQuery : null,
         ];
     }
 
@@ -635,6 +727,31 @@ class ReportWidget extends Component
         $this->restoreAfterAWrite('notice');
     }
 
+    public function updatedInstance(): void
+    {
+        $this->restoreAfterAWrite('instance');
+    }
+
+    public function updatedTexts(): void
+    {
+        $this->restoreAfterAWrite('texts');
+    }
+
+    public function updatedMessageMaxLength(): void
+    {
+        $this->restoreAfterAWrite('messageMaxLength');
+    }
+
+    public function updatedRateLimit(): void
+    {
+        $this->restoreAfterAWrite('rateLimit');
+    }
+
+    public function updatedUrlQuery(): void
+    {
+        $this->restoreAfterAWrite('urlQuery');
+    }
+
     /**
      * A forged seal is answered the same way a forged property is: from the copy, or the config.
      *
@@ -676,6 +793,11 @@ class ReportWidget extends Component
             'context' => $this->context,
             'fields' => $this->fields,
             'notice' => $this->notice,
+            'instance' => $this->instance,
+            'texts' => $this->texts,
+            'messageMaxLength' => $this->messageMaxLength,
+            'rateLimit' => $this->rateLimit,
+            'urlQuery' => $this->urlQuery,
             default => $this->withScreenshot,
         };
 
@@ -744,9 +866,28 @@ class ReportWidget extends Component
      * @param  ?string  $mode  `modal` or `inline`; null takes the default from `ui.trigger`
      * @param  ?bool  $withScreenshot  per-instance capture switch (null = the modal-only default)
      * @param  ?string  $notice  the host's sentence above the fields; null or blank renders none
+     * @param  array<mixed>  $texts  this widget's own words, keyed as {@see WidgetTexts::KEYS}
+     * @param  ?int  $messageMaxLength  the longest message, at most `fields.message.max_length`
+     * @param  ?int  $rateLimit  reports an hour per reporter through this instance name, on top of the global limits
+     * @param  ?bool  $urlQuery  whether a report keeps the query of the page; null leaves it to `metadata.url_query`
+     * @param  ?string  $instance  the name this widget answers to on a page with more than one; null for none
      */
-    public function mount(?string $mode = null, array $categories = [], array $context = [], array $fields = [], ?string $recipient = null, ?bool $withScreenshot = null, ?string $notice = null): void
+    public function mount(?string $mode = null, array $categories = [], array $context = [], array $fields = [], ?string $recipient = null, ?bool $withScreenshot = null, ?string $notice = null, ?string $instance = null, array $texts = [], ?int $messageMaxLength = null, ?int $rateLimit = null, ?bool $urlQuery = null): void
     {
+        $this->instance = WidgetInstance::name($instance);
+        $this->texts = WidgetTexts::of($texts);
+
+        foreach (['messageMaxLength' => $messageMaxLength, 'rateLimit' => $rateLimit] as $prop => $value) {
+            if ($value !== null && $value < 1) {
+                // A developer-supplied prop, like the recipient below: a length or a limit under one
+                // means nothing a widget can do, so it fails where somebody can fix it.
+                throw new InvalidArgumentException("visual-feedback: the {$prop} mount prop must be at least 1.");
+            }
+        }
+
+        $this->messageMaxLength = $messageMaxLength;
+        $this->rateLimit = $rateLimit;
+        $this->urlQuery = $urlQuery;
         if ($recipient !== null && filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
             // A developer-supplied prop: fail at the call site rather than silently mailing
             // reports into nowhere. FILTER_VALIDATE_EMAIL also rejects the newline that
@@ -782,10 +923,23 @@ class ReportWidget extends Component
         $this->fields = $fields;
         $this->notice = $notice !== null && trim($notice) !== '' ? $notice : null;
         $this->sealMountProps();
+
+        // A widget that shows a signed-in reporter the identity fields fills them from the account,
+        // so the reporter changes what they want to and leaves the rest.
+        if ($this->identityOfSignedIn()) {
+            $signedIn = app(ResolvesReporter::class)->resolve();
+
+            if (! $signedIn->isGuest) {
+                $this->guestName ??= $signedIn->name;
+                $this->guestEmail ??= $signedIn->email;
+            }
+        }
         $this->category = $this->firstCategory();
-        // The inline widget is open from the moment it renders, so mount is its open — and
-        // nothing else will ever stamp it, because the open listener is modal-only. A modal is
-        // not open at mount: markOpened() stamps it when the panel actually opens.
+        // The inline widget is open from the moment it renders, so mount is its open. The open
+        // listener is modal-only, and the one other stamp an inline widget gets is the first focus
+        // into its form, which markInlineOpened() turns into an anchor only where this session holds
+        // none: a page a full-page cache served was mounted in another session. A modal is not
+        // open at mount: markOpened() stamps it when the panel actually opens.
         //
         // The difference is not cosmetic. Stamping every mount would put a second-resolution
         // timestamp into the rendered markup of every page carrying the widget, so the same page
@@ -864,6 +1018,41 @@ class ReportWidget extends Component
     public function markOpened(): void
     {
         app(FormOpenedAt::class)->stamp($this->anchorKey(), Carbon::now()->getTimestamp());
+    }
+
+    /**
+     * Anchor the time trap of an inline widget at the first focus into its form, where this
+     * session holds no anchor for it.
+     *
+     * An inline widget anchors itself at mount, and mount runs in the session that rendered the
+     * page. A page a full-page cache served was rendered for someone else, so the visitor's session
+     * holds no anchor, the trap refuses every submission from it as one that cannot say when its
+     * form was opened, and the visitor sees the decoy success while nothing arrives. The first
+     * focus is the earliest moment this session hears that the form is in use.
+     *
+     * It never moves an anchor that is there. Re-anchoring an inline widget under someone
+     * mid-sentence is what keeps the open listener modal-only, so a call over an existing anchor
+     * changes nothing, and a client calling it can do no more than its first focus would. A modal
+     * is anchored by markOpened() alone.
+     *
+     * Renderless, unlike markOpened(), and the difference is when each one runs. markOpened() runs
+     * as the panel opens, before the reporter does anything in it. This runs at the first focus,
+     * which is the moment the reporter starts to act, and a render then morphs the form under that
+     * first key or click: removing an attachment by keyboard in WebKit left the list empty and the
+     * focus on the body. The cost markOpened() avoids, a renderless call skipping the render of a
+     * call batched with it below Livewire 4.4.0, needs a second call in the same tick as the focus,
+     * and a focus and the action after it are two events.
+     */
+    #[Renderless]
+    public function markInlineOpened(): void
+    {
+        $anchors = app(FormOpenedAt::class);
+
+        if ($this->mode !== 'inline' || $anchors->for($this->anchorKey()) !== null) {
+            return;
+        }
+
+        $anchors->stamp($this->anchorKey(), Carbon::now()->getTimestamp());
     }
 
     /**
@@ -1039,6 +1228,16 @@ class ReportWidget extends Component
             $this->fieldEnabled('phone') ? $this->guestPhone : null,
         );
 
+        // A signed-in reporter in a widget that shows them the identity fields: the account stays
+        // the reporter, and a changed name or address is where the reply goes.
+        if (! $reporterDto->isGuest && $this->identityOfSignedIn()) {
+            $reporterDto = $reporterDto->withContact(
+                $this->fieldEnabled('name') ? $this->guestName : null,
+                $this->fieldEnabled('email') ? $this->guestEmail : null,
+                $this->fieldEnabled('phone') ? $this->guestPhone : null,
+            );
+        }
+
         // A guest must acknowledge the privacy notice, when one is configured, before submitting.
         //
         // Behind the switch for the "cache" half of that promise: `privacy.source = legal-consent`
@@ -1046,7 +1245,7 @@ class ReportWidget extends Component
         // package has no business reading anything. A guest who has not acknowledged gets the
         // operator's "the form is off" instead of a privacy error, which is the more accurate of
         // the two answers anyway — the acknowledgment is not what stopped the report.
-        if ($enabled && $reporterDto->isGuest && ! $this->privacyAcknowledged && app(PrivacyNotice::class)->required()) {
+        if ($enabled && ! $this->privacyAcknowledged && app(PrivacyNotice::class)->askedOf($reporterDto->isGuest, $this->instance)) {
             // Named like every other failure: it is a rejection the reporter can act on
             // immediately.
             $this->fail('privacy', (string) trans('visual-feedback::messages.validation.privacy_required'), invalid: true);
@@ -1080,7 +1279,7 @@ class ReportWidget extends Component
         // added after sanitization and off the client-controlled allowlist, so the browser cannot
         // put anything but `native` or `dom` there, and it only rides when a screenshot was
         // attached. Which of the two it says is still the browser's word, not a proof.
-        $metadata = app(MetadataSanitizer::class)->sanitize($this->metadata, request()->userAgent());
+        $metadata = app(MetadataSanitizer::class)->sanitize($this->metadata, request()->userAgent(), $this->urlQuery);
 
         if ($this->screenshot instanceof TemporaryUploadedFile && in_array($this->screenshotStage, ['native', 'dom'], true)) {
             $metadata['capture_method'] = $this->screenshotStage;
@@ -1103,8 +1302,8 @@ class ReportWidget extends Component
         // that reaches for a published document.
         //
         // Gated on the same condition that renders the notice, not on `$enabled` alone. It was
-        // the looser test, so an authenticated reporter — who is never shown the block, because
-        // `render()` asks for the wording behind `$isGuest && $privacyNoticeUrl !== null` — had
+        // the looser test, so an authenticated reporter — who is not shown the block where the
+        // widget asks guests only, because `render()` asks for the wording behind `$privacyAsked` — had
         // `privacy_notice_key/locale/version/fingerprint` merged into their report anyway. The
         // maintainer then read a provenance record for a notice nobody displayed, in the mail's
         // technical-details table, in the database row and in the webhook payload. A guest with
@@ -1112,7 +1311,7 @@ class ReportWidget extends Component
         //
         // Provenance for a document that was never on screen is worse than no provenance: it is
         // the one field on the report that claims to record what the reporter saw.
-        $metadata = $enabled && $reporterDto->isGuest && app(PrivacyNotice::class)->required()
+        $metadata = $enabled && app(PrivacyNotice::class)->askedOf($reporterDto->isGuest, $this->instance)
             ? array_merge($metadata, app(PrivacyNotice::class)->wording()?->toMetadata() ?? [])
             : $metadata;
 
@@ -1167,6 +1366,8 @@ class ReportWidget extends Component
             // measured on one clock: a moved test clock and the wall clock would disagree by the move.
             submittedAt: Carbon::now()->toImmutable(),
             challenge: $this->challenge,
+            widget: $this->instance,
+            widgetRateLimit: $this->rateLimit,
         );
         $floor = app(BuiltinAbuseGate::class);
 
@@ -1244,6 +1445,11 @@ class ReportWidget extends Component
                 'email' => $this->fieldMode('email'),
                 'phone' => $this->fieldMode('phone'),
             ],
+            instance: $this->instance,
+            messageMaxLength: $this->messageMaxLength,
+            rateLimit: $this->rateLimit,
+            categoryLabel: $this->texts['category'] ?? null,
+            identityOfSignedIn: ! $reporterDto->isGuest && $this->identityOfSignedIn(),
         ));
 
         // Reclaim the files of a submission that produced no report.
@@ -1271,13 +1477,44 @@ class ReportWidget extends Component
 
         $this->fail(
             $failure instanceof ValidationFailure ? self::FIELD_OF_KEY[$failure->field] ?? 'message' : ('message'),
-            $failure?->message,
+            $failure->message ?? $this->refusalLine($result),
             // Only a real validation rejection marks a control invalid. `Disabled` fabricates a
             // failure on `message` to carry the operator's line, and a rate limit or a listener
             // veto name no field at all -- all three land on the message box as a focus target,
             // and none of them means the reporter typed something wrong.
             invalid: $result->rejectionReason === RejectionReason::Validation,
         );
+    }
+
+    /**
+     * The sentence for a refusal the pipeline gave no words to: a rate limit says when the reporter
+     * may send again, a failed challenge says to try it again, and anything else is this widget's
+     * own failure line where it has one, or null for the catalog's.
+     *
+     * The minutes are rounded up, so the sentence never names a moment before the pot is free.
+     */
+    private function refusalLine(SubmissionResult $result): ?string
+    {
+        return match ($result->rejectionReason) {
+            RejectionReason::RateLimited, RejectionReason::GlobalRateLimited => WidgetTexts::line(
+                $this->texts,
+                'rate_limited',
+                ['minutes' => max(1, (int) ceil(($result->retryAfter ?? 3600) / 60))],
+            ),
+            RejectionReason::ChallengeFailed => WidgetTexts::line($this->texts, 'challenge_failed'),
+            default => $this->texts['error'] ?? null,
+        };
+    }
+
+    /**
+     * The longest message this widget accepts: its own length where it asks for less than the
+     * configuration, otherwise the configured one. SubmitReport reads the same pair.
+     */
+    private function messageMaxLengthHere(): int
+    {
+        $configured = is_numeric($max = config('visual-feedback.fields.message.max_length')) ? (int) $max : 50_000;
+
+        return $this->messageMaxLength !== null ? min($configured, $this->messageMaxLength) : $configured;
     }
 
     /** The attachment caps as one sentence, pluralized on the file count. */
@@ -1315,7 +1552,7 @@ class ReportWidget extends Component
             'phone' => (string) trans('visual-feedback::messages.widget.help.phone', ['max' => $limit('phone', 32)]),
             'category' => (string) trans('visual-feedback::messages.widget.help.category'),
             'subject' => (string) trans('visual-feedback::messages.widget.help.subject', ['max' => $limit('subject', 150)]),
-            'message' => (string) trans('visual-feedback::messages.widget.help.message', ['max' => $limit('message', 50_000)]),
+            'message' => (string) trans('visual-feedback::messages.widget.help.message', ['max' => number_format($this->messageMaxLengthHere(), 0, '', $separator)]),
             'attachments' => (string) trans('visual-feedback::messages.widget.help.attachments'),
         ];
     }
@@ -1407,7 +1644,8 @@ class ReportWidget extends Component
     {
         $this->failed = true;
         $this->failedField = $field;
-        $this->failedMessage = $message;
+        // The widget's own failure line stands in for the catalog's, which the views fall back to.
+        $this->failedMessage = $message ?? ($this->texts['error'] ?? null);
         $this->failedFieldInvalid = $invalid;
         $this->failureCount++;
     }
@@ -1782,14 +2020,16 @@ class ReportWidget extends Component
         }
 
         // Resolved once, because both are asked twice below and the second question is expensive.
-        // Together they are the condition both view trees put the whole privacy block behind
-        // (`@if ($showGuestFields && $privacyNoticeUrl)`), and the wording lookup underneath it can
-        // be a database read: with `privacy.source = legal-consent` the bridge asks legal-consent for
-        // the published version, which legal-consent answers from its own cache once it has read it.
-        // An authenticated reporter never sees the block, so the condition is evaluated here instead
-        // of paying even that for a value the templates will discard.
+        // Whether this reporter is asked for the privacy acknowledgment is the condition both view
+        // trees put the whole privacy block behind (`@if ($privacyAsked)`), and the wording lookup
+        // underneath it can be a database read: with `privacy.source = legal-consent` the bridge asks
+        // legal-consent for the published version, which legal-consent answers from its own cache
+        // once it has read it. A reporter the widget does not ask never sees the block, so the
+        // condition is evaluated here instead of paying even that for a value the templates discard.
         $isGuest = app(ResolvesReporter::class)->resolve()->isGuest;
-        $privacyNoticeUrl = app(PrivacyNotice::class)->url();
+        $privacy = app(PrivacyNotice::class);
+        $privacyAsked = $privacy->askedOf($isGuest, $this->instance);
+        $privacyNoticeUrl = $privacyAsked ? $privacy->url() : null;
         $requiredFields = array_values(array_filter(
             ['subject', 'name', 'email', 'phone'],
             fn (string $field): bool => $this->fieldMode($field) === Settings::FIELD_REQUIRED,
@@ -1820,12 +2060,12 @@ class ReportWidget extends Component
             // decided by the same resolver the submission uses, so the two never disagree.
             // The block itself renders while any of the three is on; each one then decides
             // for itself, so a host who wants only an email box gets only an email box.
-            'showGuestFields' => $isGuest && ($this->fieldEnabled('name') || $this->fieldEnabled('email') || $this->fieldEnabled('phone')),
+            'showGuestFields' => ($isGuest || $this->identityOfSignedIn()) && ($this->fieldEnabled('name') || $this->fieldEnabled('email') || $this->fieldEnabled('phone')),
             // Every field answers the same question in the same vocabulary — see Settings.
             'showSubject' => $this->fieldEnabled('subject'),
-            'showName' => $this->fieldEnabled('name') && $isGuest,
-            'showEmail' => $this->fieldEnabled('email') && $isGuest,
-            'showPhone' => $this->fieldEnabled('phone') && $isGuest,
+            'showName' => $this->fieldEnabled('name') && ($isGuest || $this->identityOfSignedIn()),
+            'showEmail' => $this->fieldEnabled('email') && ($isGuest || $this->identityOfSignedIn()),
+            'showPhone' => $this->fieldEnabled('phone') && ($isGuest || $this->identityOfSignedIn()),
             // Passed to the templates so a required field can be marked as one in the markup.
             // A form that demands a value without saying so is the accessibility failure this
             // package would otherwise have shipped along with the new `required` mode.
@@ -1833,10 +2073,15 @@ class ReportWidget extends Component
             // The labels of those four fields, built once for both trees: an optional one says so,
             // a required one drops the note and gets the star.
             'fieldLabels' => $this->fieldLabels($requiredFields),
-            // The privacy notice URL a guest must acknowledge, or null when none is set. This one
-            // value decides both whether the block renders and whether submit() demands the tick —
-            // see PrivacyNotice::required().
+            // Whether this reporter acknowledges the notice here, the one condition the block renders
+            // behind and submit() demands the tick on: PrivacyNotice::askedOf(). A guest is asked
+            // wherever a notice is there, a signed-in reporter where the widget asks everyone.
+            'privacyAsked' => $privacyAsked,
+            // The page of the notice, linked from the sentence, or null.
             'privacyNoticeUrl' => $privacyNoticeUrl,
+            // The text of the notice, which the form shows beside the checkbox, or null. The host's
+            // own markup, rendered as it is: it never carries what a reporter typed.
+            'privacyNoticeContent' => $privacyAsked ? $privacy->content($this->instance)?->toHtml() : null,
             // The sentence for that checkbox when the source supplies one (the legal-consent
             // bridge hands over the published acknowledgment wording), else null and the views
             // fall back to this package's own lang line. Plain text, escaped by the templates:
@@ -1847,10 +2092,17 @@ class ReportWidget extends Component
             // for a guest-only checkbox. Written on one line deliberately: a `: null,` on a line of
             // its own compiles to no opcode, so a coverage driver never records it while PHPUnit
             // counts it as executable.
-            'privacyNoticeWording' => $isGuest && $privacyNoticeUrl !== null ? app(PrivacyNotice::class)->wording()?->text : null,
+            'privacyNoticeWording' => $privacyAsked ? $privacy->wording()?->text : null,
             // Max message length for the live counter. Code points here match the
             // server's mb_strlen-based validation, so the two never disagree.
-            'messageMax' => is_numeric($max = config('visual-feedback.fields.message.max_length')) ? (int) $max : 50_000,
+            'messageMax' => $this->messageMaxLengthHere(),
+            // The four texts the views print, in this widget's words where it has them.
+            'widgetTexts' => [
+                'heading' => WidgetTexts::line($this->texts, 'heading'),
+                'submit' => WidgetTexts::line($this->texts, 'submit'),
+                'success' => WidgetTexts::line($this->texts, 'success'),
+                'category' => WidgetTexts::line($this->texts, 'category'),
+            ],
             // FAB corner for the built-in modal trigger. Passed through as configured, because the
             // fab component resolves it and a copy published before the logical corners only knows
             // the physical spellings. The fallback is spelled physically for that copy's sake; it
@@ -1961,5 +2213,15 @@ class ReportWidget extends Component
     private function fieldEnabled(string $field): bool
     {
         return $this->fieldMode($field) !== Settings::FIELD_OFF;
+    }
+
+    /**
+     * Whether this widget shows a signed-in reporter the identity fields as well, as a contact form
+     * does: `fields: ['signed_in' => true]`. The prop is sealed with the others, so a client cannot
+     * turn it on.
+     */
+    private function identityOfSignedIn(): bool
+    {
+        return ($this->fields['signed_in'] ?? null) === true;
     }
 }

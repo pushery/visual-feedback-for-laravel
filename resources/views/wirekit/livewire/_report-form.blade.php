@@ -40,7 +40,7 @@
              exists at all: a live region must be in the DOM before its content changes, and
              this alert only exists once `$submitted` is true. Same at all six sites, and the
              suite holds it: one live role per region. --}}
-        <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success">{{ __('visual-feedback::messages.widget.success') }}</x-wirekit::alert>
+        <x-wirekit::alert intent="success" role="presentation" class="visual-feedback-success">{{ $widgetTexts['success'] }}</x-wirekit::alert>
         {{-- Two ways out of the success screen, and the order is the decision.
 
              "Send another" comes first because focus is moved to it: a reporter who just sent
@@ -89,7 +89,7 @@
         @unless ($headingInHeader ?? false)
             {{-- The kit's heading, because a bare <h2> here took whatever the host left it: in a
                  Tailwind host, card text in size and weight. The modal header styles its own. --}}
-            <x-wirekit::heading level="2" id="visual-feedback-heading" tabindex="-1">{{ __('visual-feedback::messages.widget.heading') }}</x-wirekit::heading>
+            <x-wirekit::heading level="2" id="visual-feedback-heading" tabindex="-1">{{ $widgetTexts['heading'] }}</x-wirekit::heading>
         @endunless
 
         {{-- The host's own sentence, as text, which the modal names as its description. --}}
@@ -162,7 +162,7 @@
              by one name regardless of which view tree is published. --}}
         <x-wirekit::select
             id="visual-feedback-category" :error="$vfInvalidField === 'category' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
-            :label="__('visual-feedback::messages.widget.category_label')" :help="$fieldHelp['category']"
+            :label="$widgetTexts['category']" :help="$fieldHelp['category']"
             {{-- Required because the server says so, not because the form looks better with a
                  star: `SubmitReport` validates `category` as `required` unconditionally, so a
                  reporter who leaves it alone is rejected either way. It is not in
@@ -469,7 +469,16 @@
             @endif
         </div>
 
-        @if ($showGuestFields && $privacyNoticeUrl)
+        @if ($privacyAsked)
+            @if ($privacyNoticeContent !== null)
+                {{-- The notice itself, where the source hands it over, readable before the box is
+                     ticked and without leaving the form. A collapsible rather than a second dialog
+                     inside the dialog, so no focus trap stacks on the widget's own. The host's own
+                     markup, never what a reporter typed. --}}
+                <x-wirekit::collapsible :trigger="__('visual-feedback::messages.widget.privacy_read')" class="visual-feedback-privacy-notice">
+                    <div class="visual-feedback-privacy-notice-text">{!! $privacyNoticeContent !!}</div>
+                </x-wirekit::collapsible>
+            @endif
             {{-- The sentence is the link, as in the plain tree: the notice opens in a new tab from
                  the words that acknowledge it, and there is no second line for it. A click on the
                  link does not tick the box, because a link inside a label runs no label
@@ -483,7 +492,11 @@
                 id="visual-feedback-privacy" :error="$vfInvalidField === 'privacy' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
                 wire:model="privacyAcknowledged"
                 required>
-                <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">{{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</a>
+                @if ($privacyNoticeUrl !== null)
+                    <a href="{{ $privacyNoticeUrl }}" target="_blank" rel="noopener noreferrer">{{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</a>
+                @else
+                    {{ $privacyNoticeWording ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}
+                @endif
             </x-wirekit::checkbox>
         @endif
 
@@ -506,7 +519,7 @@
         </p>
 
         <x-wirekit::button type="submit" class="visual-feedback-submit" intent="primary">
-            {{ __('visual-feedback::messages.widget.submit') }}
+            {{ $widgetTexts['submit'] }}
         </x-wirekit::button>
     </form>
 @endunless

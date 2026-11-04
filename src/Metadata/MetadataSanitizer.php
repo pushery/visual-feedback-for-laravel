@@ -48,9 +48,11 @@ final readonly class MetadataSanitizer
     /**
      * @param  array<string, mixed>  $raw  untrusted, client-collected metadata
      * @param  string|null  $serverUserAgent  the request's own user agent; overrides the client's when the key is allowed
+     * @param  ?bool  $urlQuery  whether the query of `url` is kept, as the widget's sealed `urlQuery`
+     *                           says; null leaves it to `metadata.url_query`
      * @return array<string, scalar|null>
      */
-    public function sanitize(array $raw, ?string $serverUserAgent = null): array
+    public function sanitize(array $raw, ?string $serverUserAgent = null, ?bool $urlQuery = null): array
     {
         $maxLength = $this->configInt('visual-feedback.metadata.max_value_length', 2_000);
         $userAgentMax = $this->configInt('visual-feedback.metadata.user_agent_max', 512);
@@ -129,7 +131,7 @@ final readonly class MetadataSanitizer
                 }
 
                 if ($key === 'url') {
-                    $value = $this->reportedUrl($value);
+                    $value = $this->reportedUrl($value, $urlQuery);
 
                     if ($value === null) {
                         continue;
@@ -188,10 +190,11 @@ final readonly class MetadataSanitizer
      * from, and its token resets the account for anybody who reads the report. So each segment a
      * route in `metadata.url_token_paths` marks with `*` becomes `{token}`, wherever the route sits
      * in the path, behind a locale or a mount prefix too. The fragment and any user info always go.
-     * The query goes unless `metadata.url_query` is on: a signed URL, an `?email=` and a search
-     * term live there.
+     * The query goes unless `metadata.url_query` is on, or the widget's own `urlQuery` says to keep
+     * it: a signed URL, an `?email=` and a search term live there, and on a page whose filters are
+     * its query it is also the state a report is about.
      */
-    private function reportedUrl(string $value): ?string
+    private function reportedUrl(string $value, ?bool $urlQuery = null): ?string
     {
         $parts = parse_url($value);
         $host = is_array($parts) ? ($parts['host'] ?? null) : null;
@@ -201,7 +204,7 @@ final readonly class MetadataSanitizer
         }
 
         $query = (string) ($parts['query'] ?? '');
-        $keepsQuery = filter_var($this->config->get('visual-feedback.metadata.url_query', false), FILTER_VALIDATE_BOOLEAN);
+        $keepsQuery = $urlQuery ?? filter_var($this->config->get('visual-feedback.metadata.url_query', false), FILTER_VALIDATE_BOOLEAN);
 
         return strtolower((string) ($parts['scheme'] ?? 'https')).'://'.$host
             .(isset($parts['port']) ? ':'.$parts['port'] : '')

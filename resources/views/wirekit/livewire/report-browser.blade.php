@@ -13,8 +13,11 @@
     {{-- Kit components carry no outer margin, so each group of them sits in a stack, which is what
          spaces them: the page's sections here, the filter fields and the parts of the detail below. --}}
     <x-wirekit::stack gap="lg">
-        {{-- The page's one h1, as in the plain tree: the host layout brings none of its own. --}}
-        <x-wirekit::heading level="1">{{ __('visual-feedback::browser.title') }}</x-wirekit::heading>
+        {{-- The page's one h1, as in the plain tree, where the host layout brings none of its own;
+             at the level the host names with `heading-level`, or none with 0, where it does. --}}
+        @if ($headingLevel > 0)
+            <x-wirekit::heading :level="$headingLevel">{{ __('visual-feedback::browser.title') }}</x-wirekit::heading>
+        @endif
 
         @if ($deleteFailed)
             <x-wirekit::alert intent="danger">{{ __('visual-feedback::browser.delete_failed') }}</x-wirekit::alert>
@@ -24,50 +27,59 @@
             {{-- level 2: the kit titles an empty state h3 unless told, and directly under the page's
                  h1 that reads as a skipped section to anyone moving by heading. --}}
             <x-wirekit::empty-state
-                :level="2"
+                :level="$sectionLevel"
                 :title="__('visual-feedback::browser.no_table_title')"
                 :description="__('visual-feedback::browser.no_table')"
             />
         @else
             <x-wirekit::card>
                 <x-wirekit::card.body>
+                    {{-- Two filters to a row where both stay readable, mode beside category and from
+                         beside until, each label, control and message on one line with its neighbor's;
+                         under each other on a phone. The reset at its own width. --}}
                     <x-wirekit::stack>
-                        <x-wirekit::select wire:model.live="filterMode" :label="__('visual-feedback::browser.filter_mode')">
-                            <option value="">{{ __('visual-feedback::browser.any') }}</option>
-                            @foreach ($modes as $mode)
-                                <option value="{{ $mode }}">{{ $mode }}</option>
-                            @endforeach
-                        </x-wirekit::select>
+                        <x-wirekit::row gap="sm" align-fields wrap>
+                            <x-wirekit::select wire:model.live="filterMode" :label="__('visual-feedback::browser.filter_mode')">
+                                <option value="">{{ __('visual-feedback::browser.any') }}</option>
+                                @foreach ($modes as $mode)
+                                    <option value="{{ $mode }}">{{ $mode }}</option>
+                                @endforeach
+                            </x-wirekit::select>
 
-                        <x-wirekit::select wire:model.live="filterCategory" :label="__('visual-feedback::browser.filter_category')">
-                            <option value="">{{ __('visual-feedback::browser.any') }}</option>
-                            @foreach ($categories as $category)
-                                <option value="{{ $category }}">{{ $category }}</option>
-                            @endforeach
-                        </x-wirekit::select>
+                            <x-wirekit::select wire:model.live="filterCategory" :label="__('visual-feedback::browser.filter_category')">
+                                <option value="">{{ __('visual-feedback::browser.any') }}</option>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category }}">{{ $category }}</option>
+                                @endforeach
+                            </x-wirekit::select>
+                        </x-wirekit::row>
 
-                        <x-wirekit::input
-                            type="date"
-                            wire:model.live="filterFrom"
-                            :label="__('visual-feedback::browser.filter_from')"
-                        />
+                        <x-wirekit::row gap="sm" align-fields wrap>
+                            <x-wirekit::input
+                                type="date"
+                                wire:model.live="filterFrom"
+                                :label="__('visual-feedback::browser.filter_from')"
+                            />
 
-                        <x-wirekit::input
-                            type="date"
-                            wire:model.live="filterTo"
-                            :label="__('visual-feedback::browser.filter_to')"
-                        />
+                            <x-wirekit::input
+                                type="date"
+                                wire:model.live="filterTo"
+                                :label="__('visual-feedback::browser.filter_to')"
+                            />
+                        </x-wirekit::row>
 
-                        <x-wirekit::button surface="soft" intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
-                            {{ __('visual-feedback::browser.clear') }}
-                        </x-wirekit::button>
+                        <x-wirekit::row>
+                            <x-wirekit::button surface="soft" intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
+                                {{ __('visual-feedback::browser.clear') }}
+                            </x-wirekit::button>
+                        </x-wirekit::row>
                     </x-wirekit::stack>
                 </x-wirekit::card.body>
             </x-wirekit::card>
 
             @if ($reports !== null && $reports->total() === 0)
                 <x-wirekit::empty-state
-                    :level="2"
+                    :level="$sectionLevel"
                     :title="__('visual-feedback::browser.none_title')"
                     :description="__('visual-feedback::browser.none')"
                 />
@@ -97,7 +109,7 @@
                                 <x-wirekit::table.td>{{ $report->mode }}</x-wirekit::table.td>
                                 <x-wirekit::table.td>{{ $report->category }}</x-wirekit::table.td>
                                 <x-wirekit::table.td>{{ $report->subject ?: '—' }}</x-wirekit::table.td>
-                                <x-wirekit::table.td>
+                                <x-wirekit::table.td :attributes="$redact">
                                     {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                                 </x-wirekit::table.td>
                                 <x-wirekit::table.td align="right">
@@ -141,7 +153,7 @@
                 <x-wirekit::card>
                     {{-- An h2, as in the plain tree, at the size the card header gives its text. --}}
                     <x-wirekit::card.header>
-                        <x-wirekit::heading level="2" size="lg">{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</x-wirekit::heading>
+                        <x-wirekit::heading :level="$sectionLevel" size="lg">{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</x-wirekit::heading>
                     </x-wirekit::card.header>
 
                     <x-wirekit::card.body>
@@ -157,17 +169,20 @@
                                     {{ $detail->category }}
                                 </x-wirekit::data-list.item>
                                 <x-wirekit::data-list.item :label="__('visual-feedback::browser.col_reporter')">
-                                    {{ $detail->reporter_name ?: __('visual-feedback::browser.guest') }}
-                                    @if ($detail->reporter_email)
-                                        &lt;{{ $detail->reporter_email }}&gt;
-                                    @endif
+                                    {{-- On the value, not on the item, so the label stays readable in a screenshot. --}}
+                                    <span {{ $redact }}>
+                                        {{ $detail->reporter_name ?: __('visual-feedback::browser.guest') }}
+                                        @if ($detail->reporter_email)
+                                            &lt;{{ $detail->reporter_email }}&gt;
+                                        @endif
+                                    </span>
                                 </x-wirekit::data-list.item>
                             </x-wirekit::data-list>
 
                             {{-- The class carries `white-space: pre-wrap` from the stylesheet's WireKit block:
                                  the kit's text component collapses white space, and a reporter's numbered
                                  steps would read as one paragraph. --}}
-                            <x-wirekit::text class="visual-feedback-browser-message">{{ $detail->message }}</x-wirekit::text>
+                            <x-wirekit::text class="visual-feedback-browser-message" :attributes="$redact">{{ $detail->message }}</x-wirekit::text>
 
                             @foreach ($attachments as $attachment)
                                 {{-- `thumbnail` only when the disk can actually give a URL. On a private

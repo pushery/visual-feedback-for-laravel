@@ -15,7 +15,7 @@
       notice — a sentence of the host's above the fields, such as who reads a report; rendered as text and named by
                the dialog's aria-describedby. None by default.
 --}}
-@props(['position' => null, 'notice' => null])
+@props(['position' => null, 'notice' => null, 'instance' => null])
 @php
     $vfSettings = app(\Pushery\VisualFeedback\Support\Settings::class);
     $vfAvailable = $vfSettings->enabled() && ! $vfSettings->requiresAuthentication();
@@ -47,6 +47,7 @@
 
     $vfPrivacy = app(\Pushery\VisualFeedback\Privacy\PrivacyNotice::class);
     $vfPrivacyUrl = $vfPrivacy->url();
+    $vfPrivacyContent = $vfPrivacy->content()?->toHtml();
     $vfPolicy = app(\Pushery\VisualFeedback\Attachments\AttachmentPolicy::class);
     $vfCaptureConfig = \Pushery\VisualFeedback\Support\ClientConfig::screenshot();
     $vfChallengeView = $vfSettings->challengeView();
@@ -60,10 +61,13 @@
 <div
     x-data="visualFeedbackStandalone()"
     data-visual-feedback-standalone="{{ json_encode($vfEndpoints, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) }}"
-    x-on:visual-feedback:open.window="vfOpen()"
+    x-on:visual-feedback:open.window="vfOpen($event)"
+    @if (\Pushery\VisualFeedback\Support\WidgetInstance::name($instance) !== null)
+        data-visual-feedback-instance="{{ \Pushery\VisualFeedback\Support\WidgetInstance::name($instance) }}"
+    @endif
 >
     @if (config('visual-feedback.ui.trigger') !== 'none')
-        <x-visual-feedback::fab :position="$position ?? (is_string($vfPosition = config('visual-feedback.ui.position')) ? $vfPosition : 'bottom-end')" />
+        <x-visual-feedback::fab :position="$position ?? (is_string($vfPosition = config('visual-feedback.ui.position')) ? $vfPosition : 'bottom-end')" :instance="$instance" />
     @endif
 
     <dialog x-ref="dialog" class="visual-feedback-dialog" aria-label="{{ __('visual-feedback::messages.widget.heading') }}" @if ($vfNotice !== null) aria-describedby="visual-feedback-notice" @endif>
@@ -213,11 +217,22 @@
             <div class="visual-feedback-error visual-feedback-alert" :class="{ 'visual-feedback-alert--shown': vfFailureCount > 0 }"
                 id="visual-feedback-error" role="alert" aria-live="assertive" x-text="vfFailure"></div>
 
-            @if ($vfPrivacyUrl)
+            @if ($vfPrivacyUrl !== null || $vfPrivacyContent !== null)
+                @if ($vfPrivacyContent !== null)
+                    {{-- The notice itself, where the source hands it over. The host's own markup. --}}
+                    <details class="visual-feedback-privacy-notice">
+                        <summary>{{ __('visual-feedback::messages.widget.privacy_read') }}</summary>
+                        <div class="visual-feedback-privacy-notice-text">{!! $vfPrivacyContent !!}</div>
+                    </details>
+                @endif
                 <label class="visual-feedback-privacy" for="visual-feedback-privacy">
                     <input id="visual-feedback-privacy" type="checkbox" name="privacy" value="1" required
                         :aria-invalid="vfInvalid('privacy')" :aria-describedby="vfDescribedBy('privacy')">
-                    <a href="{{ $vfPrivacyUrl }}" target="_blank" rel="noopener noreferrer">{{ $vfPrivacy->wording()?->text ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</a>
+                    @if ($vfPrivacyUrl !== null)
+                        <a href="{{ $vfPrivacyUrl }}" target="_blank" rel="noopener noreferrer">{{ $vfPrivacy->wording()?->text ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</a>
+                    @else
+                        <span>{{ $vfPrivacy->wording()?->text ?? __('visual-feedback::messages.widget.privacy_acknowledge') }}</span>
+                    @endif
                     <span class="visual-feedback-required-mark" aria-hidden="true">*</span>
                 </label>
             @endif

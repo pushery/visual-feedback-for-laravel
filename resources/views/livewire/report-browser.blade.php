@@ -13,7 +13,11 @@
          carries no h1 because every page brings its own, so without this line the page would
          have no first heading at all and a screen reader navigating by heading would find no
          topic. --}}
-    <h1 class="visual-feedback-browser-title">{{ __('visual-feedback::browser.title') }}</h1>
+    {{-- At the level the host names with `heading-level`, or none with 0, for a host page with a
+         title of its own: two h1 on one page are two topics. --}}
+    @if ($headingLevel > 0)
+        <h{{ $headingLevel }} class="visual-feedback-browser-title">{{ __('visual-feedback::browser.title') }}</h{{ $headingLevel }}>
+    @endif
     @if ($deleteFailed)
         <p class="visual-feedback-browser-error" role="alert">{{ __('visual-feedback::browser.delete_failed') }}</p>
     @endif
@@ -86,7 +90,7 @@
                                 <td>{{ $report->subject ?: '—' }}</td>
                                 {{-- A guest with no name is the shipped default, so the fallback is
                                      the normal case rather than a defect. --}}
-                                <td>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
+                                <td {{ $redact }}>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
                                 <td class="visual-feedback-browser-actions">
                                     <button type="button" wire:click="open('{{ $report->uuid }}')" wire:loading.attr="disabled" wire:target="open('{{ $report->uuid }}')">
                                         {{ __('visual-feedback::browser.open') }}
@@ -126,7 +130,7 @@
         @if ($detail !== null)
             <section class="visual-feedback-browser-detail" aria-label="{{ __('visual-feedback::browser.detail') }}">
                 <header>
-                    <h2>{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</h2>
+                    <h{{ $sectionLevel }}>{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</h{{ $sectionLevel }}>
                     <button type="button" wire:click="close" wire:loading.attr="disabled" wire:target="close">{{ __('visual-feedback::browser.close') }}</button>
                 </header>
 
@@ -135,7 +139,7 @@
                     <dt>{{ __('visual-feedback::browser.col_mode') }}</dt><dd>{{ $detail->mode }}</dd>
                     <dt>{{ __('visual-feedback::browser.col_category') }}</dt><dd>{{ $detail->category }}</dd>
                     <dt>{{ __('visual-feedback::browser.col_reporter') }}</dt>
-                    <dd>
+                    <dd {{ $redact }}>
                         {{ $detail->reporter_name ?: __('visual-feedback::browser.guest') }}
                         @if ($detail->reporter_email)
                             &lt;{{ $detail->reporter_email }}&gt;
@@ -143,7 +147,7 @@
                     </dd>
                 </dl>
 
-                <p class="visual-feedback-browser-message">{{ $detail->message }}</p>
+                <p class="visual-feedback-browser-message" {{ $redact }}>{{ $detail->message }}</p>
 
                 @foreach ($attachments as $attachment)
                     <figure class="visual-feedback-browser-attachment">
