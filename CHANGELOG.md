@@ -4,6 +4,14 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.25.1] - 2026-11-04
+
+### 🐛 Fixed
+
+- **The report browser marks the subject of a report for the screenshot redactor.** The subject in the list and the title of an open report carry `screenshot.redact_attribute` now, in both trees, as the name, the address and the message do since 0.25.0. A reporter writes the subject as freely as the message, guests among them, so a report filed from the browser in a host's console carried the subjects of the listed reports in its screenshot.
+
+  **Upgrade:** a host that published the report browser's views publishes them again, or puts `$redact` on the subject cell of the list and on the title of the detail the way the shipped views do.
+
 ## [0.25.0] - 2026-11-04
 
 ### ✨ Added
@@ -1388,7 +1396,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.0...v0.24.1

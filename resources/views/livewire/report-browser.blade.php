@@ -87,7 +87,7 @@
                                 <td>{{ $report->created_at }}</td>
                                 <td>{{ $report->mode }}</td>
                                 <td>{{ $report->category }}</td>
-                                <td>{{ $report->subject ?: '—' }}</td>
+                                <td {{ $redact }}>{{ $report->subject ?: '—' }}</td>
                                 {{-- A guest with no name is the shipped default, so the fallback is
                                      the normal case rather than a defect. --}}
                                 <td {{ $redact }}>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
@@ -130,7 +130,7 @@
         @if ($detail !== null)
             <section class="visual-feedback-browser-detail" aria-label="{{ __('visual-feedback::browser.detail') }}">
                 <header>
-                    <h{{ $sectionLevel }}>{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</h{{ $sectionLevel }}>
+                    <h{{ $sectionLevel }} {{ $redact }}>{{ $detail->subject ?: __('visual-feedback::browser.untitled') }}</h{{ $sectionLevel }}>
                     <button type="button" wire:click="close" wire:loading.attr="disabled" wire:target="close">{{ __('visual-feedback::browser.close') }}</button>
                 </header>
 
