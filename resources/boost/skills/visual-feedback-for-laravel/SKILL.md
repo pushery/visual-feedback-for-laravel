@@ -393,6 +393,12 @@ inline SVG, a video, an iframe, a checkbox or a custom element:
 </div>
 ```
 
+A password field needs no marker, also once a show-password toggle such as WireKit's has switched
+it to `text`: the DOM stage draws it with bullets and the native stage covers it. That holds for a
+field whose `type` left `password` after the page loaded and for one whose `autocomplete` is
+`current-password` or `new-password`. A secret in a field that never was a password field, an API
+key in a plain text input, needs the marker.
+
 ### 7. Know the capture limits that touch design work
 
 The DOM stage reconstructs the page rather than photographing it, so a few deviations are worth

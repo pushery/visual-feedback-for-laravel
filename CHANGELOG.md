@@ -4,6 +4,20 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.26.0] - 2026-11-04
+
+### 🔧 Changed
+
+- **`connection_type` is no longer collected unless an application adds it.** 0.25.0 put it on the shipped `metadata.collect`, so an application without a published `config/visual-feedback.php` began storing the connection type of every report with that update, while the upgrade note spoke only to applications that had published the file. A report from a signed-in member carries the account, which makes the connection type personal data, and the shipped list holds what a bug report needs. The widget still sends it, and the server keeps it where `metadata.collect` names it.
+
+  **Upgrade:** an application that relies on `connection_type` adds it to `metadata.collect`, in a published `config/visual-feedback.php` or with `config()->push('visual-feedback.metadata.collect', 'connection_type')` in the `boot` method of a service provider, and names it in its privacy notice. See [The connection type is opt-in](https://docs.pushery.com/visual-feedback-for-laravel/privacy-and-retention#the-connection-type-is-opt-in).
+
+### 🔒 Security
+
+- **A password field that a show-password toggle has revealed stays masked in a screenshot.** The DOM stage drew an input's value as bullets only while its `type` was `password`, so a field that WireKit's `x-wirekit::password-input` or any other toggle had switched to `text` appeared in the screenshot as typed, and the marker was the only way to keep it out. The capture now treats such a field as the masked one it was, where its `type` left `password` after the page loaded or its `autocomplete` is `current-password` or `new-password`: the DOM stage draws it with bullets, and the native stage covers it with a black box. A secret in a field that never was a password field still needs `data-visual-feedback-redact`.
+
+  **Upgrade:** nothing to do.
+
 ## [0.25.1] - 2026-11-04
 
 ### 🐛 Fixed
@@ -1396,7 +1410,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.1...v0.24.2
