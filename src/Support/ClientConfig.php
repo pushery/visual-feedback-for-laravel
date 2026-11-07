@@ -10,7 +10,8 @@ namespace Pushery\VisualFeedback\Support;
  * to, dark-mode fallback, the capture strategy and the redaction attribute). Both the widget's per-instance Alpine config
  * and the global `<x-visual-feedback::scripts>` config island read from here, so the two can
  * never drift. Every value is guarded to a safe default, since a mistyped config must not
- * reach the client as an array or null.
+ * reach the client as an array or null. The island also carries the metadata fields the widget
+ * measures.
  */
 final class ClientConfig
 {
@@ -76,5 +77,19 @@ final class ClientConfig
         return is_string($configured) && preg_match('/^[A-Za-z_:][A-Za-z0-9_.:-]*$/', $configured) === 1
             ? $configured
             : self::DEFAULT_REDACT_ATTRIBUTE;
+    }
+
+    /**
+     * The metadata fields the widget measures and sends: `metadata.collect`, read the way the
+     * server's sanitizer reads it, so a field the server would drop never leaves the browser. The
+     * sanitizer still filters what arrives, for a page that renders no island.
+     *
+     * @return list<string>
+     */
+    public static function collectedMetadata(): array
+    {
+        $configured = config('visual-feedback.metadata.collect');
+
+        return array_values(array_filter(is_array($configured) ? $configured : [], is_string(...)));
     }
 }

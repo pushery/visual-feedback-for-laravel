@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.27.0] - 2026-11-07
+
+### 🔧 Changed
+
+- **The widget reads and sends only the metadata fields `metadata.collect` names.** It measured every field of its own list and sent them with each request of the component, and only the server dropped what the list leaves out, so a field an application had taken out of the list still left the browser. The config island of `<x-visual-feedback::scripts>` now carries the list, and the widget reads nothing else. The server keeps filtering what arrives.
+
+  **Upgrade:** nothing to do for an application that has not published the views. One that has publishes them again with `php artisan vendor:publish --tag=visual-feedback-views --force`: a published `scripts` component carries no list, and until it is published again the widget reads every field as before while the server keeps the listed ones.
+
+### 🐛 Fixed
+
+- **A screenshot whose only content is fine detail is no longer refused as blank.** The check for a blank capture looked at every eighth pixel in each direction, so a one-pixel border and the dots of a password field could sit wholly between the pixels it looked at, and a capture that held nothing else failed with `capture produced a blank image`. A capture whose sampled pixels are all blank is now read in full before it counts as blank.
+
 ## [0.26.0] - 2026-11-04
 
 ### 🔧 Changed
@@ -1410,7 +1422,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.24.2...v0.25.0

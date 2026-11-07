@@ -300,7 +300,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Browser/environment metadata collected with the report. Freshly measured
-    | client-side and re-validated server-side. Trim `collect` to only what you need.
+    | client-side and re-validated server-side. Trim `collect` to only what you need:
+    | the widget reads and sends only the fields it names.
     |
     | No raw IP address is ever stored, and none reaches the report, this metadata,
     | the database or any channel — the optional migration ships no `ip_address`

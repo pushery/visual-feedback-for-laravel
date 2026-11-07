@@ -38,6 +38,7 @@
     $clientConfig = [
         'locale' => app()->getLocale(),
         'screenshot' => \Pushery\VisualFeedback\Support\ClientConfig::screenshot(),
+        'metadata' => ['collect' => \Pushery\VisualFeedback\Support\ClientConfig::collectedMetadata()],
     ];
 
     // A cache-busting token, so a `vendor:publish --force` after an upgrade is not served out of a
