@@ -386,7 +386,7 @@
             :label="__('visual-feedback::messages.widget.attachments_label')" :help="$fieldHelp['attachments']" />
 
         @if (count($attachments) > 0)
-            <ul class="visual-feedback-file-list" aria-live="polite">
+            <ul role="list" class="visual-feedback-file-list" aria-live="polite">
                 @foreach ($attachments as $index => $file)
                     @continue (! $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile)
                     <li class="visual-feedback-file" wire:key="vf-file-{{ $file->getFilename() }}">
