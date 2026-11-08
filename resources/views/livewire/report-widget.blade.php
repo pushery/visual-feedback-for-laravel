@@ -429,7 +429,7 @@
                     </div>
 
                     @if (count($attachments) > 0)
-                        <ul class="visual-feedback-file-list" aria-live="polite">
+                        <ul role="list" class="visual-feedback-file-list" aria-live="polite">
                             @foreach ($attachments as $index => $file)
                                 {{-- The store loop skips an entry that is not an upload; so does
                                      this one. Without the skip a single malformed entry takes the

@@ -9,7 +9,7 @@
 [![Latest Version](https://img.shields.io/packagist/v/pushery/visual-feedback-for-laravel.svg)](https://packagist.org/packages/pushery/visual-feedback-for-laravel)
 [![PHP Version](https://img.shields.io/packagist/dependency-v/pushery/visual-feedback-for-laravel/php.svg)](https://packagist.org/packages/pushery/visual-feedback-for-laravel)
 [![Laravel Versions](https://badge.laravel.cloud/badge/pushery/visual-feedback-for-laravel?style=flat)](https://packagist.org/packages/pushery/visual-feedback-for-laravel)
-[![Livewire 4.3+](https://img.shields.io/badge/Livewire-4.3%2B-FB70A9?logo=livewire&logoColor=white)](https://livewire.laravel.com)
+[![Livewire 4.3.4+](https://img.shields.io/badge/Livewire-4.3.4%2B-FB70A9?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![License](https://img.shields.io/packagist/l/pushery/visual-feedback-for-laravel.svg)](LICENSE)
 
 [![Tests](https://img.shields.io/badge/tests-Pest%205-8BC34A.svg)](https://pestphp.com)
@@ -34,7 +34,7 @@ php artisan vendor:publish --tag=visual-feedback
 
 Then place the widget once in your layout and point the mail channel somewhere —
 `VISUAL_FEEDBACK_MAIL_TO` ships empty, and a report with nowhere to go still shows the
-reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3+.
+reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3.4+.
 
 ## What it does
 

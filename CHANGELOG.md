@@ -4,6 +4,18 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.28.0] - 2026-11-08
+
+### 🐛 Fixed
+
+- **The list of the files attached to a report is announced as a list.** The stylesheet takes the markers off the list, and VoiceOver on iPhone and iPad reads a list without markers as plain text, saying neither that its entries form a list nor how many there are. The list carries `role="list"` now, in the plain view and in the WireKit view. An application that published either view keeps its own copy, and adds `role="list"` there or publishes the view again (`--tag=visual-feedback-views` or `--tag=visual-feedback-wirekit`).
+
+### 🔒 Security
+
+- **The package requires Livewire 4.3.4 or later.** Livewire 4.3.0 to 4.3.3 carry a DOM-based cross-site scripting in their client-side state handling (CVE-2026-81887, `PKSA-bgw4-5zmg-2njg`). The report widget and the report browser are Livewire components that run in the host's Livewire, so an application on one of those releases was exposed through them. The floor was `^4.3` and is `^4.3.4`. The authorization bypass in `#[Authorize]` that Livewire 4.4.8 fixes (`PKSA-xhv3-nr94-h8db`) does not reach this package, because none of its components uses that attribute, so the floor does not move to 4.4.8.
+
+  **Upgrade:** `composer update` brings Livewire 4.3.4 or later. An application held below 4.3.4 cannot install this version.
+
 ## [0.27.0] - 2026-11-07
 
 ### 🔧 Changed
@@ -1422,7 +1434,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.0...v0.25.1
