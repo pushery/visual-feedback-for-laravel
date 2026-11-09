@@ -1291,12 +1291,6 @@
        It resolves the three buttons above rather than fighting them: same property, higher
        specificity, so a direct child of the form takes this value and the ones nested deeper
        (the capture button, which is inside `.visual-feedback-screenshot`) keep theirs. --}}
-    {{-- One scrollbar in a short window. WireKit's modal scrolls in its body and keeps the panel's
-       own scrolling as a fallback for a dialog without a body; the form overflowed the panel by a
-       little as well, and both scrollbars showed. This panel has a body, which holds everything. --}}
-    [data-wk-modal-panel]:has(> .visual-feedback-panel) {
-        overflow-y: hidden;
-    }
     .visual-feedback-panel form > * + * {
         margin-block-start: var(--space-wk-md, 1rem);
     }

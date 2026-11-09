@@ -98,7 +98,7 @@
         </div>
 
         <form x-ref="form" novalidate x-show="! vfSent" x-on:submit.prevent="vfSubmit($el)">
-            <x-wirekit::heading level="2" id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" autofocus>
+            <x-wirekit::heading level="2" id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" x-ref="heading">
                 {{ __('visual-feedback::messages.widget.heading') }}
             </x-wirekit::heading>
 
