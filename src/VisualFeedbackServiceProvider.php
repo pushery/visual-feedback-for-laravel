@@ -47,7 +47,8 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
     /**
      * The oldest WireKit release the WireKit tree is served against.
      *
-     * 2.69 is the oldest release this version supports, the one its suite installs. 2.66 is the release whose soft
+     * 2.70 is the oldest release this version supports, the one whose modal scrolls in its body
+     * alone, so the report dialog shows one scrollbar in a short window. 2.66 is the release whose soft
      * buttons take the shade of the surface they stand on, so the tree's soft buttons read as
      * buttons in the report dialog and in a hovered row of the report browser. 2.64 is the release
      * whose labeled fields render a help text beside the label, which every field of the WireKit
@@ -58,7 +59,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
      * serves the plain tree rather than a tree that shows these defects or was never checked
      * against the installed release.
      */
-    public const string WIREKIT_MINIMUM = '2.69.0';
+    public const string WIREKIT_MINIMUM = '2.70.0';
 
     /**
      * Whether an installed WireKit is new enough for the tree this package ships.

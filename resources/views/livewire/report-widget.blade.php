@@ -110,13 +110,13 @@
             {{-- Re-measure metadata in the capture phase, before Livewire's own submit
                  handler fires, so the report carries the state at submit — not at open. --}}
             <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
-                {{-- The modal's opening focus is anchored here, not left to the UA. Without an
-                     autofocus target the browser picks the first focusable descendant — today
-                     the close button, which tells a screen-reader user nothing about what just
-                     opened. Focusing the heading announces the dialog by name first. Modal only:
-                     in inline mode the widget is part of the page and must never steal focus on
-                     load. tabindex="-1" makes the heading focusable without adding a tab stop. --}}
-                <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" @if ($mode === 'modal') autofocus @endif>
+                {{-- The modal's opening focus is anchored here, not left to the UA. Left alone, the
+                     browser picks the first focusable descendant — today the close button, which
+                     tells a screen-reader user nothing about what just opened. vfOpen() focuses the
+                     heading once the dialog is shown, so the dialog is announced by name first. In
+                     inline mode nothing opens, and the widget never takes the focus on load.
+                     tabindex="-1" makes the heading focusable without adding a tab stop. --}}
+                <h2 id="visual-feedback-heading" class="visual-feedback-heading" tabindex="-1" x-ref="heading">
                     {{ $widgetTexts['heading'] }}
                 </h2>
 

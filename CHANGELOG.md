@@ -4,6 +4,17 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.29.0] - 2026-11-09
+
+### 🔧 Changed
+
+- **The WireKit tree needs WireKit 2.70 or newer.** 2.70 is the release whose modal scrolls in its body alone, so the report dialog shows one scrollbar in a short window, and the package's own rule that hid the panel's scrollbar is gone. **Upgrade:** an application that serves the WireKit tree needs `pushery/wirekit` 2.70 or newer. Below it, `auto` falls back to the plain tree.
+
+### 🐛 Fixed
+
+- **The submit button of the WireKit form shows the pending state of the kit while a report is sent.** It names `loading-target="submit"`, so its spinner turns and the button is marked for as long as the request runs. Livewire already disabled it, but without the spinner a reporter saw nothing happen. **Upgrade:** nothing to do for an application that has not published the WireKit views. One that has publishes them again with `php artisan vendor:publish --tag=visual-feedback-wirekit --force`, or adds `loading-target="submit"` to the submit button of `livewire/_report-form.blade.php`.
+- **No view of the package takes the focus with `autofocus` any more.** The two standalone forms and the modal of the plain widget carried it on their heading, and an application that published the views took the attribute into its own markup. The widget's script now focuses the heading once a dialog is shown, through `x-ref="heading"`, so a screen reader still announces the dialog by its name first. **Upgrade:** nothing to do. A view published before keeps its `autofocus` and works as it did; publishing the views again with `--force` takes the new form.
+
 ## [0.28.0] - 2026-11-08
 
 ### 🐛 Fixed
@@ -1434,7 +1445,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.25.1...v0.26.0

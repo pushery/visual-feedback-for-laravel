@@ -518,7 +518,7 @@
             {{ __('visual-feedback::messages.widget.required_legend') }}
         </p>
 
-        <x-wirekit::button type="submit" class="visual-feedback-submit" intent="primary">
+        <x-wirekit::button type="submit" loading-target="submit" class="visual-feedback-submit" intent="primary">
             {{ $widgetTexts['submit'] }}
         </x-wirekit::button>
     </form>
