@@ -4,6 +4,21 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.29.1] - 2026-11-11
+
+### 🐛 Fixed
+
+- **The German texts set the dash as German writes it.** Nine of them set the em dash between words, two on the form every visitor sees ("Danke – dein Feedback wurde gesendet.", "Aufnahme fehlgeschlagen – bitte versuch es noch mal.") and seven on the console. German sets the en dash with a space on each side, and so do they now. A host that published the German catalog takes the nine lines over by hand.
+- **The inline form grows with the page instead of scrolling in a box of its own.** In the plain view tree the inline panel kept the modal's height cap of 40rem and scrolled inside it, so on a contact page the form ended at its attachments and Send sat under the box's edge. Inline, the panel now has no cap and nothing in it scrolls on its own. The modal keeps its cap, which holds Send above a phone's browser bar.
+
+### 🔒 Security
+
+- **A report filed from a magic-link invitation stores its path without the token.** Once `pushery/email-magic-link-for-laravel` has invitations on, `magic-link/invitation/{token}` signs a person in, and a host that renders that screen in its own layout carries the widget there. The stored `url` is now `magic-link/invitation/{token}`, as it already was for the magic link itself. Without `url_query` the stored path never had the signature, so the token could only be used where an application keeps the query.
+
+### 📚 Documentation
+
+- **The documentation shows the widget, the report and the editor it describes.** The overview shows the widget open over a page, the page on placing the trigger shows the floating button and the inline form, the page on capture shows the screenshot editor with a crop and two marks, the page on delivery channels shows the report mail, and the page on the report browser shows a report open with its screenshot. Each image is rendered from the package itself, nothing in it drawn by hand.
+
 ## [0.29.0] - 2026-11-09
 
 ### 🔧 Changed
@@ -1445,7 +1460,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.26.0...v0.27.0

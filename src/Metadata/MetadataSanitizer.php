@@ -40,6 +40,7 @@ final readonly class MetadataSanitizer
         'password/reset/*',
         'email/verify/*/*',
         'magic-link/verify/*',
+        'magic-link/invitation/*',
         'team-invitations/*',
     ];
 
