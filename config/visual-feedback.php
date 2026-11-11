@@ -324,6 +324,7 @@ return [
         //     reset-password/{token}            Laravel
         //     email/verify/{id}/{hash}          Laravel
         //     magic-link/verify/{token}         pushery/email-magic-link-for-laravel
+        //     magic-link/invitation/{token}     pushery/email-magic-link-for-laravel
         //     team-invitations/{token}          applications
         //
         // The page somebody lands on after one of those carries the widget — for a password

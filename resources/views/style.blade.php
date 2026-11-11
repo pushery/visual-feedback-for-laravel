@@ -224,10 +224,17 @@
        `position: static` is the one declaration that answers all three, and `min(32rem, 100%)`
        only means "the column" once it is there — a width fix alone was measured to change the
        sidebar case by nothing at all. `:not(:modal)` leaves the modal path (top layer, fixed,
-       UA-centered) exactly as it was, and the package's own browser suite holds that. --}}
+       UA-centered) exactly as it was, and the package's own browser suite holds that.
+
+       The height cap above belongs to the modal as well: it keeps Send above a phone's browser
+       bar. Inline, the form is part of the page and the page scrolls, so a cap only turns the panel
+       into a second scroll area, one a reader has to find, with Send under its edge. Here the panel
+       grows with its content instead. --}}
     .visual-feedback-dialog[open]:not(:modal) {
         position: static;
         width: min(32rem, 100%);
+        max-height: none;
+        overflow: visible;
     }
 
     {{-- One focus indicator for every control in the panel. Named selectors used to cover
