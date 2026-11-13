@@ -140,6 +140,8 @@ return [
         'technical_details' => 'Detalles técnicos',
         'field' => 'Campo',
         'value' => 'Valor',
+        'yes' => 'Sí',
+        'no' => 'No',
         // The labels of the technical table, by metadata key. A key a host collects on its own and
         // that has no word here is shown as its headline.
         'metadata' => [

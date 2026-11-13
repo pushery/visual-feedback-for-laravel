@@ -60,7 +60,7 @@
             x-on:click="vfResetAndFocus()">
             {{ __('visual-feedback::messages.widget.report_another') }}
         </x-wirekit::button>
-        <x-wirekit::button class="visual-feedback-done" intent="neutral" surface="soft" x-on:click="vfDoneWireKit()">
+        <x-wirekit::button class="visual-feedback-done" intent="neutral" x-on:click="vfDoneWireKit()">
             {{ __('visual-feedback::messages.widget.done') }}
         </x-wirekit::button>
     @endif
@@ -199,7 +199,7 @@
                 required
                 x-on:input="measure($event.target.value)"
                 :placeholder="__('visual-feedback::messages.widget.message_placeholder')" />
-            <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
+            <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ number_format((int) $messageMax, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator')) }}</span>
             {{-- Off-screen live region, concealed twice and deliberately.
 
                  Correction. This said "this tree publishes no stylesheet of its own", and that has not
@@ -226,7 +226,7 @@
             <div class="visual-feedback-screenshot"
                                 x-data="visualFeedbackCapture()"
                                 data-visual-feedback-capture="{{ json_encode($screenshotCaptureConfig, JSON_THROW_ON_ERROR) }}">
-                <x-wirekit::button type="button" class="visual-feedback-capture" surface="soft"
+                <x-wirekit::button type="button" class="visual-feedback-capture" intent="neutral"
                     x-ref="idle"
                     x-show="status === 'idle'"
                     x-on:click="capture()">
@@ -307,10 +307,10 @@
                     <div class="visual-feedback-preview-actions">
                         <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="success" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
                         @if ($screenshotCaptureConfig['editor'])
-                            <x-wirekit::button type="button" class="visual-feedback-edit" intent="neutral" surface="soft" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</x-wirekit::button>
+                            <x-wirekit::button type="button" class="visual-feedback-edit" intent="neutral" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</x-wirekit::button>
                         @endif
-                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
-                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </div>
                 </div>
 
@@ -331,7 +331,7 @@
                     </dialog>
                 @endif
 
-                <x-wirekit::button type="button" class="visual-feedback-retake" intent="neutral" surface="soft" x-ref="attached"
+                <x-wirekit::button type="button" class="visual-feedback-retake" intent="neutral" x-ref="attached"
                     x-show="status === 'attached'" x-on:click="retake()">
                     {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                 </x-wirekit::button>
@@ -347,7 +347,7 @@
                     <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown"
                         x-show="status === 'failed'">
                         {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                        <x-wirekit::button type="button" intent="neutral" surface="soft" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                        <x-wirekit::button type="button" intent="neutral" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                     </x-wirekit::alert>
                 </div>
 
@@ -395,7 +395,7 @@
                              button as visually hidden text and shows in the tooltip, which does not describe the
                              control with its own name a second time. --}}
                         <x-wirekit::tooltip :text="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])" :describes="false">
-                            <x-wirekit::button type="button" intent="neutral" surface="soft" size="sm" icon-only
+                            <x-wirekit::button type="button" intent="neutral" size="sm" icon-only
                                 wire:click="removeAttachment({{ $index }})" loading-target="removeAttachment({{ $index }})">
                                 <x-slot:iconLeft><x-wirekit::icon name="trash" size="sm" aria-hidden="true" /></x-slot:iconLeft>
                                 {{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}

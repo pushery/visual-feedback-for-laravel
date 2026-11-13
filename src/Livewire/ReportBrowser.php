@@ -10,15 +10,18 @@ use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\ComponentAttributeBag;
+use InvalidArgumentException;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Livewire\Concerns\RestoresNulledProperties;
+use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\ClientConfig;
 use Pushery\VisualFeedback\Support\TableLookup;
 
@@ -275,6 +278,37 @@ final class ReportBrowser extends Component
     }
 
     /**
+     * When a report arrived, as its reader writes a date and a time. The column holds the moment as the
+     * application wrote it, in its own time zone, and a value that does not read as a moment is shown as
+     * it is rather than as the moment the page was rendered.
+     */
+    private function receivedLabel(mixed $value): string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return '';
+        }
+
+        $zone = config('app.timezone');
+
+        try {
+            return Date::parse($value, is_string($zone) && $zone !== '' ? $zone : 'UTC')
+                ->settings(['locale' => app()->getLocale()])
+                ->isoFormat('lll');
+        } catch (InvalidArgumentException) {
+            return $value;
+        }
+    }
+
+    /** The words for a widget mode, `modal` or `inline`, and for a mode without a translation its own words. */
+    private function modeLabel(string $mode): string
+    {
+        $key = 'visual-feedback::browser.modes.'.$mode;
+        $label = __($key);
+
+        return is_string($label) && $label !== $key ? $label : Str::headline($mode);
+    }
+
+    /**
      * The modes present in the data, same reasoning as categories().
      *
      * @return list<string>
@@ -447,6 +481,9 @@ final class ReportBrowser extends Component
         // The page's title for a host that routes the component as a full page
         // (`Route::livewire(...)`): Livewire hands it to the layout as `$title`. Embedded in a view
         // of the host's own, the component has no say over the document title, and this does nothing.
+        $categories = $this->categories();
+        $modes = $this->modes();
+
         return view('visual-feedback::livewire.report-browser', [
             // The level of the sections below the title, or of the first ones on a page without it.
             'sectionLevel' => max(1, $this->headingLevel) + 1,
@@ -454,8 +491,14 @@ final class ReportBrowser extends Component
             'reports' => $reports,
             'detail' => $detail,
             'attachments' => $detail === null ? [] : $this->attachmentsShown($detail->attachments ?? null),
-            'categories' => $this->categories(),
-            'modes' => $this->modes(),
+            'categories' => $categories,
+            'modes' => $modes,
+            // The words a person reads for each stored value: a category as the widget names it, a mode
+            // as this browser names it. A value without a translation reads as its own words.
+            'categoryLabels' => array_combine($categories, array_map(app(CategoryLabels::class)->label(...), $categories)),
+            'modeLabels' => array_combine($modes, array_map($this->modeLabel(...), $modes)),
+            // When a report arrived, as its reader writes a date and a time, for the list and the open report.
+            'receivedLabel' => $this->receivedLabel(...),
             // The attribute the capture blanks, on what the browser shows of a reporter. The browser
             // renders on a page the widget appears on, and a report filed from it would carry the
             // name, the address and the message of other reporters in its screenshot.

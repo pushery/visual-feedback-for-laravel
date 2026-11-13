@@ -22,6 +22,10 @@ return [
     'col_date' => 'Recibido',
     'col_mode' => 'Modo',
     'col_category' => 'Categoría',
+    'modes' => [
+        'modal' => 'Diálogo',
+        'inline' => 'Integrado',
+    ],
     'col_subject' => 'Asunto',
     'col_reporter' => 'Informado por',
     'col_actions' => 'Acciones',

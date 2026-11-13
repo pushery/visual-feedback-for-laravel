@@ -242,7 +242,7 @@
                          has paused. The region is never toggled on and off — an `aria-live`
                          element that appears in the same tick as its text can have that first
                          change swallowed, which is why the throttle is on the content. --}}
-                    <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
+                    <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ number_format((int) $messageMax, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator')) }}</span>
                     {{-- The inline style is the same concealment as the stylesheet rule, for a host
                          that has not included the stylesheet: without it this region renders as a
                          second visible counter. The WireKit tree does the same. --}}

@@ -74,7 +74,7 @@
         {{-- The kit's close icon, never a typed character, and the name as visually hidden text. No tooltip, as on the
              kit's own modal: its panel teleports out of the dialog, and showModal() lifts the dialog above everything
              outside it. --}}
-        <x-wirekit::button type="button" class="visual-feedback-close" intent="neutral" surface="soft" size="sm" icon-only
+        <x-wirekit::button type="button" class="visual-feedback-close" intent="neutral" size="sm" icon-only
             x-on:click="$refs.dialog.close()">
             <x-slot:iconLeft><x-wirekit::icon name="close" size="sm" aria-hidden="true" /></x-slot:iconLeft>
             {{ __('visual-feedback::messages.widget.close') }}
@@ -90,7 +90,7 @@
                     <x-wirekit::button type="button" class="visual-feedback-report-another" x-ref="reportAnother" x-on:click="vfResetAndFocus()">
                         {{ __('visual-feedback::messages.widget.report_another') }}
                     </x-wirekit::button>
-                    <x-wirekit::button type="button" class="visual-feedback-done" intent="neutral" surface="soft" x-on:click="vfDone()">
+                    <x-wirekit::button type="button" class="visual-feedback-done" intent="neutral" x-on:click="vfDone()">
                         {{ __('visual-feedback::messages.widget.done') }}
                     </x-wirekit::button>
                 </div>
@@ -158,7 +158,7 @@
                     x-on:input="measure($event.target.value)"
                     :placeholder="__('visual-feedback::messages.widget.message_placeholder')"
                     x-bind:aria-invalid="vfInvalid('message')" x-bind:aria-describedby="vfDescribedBy('message')" />
-                <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0</span>
+                <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ number_format(is_numeric($vfMax) ? (int) $vfMax : 50000, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator')) }}</span>
                 <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"
                     style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);"></span>
             </div>
@@ -170,7 +170,7 @@
                     x-data="visualFeedbackCapture()"
                     data-visual-feedback-capture="{{ json_encode($vfCaptureConfig, JSON_THROW_ON_ERROR) }}"
                     x-on:visual-feedback:standalone-reset.window="reset()">
-                    <x-wirekit::button type="button" class="visual-feedback-capture" surface="soft"
+                    <x-wirekit::button type="button" class="visual-feedback-capture" intent="neutral"
                         x-ref="idle" x-show="status === 'idle'" x-on:click="capture()">
                         {{ __('visual-feedback::messages.widget.capture_screenshot') }}
                     </x-wirekit::button>
@@ -192,10 +192,10 @@
                         <div class="visual-feedback-preview-actions">
                             <x-wirekit::button type="button" id="visual-feedback-screenshot" intent="success" x-ref="captured" x-on:click="attach()">{{ __('visual-feedback::messages.widget.screenshot_attach') }}</x-wirekit::button>
                             @if ($vfCaptureConfig['editor'])
-                                <x-wirekit::button type="button" class="visual-feedback-edit" intent="neutral" surface="soft" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</x-wirekit::button>
+                                <x-wirekit::button type="button" class="visual-feedback-edit" intent="neutral" x-ref="edit" x-on:click="openEditor()">{{ __('visual-feedback::messages.widget.editor_open') }}</x-wirekit::button>
                             @endif
-                            <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
-                            <x-wirekit::button type="button" intent="neutral" surface="soft" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                            <x-wirekit::button type="button" intent="neutral" x-on:click="discard()">{{ __('visual-feedback::messages.widget.screenshot_discard') }}</x-wirekit::button>
+                            <x-wirekit::button type="button" intent="neutral" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                         </div>
                     </div>
                     @if ($vfCaptureConfig['editor'])
@@ -206,7 +206,7 @@
                             <div class="visual-feedback-editor-body" data-visual-feedback-editor-body></div>
                         </dialog>
                     @endif
-                    <x-wirekit::button type="button" class="visual-feedback-retake" intent="neutral" surface="soft" x-ref="attached"
+                    <x-wirekit::button type="button" class="visual-feedback-retake" intent="neutral" x-ref="attached"
                         x-show="status === 'attached'" x-on:click="retake()">
                         {{ __('visual-feedback::messages.widget.screenshot_retake') }}
                     </x-wirekit::button>
@@ -214,7 +214,7 @@
                         <x-wirekit::alert intent="danger" role="presentation" class="visual-feedback-alert--shown"
                             x-show="status === 'failed'">
                             {{ __('visual-feedback::messages.widget.screenshot_failed') }}
-                            <x-wirekit::button type="button" intent="neutral" surface="soft" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
+                            <x-wirekit::button type="button" intent="neutral" x-ref="failed" x-on:click="retake()">{{ __('visual-feedback::messages.widget.screenshot_retake') }}</x-wirekit::button>
                         </x-wirekit::alert>
                     </div>
                 </div>

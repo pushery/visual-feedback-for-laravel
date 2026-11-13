@@ -22,6 +22,10 @@ return [
     'col_date' => 'Ontvangen',
     'col_mode' => 'Modus',
     'col_category' => 'Categorie',
+    'modes' => [
+        'modal' => 'Dialoogvenster',
+        'inline' => 'Ingebed',
+    ],
     'col_subject' => 'Onderwerp',
     'col_reporter' => 'Gemeld door',
     'col_actions' => 'Acties',
