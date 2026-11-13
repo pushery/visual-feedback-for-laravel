@@ -80,6 +80,10 @@
            floor for body text. Per-scheme like --vf-error and unlike --vf-border, because a
            single green cannot carry both. --}}
         --vf-success: #15803d;
+        {{-- The surface of a secondary button, so every button has a fill: #e5e7eb under --vf-fg
+           measures 14.33:1, and the 1px --vf-border keeps the boundary it gives against the
+           panel, 3.82:1 on #ffffff. --}}
+        --vf-surface: #e5e7eb;
         {{-- The tone of a choice still open, not of a failure: the border of a capture that is
            neither attached nor discarded. A 1px boundary, so the floor is the 3:1 of WCAG 1.4.11:
            5.02:1 on #ffffff here and 6.83:1 on the dark #1f2937 below. --}}
@@ -90,7 +94,7 @@
            the report browser alike. Overriding one changes that scale everywhere it appears. --}}
         --vf-radius: 10px;
         --vf-radius-control: 6px;
-        --vf-fab-size: 3.5rem;
+        --vf-fab-size: 2.75rem;
         --vf-gap: 1rem;
         {{-- The scheme the browser paints its own controls in on the package's surfaces: the
            checkbox, the native file button, the select popup and the privacy link. Beside the
@@ -113,6 +117,8 @@
             --vf-accent-fg: #ffffff;
             --vf-error: #f87171;
             --vf-success: #4ade80;
+            {{-- 9.86:1 under the dark --vf-fg, and the border keeps 3.84:1 against #1f2937. --}}
+            --vf-surface: #374151;
             --vf-warning: #f59e0b;
             --vf-backdrop: rgba(0, 0, 0, .6);
             --vf-color-scheme: dark;
@@ -196,9 +202,11 @@
            phone the panel left 114px of the screen unused while the form scrolled inside it,
            and after an empty submit Send sat partly under the panel's edge with any common
            host font. With the margin the panel gets 536px there, and the failed field, the
-           failure and Send fit together. From 800px of height up, 40rem decides either way. --}}
-        max-height: min(calc(100vh - 2rem), 40rem);
-        max-height: min(calc(100dvh - 2rem), 40rem);
+           failure and Send fit together. From 928px of height up, 56rem decides either way, and the
+           whole form fits: at 40rem the panel scrolled on every desktop, and a hint stood cut in the
+           middle of a sentence at its edge. --}}
+        max-height: min(calc(100vh - 2rem), 56rem);
+        max-height: min(calc(100dvh - 2rem), 56rem);
         padding: 1.5rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius);
@@ -292,7 +300,7 @@
     .visual-feedback-dialog textarea {
         width: 100%;
         margin-top: 0.25rem;
-        padding: 0.5rem 0.625rem;
+        padding: 0.5rem 0.875rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
@@ -652,6 +660,17 @@
         box-sizing: border-box;
     }
 
+    {{-- The button the engine draws inside the file field, in the form of the panel's other buttons. --}}
+    .visual-feedback-file-input::file-selector-button {
+        margin-inline-end: 0.75rem;
+        padding: 0.375rem 0.875rem;
+        border: 1px solid var(--vf-border);
+        border-radius: var(--vf-radius-control);
+        background: var(--vf-surface);
+        color: var(--vf-fg);
+        font: inherit;
+        cursor: pointer;
+    }
     .visual-feedback-file-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
     .visual-feedback-file {
         display: flex;
@@ -667,8 +686,8 @@
         min-height: 44px;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
-        background: transparent;
-        color: var(--vf-muted);
+        background: var(--vf-surface);
+        color: var(--vf-fg);
         font-size: 1.25rem;
         line-height: 1;
         cursor: pointer;
@@ -716,7 +735,7 @@
         min-height: 44px;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
-        background: var(--vf-bg);
+        background: var(--vf-surface);
         color: var(--vf-fg);
         font: inherit;
         cursor: pointer;
@@ -754,8 +773,9 @@
 
     .visual-feedback-browser-field select,
     .visual-feedback-browser-field input {
+        box-sizing: border-box;
         min-height: 44px;
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.875rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
         background: var(--vf-bg);
@@ -767,8 +787,38 @@
     }
 
     {{-- The same fixed height as the panel's select, for the same reason: WebKit ignores the
-       min-height above on a native select. --}}
-    .visual-feedback-browser-field select { height: 44px; }
+       min-height above on a native select. The date fields take it too: with the min-height alone
+       and no border-box they came out 62px beside a 44px select, and the row's labels stood on two
+       lines. --}}
+    .visual-feedback-browser-field select,
+    .visual-feedback-browser-field input { height: 44px; }
+    {{-- One arrow for every select of the package, drawn rather than left to the engine: Blink set
+       its own against the border. Two triangles in the muted tone, which the contrast sweep holds
+       above 3:1 in both schemes, 0.875rem from the edge the text starts from on the other side. A
+       forced-colors mode drops background images, so the native arrow comes back there. --}}
+    .visual-feedback-dialog select,
+    .visual-feedback-browser-field select {
+        appearance: none;
+        padding-inline-end: 2.5rem;
+        background-image:
+            linear-gradient(45deg, transparent 50%, var(--vf-muted) 50%),
+            linear-gradient(135deg, var(--vf-muted) 50%, transparent 50%);
+        background-position: calc(100% - 1.25rem) 50%, calc(100% - 0.875rem) 50%;
+        background-size: 0.375rem 0.375rem;
+        background-repeat: no-repeat;
+    }
+    .visual-feedback-dialog select:dir(rtl),
+    .visual-feedback-browser-field select:dir(rtl) {
+        background-position: 0.875rem 50%, 1.25rem 50%;
+    }
+    @media (forced-colors: active) {
+        .visual-feedback-dialog select,
+        .visual-feedback-browser-field select {
+            appearance: auto;
+            background-image: none;
+            padding-inline-end: 0.875rem;
+        }
+    }
 
     {{-- The frame is the containing block of what the table positions absolutely, such as the
        hidden heading of the actions column. Without it that heading would sit at the far end of a
@@ -788,12 +838,24 @@
         padding: 0.5rem 0.75rem;
         border-bottom: 1px solid var(--vf-border);
         text-align: left;
-        vertical-align: top;
+        {{-- Middle, not top: the row's actions are 44px buttons, and beside them the text of the other
+           cells sat at the top while the buttons sat lower. --}}
+        vertical-align: middle;
     }
 
     .visual-feedback-browser-table th {
         color: var(--vf-muted);
         font-weight: 600;
+    }
+    {{-- A moment stays on one line, so a date never stands above its time. --}}
+    .visual-feedback-browser-when {
+        white-space: nowrap;
+    }
+
+    {{-- A row's actions stand at its end, on one line, as the actions of a table row do. --}}
+    .visual-feedback-browser-table .visual-feedback-browser-actions {
+        text-align: end;
+        white-space: nowrap;
     }
 
     {{-- 44px on every control in the table, the same floor the widget holds. --}}
@@ -805,7 +867,7 @@
         padding: 0.5rem 0.875rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
-        background: var(--vf-bg);
+        background: var(--vf-surface);
         color: var(--vf-fg);
         font: inherit;
         cursor: pointer;
@@ -851,6 +913,23 @@
         background: var(--vf-bg);
     }
 
+    {{-- The facts of a report as a grid, each name beside its value: in the browser's own layout every
+       name took a line and its value an indented one under it. --}}
+    .visual-feedback-browser-detail dl {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: 0.375rem 1.25rem;
+        margin: 1rem 0;
+    }
+    .visual-feedback-browser-detail dt {
+        color: var(--vf-muted);
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    .visual-feedback-browser-detail dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
     .visual-feedback-browser-detail header {
         display: flex;
         justify-content: space-between;
@@ -944,9 +1023,15 @@
         pointer-events: none;
     }
     .visual-feedback-editor-shade { fill: rgba(17, 24, 39, .55); }
+    {{-- The crop's outline: a dark line over a light one, so it shows on a light picture as on a dark one, and
+       while the crop still takes the whole picture, where there is no shade to tell its edge by. --}}
     .visual-feedback-editor-outline {
         fill: none;
         stroke: #ffffff;
+        stroke-width: 4;
+    }
+    .visual-feedback-editor-outline-dark {
+        stroke: #111827;
         stroke-width: 2;
     }
     .visual-feedback-editor-region {
@@ -1021,7 +1106,7 @@
         padding: 0.5rem 1rem;
         border: 1px solid var(--vf-border);
         border-radius: var(--vf-radius-control);
-        background: transparent;
+        background: var(--vf-surface);
         color: var(--vf-fg);
         font: inherit;
         cursor: pointer;
@@ -1458,9 +1543,15 @@
         pointer-events: none;
     }
     .visual-feedback-editor-shade { fill: var(--color-wk-overlay, rgba(17, 24, 39, .55)); }
+    {{-- The crop's outline: a dark line over a light one, so it shows on a light picture as on a dark one, and
+       while the crop still takes the whole picture, where there is no shade to tell its edge by. --}}
     .visual-feedback-editor-outline {
         fill: none;
         stroke: #ffffff;
+        stroke-width: 4;
+    }
+    .visual-feedback-editor-outline-dark {
+        stroke: var(--color-wk-text, #111827);
         stroke-width: 2;
     }
     .visual-feedback-editor-region {
@@ -1531,7 +1622,7 @@
         padding: var(--space-wk-xs, 0.5rem) var(--space-wk-md, 1rem);
         border: 1px solid var(--color-wk-border-strong, #7b8390);
         border-radius: var(--radius-wk-md, 6px);
-        background: transparent;
+        background: var(--color-wk-bg-muted, #f3f4f6);
         color: var(--color-wk-text, #111827);
         font: inherit;
         cursor: pointer;

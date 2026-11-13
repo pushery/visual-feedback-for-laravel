@@ -4,6 +4,28 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.30.0] - 2026-11-13
+
+### 🔧 Changed
+
+- **Every button of the widget, the editor and the report browser has a fill.** The secondary buttons of the plain view tree, such as capturing, retaking and attaching a screenshot, the editor's tools, removing an attached file and the buttons of the report browser, drew the panel's own background inside a border, so they read as outlines. They fill with the new `--vf-surface` now, light gray in the light scheme and dark gray in the dark one, and keep their border. On the WireKit tree the editor's tools fill with `--color-wk-bg-muted`. A host that overrides the `--vf-*` colors can set `--vf-surface` as well.
+- **The floating button is the size of a touch target.** `--vf-fab-size` ships `2.75rem` instead of `3.5rem`, so the button no longer stands out as the largest thing on the page. A host that set the property keeps its own size.
+- **The open widget fits a desktop window.** The panel's height cap is `56rem` instead of `40rem`, so on a desktop the whole form stands in it and no hint is cut in the middle of its sentence. On a phone the cap is still the screen.
+- **The facts of a report in the report browser stand as a grid,** each name beside its value, instead of the browser's own list with every value indented under its name.
+- **The attachment field's button has a fill** in the form of the panel's other buttons.
+- **The buttons of the WireKit tree take their surface from WireKit.** Nineteen buttons set the soft surface themselves, so they drew a gray tint where the application's buttons are filled. They name an intent now and nothing else: the main action of a state or of a row in the accent, "Open" in the report browser among them, every other one neutral.
+- **The report browser's four filters stand in one row in the WireKit tree,** mode, category, from and to, each label and control on one line with its neighbors', and the row breaks only where the room runs out.
+
+### 🐛 Fixed
+
+- **The report browser and the report mail say when a report arrived as a reader writes it.** The browser showed the moment as the database holds it, "2026-11-13 03:40:20", and the mail as a machine reads it, "2026-11-13T03:40:20+00:00", beside the mode "modal" and a dark mode of "false". The browser writes "Nov 13, 2026 3:40 AM" now and keeps it on one line, the mail adds the time zone, both in the language of the screen or the mail, the mail names the mode as the browser does, "Dialog", and a yes-or-no detail reads "Yes" or "No".
+- **The report browser names a report's category and mode in words.** Its list, its filters and a report's facts showed the stored values, "bug" and "modal", where the widget shows "Bug". They show the category's label and the mode's now, in every language of the package, and a value without a translation reads as its own words. Under a picture the card names its file rather than its storage path; where no picture shows, the path stays, because a host needs it to fetch the file.
+- **The crop of the screenshot editor is framed by a line that shows on any picture.** Its outline was a white line alone, so on a light picture, while the crop still took all of it and there was no shade outside to tell its edge by, only the eight handles showed. The outline is a dark line over a light one now, in both views.
+- **The selects of the widget and the report browser draw their arrow away from the edge.** Blink set the native arrow against the border, and the text stood close to the other edge. Every select of the plain view tree now draws its own arrow `0.875rem` from the edge, the text stands as far in, and a forced-colors mode keeps the native arrow.
+- **The report browser's filters stand as one row of one height.** The date fields came out taller than the selects beside them, so their labels stood higher than the others. Every filter is as high as a select now, and the labels stand on one line.
+- **A row's actions in the report browser stand at its end,** on one line and on the middle of the row, beside text that stood at the top of its cell before.
+- **The character counter shows its limit before the script runs.** Until the counter's component starts, and on a page captured without scripts, it read a bare "0"; it now reads "0 / 50,000" from the start, in both view trees.
+
 ## [0.29.1] - 2026-11-11
 
 ### 🐛 Fixed
@@ -1460,7 +1482,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.27.0...v0.28.0

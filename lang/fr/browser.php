@@ -22,6 +22,10 @@ return [
     'col_date' => 'Reçu',
     'col_mode' => 'Mode',
     'col_category' => 'Catégorie',
+    'modes' => [
+        'modal' => 'Boîte de dialogue',
+        'inline' => 'Intégré',
+    ],
     'col_subject' => 'Objet',
     'col_reporter' => 'Signalé par',
     'col_actions' => 'Actions',

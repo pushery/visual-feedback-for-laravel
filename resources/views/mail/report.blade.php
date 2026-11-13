@@ -78,8 +78,8 @@
 @if (is_string($report->reporter->replyName ?? null) || is_string($report->reporter->replyEmail ?? null))
 - **{{ __('visual-feedback::messages.mail.reply_to') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text(trim(($report->reporter->replyName ?? '').' '.($report->reporter->replyEmail ?? ''))) }}
 @endif
-- **{{ __('visual-feedback::messages.mail.submitted_at') }}:** {{ $report->submittedAt->format(DATE_ATOM) }}
-- **{{ __('visual-feedback::messages.mail.mode') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($report->mode) }}
+- **{{ __('visual-feedback::messages.mail.submitted_at') }}:** {{ $submittedLabel }}
+- **{{ __('visual-feedback::messages.mail.mode') }}:** {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text($modeLabel) }}
 
 @if (count($report->context) > 0)
 **{{ __('visual-feedback::messages.mail.context') }}**
@@ -96,7 +96,8 @@
 @if (count($report->metadata) > 0)
 **{{ __('visual-feedback::messages.mail.technical_details') }}**
 
-{{-- The capture stage and the edited flag are the browser's own statements: the server cannot
+{{-- A yes-or-no detail reads as a word, as the rest of the mail does, not as `true` or `false`.
+     The capture stage and the edited flag are the browser's own statements: the server cannot
      tell which stage made the file or whether it was cropped, so each row says whose word it is
      rather than reading as proof.
      The comment stands above the table: Blade removes a comment but keeps the line break after
@@ -106,7 +107,7 @@
 | {{ __('visual-feedback::messages.mail.field') }} | {{ __('visual-feedback::messages.mail.value') }} |
 | :--- | :--- |
 @foreach ($report->metadata as $key => $value)
-| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Pushery\VisualFeedback\Channels\Mail\MailCell::metadataLabel((string) $key)) }} | {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
+| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Pushery\VisualFeedback\Channels\Mail\MailCell::metadataLabel((string) $key)) }} | {{ is_bool($value) ? \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __($value ? 'visual-feedback::messages.mail.yes' : 'visual-feedback::messages.mail.no')) : \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
 @endforeach
 </x-mail::table>
 @endif

@@ -22,6 +22,10 @@ return [
     'col_date' => 'Eingegangen',
     'col_mode' => 'Modus',
     'col_category' => 'Kategorie',
+    'modes' => [
+        'modal' => 'Dialog',
+        'inline' => 'Eingebettet',
+    ],
     'col_subject' => 'Betreff',
     'col_reporter' => 'Gemeldet von',
     'col_actions' => 'Aktionen',

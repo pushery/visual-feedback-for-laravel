@@ -32,7 +32,7 @@
                 <select wire:model.live="filterMode">
                     <option value="">{{ __('visual-feedback::browser.any') }}</option>
                     @foreach ($modes as $mode)
-                        <option value="{{ $mode }}">{{ $mode }}</option>
+                        <option value="{{ $mode }}">{{ $modeLabels[$mode] ?? $mode }}</option>
                     @endforeach
                 </select>
             </label>
@@ -42,7 +42,7 @@
                 <select wire:model.live="filterCategory">
                     <option value="">{{ __('visual-feedback::browser.any') }}</option>
                     @foreach ($categories as $category)
-                        <option value="{{ $category }}">{{ $category }}</option>
+                        <option value="{{ $category }}">{{ $categoryLabels[$category] ?? $category }}</option>
                     @endforeach
                 </select>
             </label>
@@ -84,9 +84,9 @@
                     <tbody>
                         @foreach ($reports as $report)
                             <tr wire:key="vf-report-{{ $report->uuid }}">
-                                <td>{{ $report->created_at }}</td>
-                                <td>{{ $report->mode }}</td>
-                                <td>{{ $report->category }}</td>
+                                <td class="visual-feedback-browser-when">{{ $receivedLabel($report->created_at) }}</td>
+                                <td>{{ $modeLabels[$report->mode] ?? $report->mode }}</td>
+                                <td>{{ $categoryLabels[$report->category] ?? $report->category }}</td>
                                 <td {{ $redact }}>{{ $report->subject ?: '—' }}</td>
                                 {{-- A guest with no name is the shipped default, so the fallback is
                                      the normal case rather than a defect. --}}
@@ -135,9 +135,9 @@
                 </header>
 
                 <dl>
-                    <dt>{{ __('visual-feedback::browser.col_date') }}</dt><dd>{{ $detail->created_at }}</dd>
-                    <dt>{{ __('visual-feedback::browser.col_mode') }}</dt><dd>{{ $detail->mode }}</dd>
-                    <dt>{{ __('visual-feedback::browser.col_category') }}</dt><dd>{{ $detail->category }}</dd>
+                    <dt>{{ __('visual-feedback::browser.col_date') }}</dt><dd class="visual-feedback-browser-when">{{ $receivedLabel($detail->created_at) }}</dd>
+                    <dt>{{ __('visual-feedback::browser.col_mode') }}</dt><dd>{{ $modeLabels[$detail->mode] ?? $detail->mode }}</dd>
+                    <dt>{{ __('visual-feedback::browser.col_category') }}</dt><dd>{{ $categoryLabels[$detail->category] ?? $detail->category }}</dd>
                     <dt>{{ __('visual-feedback::browser.col_reporter') }}</dt>
                     <dd {{ $redact }}>
                         {{ $detail->reporter_name ?: __('visual-feedback::browser.guest') }}
@@ -154,11 +154,11 @@
                         @if ($attachment['url'] !== null && $attachment['previewable'])
                             <img src="{{ $attachment['url'] }}" alt="{{ __('visual-feedback::browser.attachment_alt') }}" loading="lazy" decoding="async">
                         @endif
-                        {{-- The path is shown either way. On a private disk there is no URL to
+                        {{-- Without the picture, the path: on a private disk there is no URL to
                              give, and the path is what a host needs to fetch the file with their
                              own tooling — see the component docblock for why no download route
-                             is invented here. --}}
-                        <figcaption>{{ $attachment['path'] }}</figcaption>
+                             is invented here. Under the picture its file name is enough. --}}
+                        <figcaption>{{ $attachment['url'] !== null && $attachment['previewable'] ? basename($attachment['path']) : $attachment['path'] }}</figcaption>
                     </figure>
                 @endforeach
             </section>

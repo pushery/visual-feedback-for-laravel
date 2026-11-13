@@ -10,7 +10,9 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Pushery\VisualFeedback\Attachments\AttachmentPolicy;
 use Pushery\VisualFeedback\Data\Report;
 use Pushery\VisualFeedback\Support\CategoryLabels;
@@ -98,6 +100,8 @@ final class ReportMail extends Mailable
             with: [
                 'report' => $this->report,
                 'categoryLabel' => $this->categoryLabel(),
+                'submittedLabel' => $this->submittedLabel(),
+                'modeLabel' => $this->modeLabel(),
             ],
         );
     }
@@ -132,6 +136,29 @@ final class ReportMail extends Mailable
     private function categoryLabel(): string
     {
         return $this->labels->label($this->report->category);
+    }
+
+    /**
+     * When the report arrived, as its reader writes a date and a time: in the language of the mail and the
+     * application's time zone, with the zone named, because a mail is read where its sender is not.
+     */
+    private function submittedLabel(): string
+    {
+        $zone = config('app.timezone');
+
+        return Date::instance($this->report->submittedAt)
+            ->setTimezone(is_string($zone) && $zone !== '' ? $zone : 'UTC')
+            ->settings(['locale' => app()->getLocale()])
+            ->isoFormat('lll z');
+    }
+
+    /** The words for the widget mode, as the report browser names it; a mode without a translation reads as its own words. */
+    private function modeLabel(): string
+    {
+        $key = 'visual-feedback::browser.modes.'.$this->report->mode;
+        $label = __($key);
+
+        return is_string($label) && $label !== $key ? $label : Str::headline($this->report->mode);
     }
 
     /** The subject line — CRLF-stripped so a report subject can never inject a mail header. */

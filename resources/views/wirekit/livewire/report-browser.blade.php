@@ -34,27 +34,24 @@
         @else
             <x-wirekit::card>
                 <x-wirekit::card.body>
-                    {{-- Two filters to a row where both stay readable, mode beside category and from
-                         beside until, each label, control and message on one line with its neighbor's;
-                         under each other on a phone. The reset at its own width. --}}
+                    {{-- The four filters in one row where they fit, each label, control and message on one
+                         line with its neighbors'; the row breaks only where the room runs out, and on a phone
+                         they stand under each other. The reset at its own width. --}}
                     <x-wirekit::stack>
                         <x-wirekit::row gap="sm" align-fields wrap>
                             <x-wirekit::select wire:model.live="filterMode" :label="__('visual-feedback::browser.filter_mode')">
                                 <option value="">{{ __('visual-feedback::browser.any') }}</option>
                                 @foreach ($modes as $mode)
-                                    <option value="{{ $mode }}">{{ $mode }}</option>
+                                    <option value="{{ $mode }}">{{ $modeLabels[$mode] ?? $mode }}</option>
                                 @endforeach
                             </x-wirekit::select>
 
                             <x-wirekit::select wire:model.live="filterCategory" :label="__('visual-feedback::browser.filter_category')">
                                 <option value="">{{ __('visual-feedback::browser.any') }}</option>
                                 @foreach ($categories as $category)
-                                    <option value="{{ $category }}">{{ $category }}</option>
+                                    <option value="{{ $category }}">{{ $categoryLabels[$category] ?? $category }}</option>
                                 @endforeach
                             </x-wirekit::select>
-                        </x-wirekit::row>
-
-                        <x-wirekit::row gap="sm" align-fields wrap>
                             <x-wirekit::input
                                 type="date"
                                 wire:model.live="filterFrom"
@@ -69,7 +66,7 @@
                         </x-wirekit::row>
 
                         <x-wirekit::row>
-                            <x-wirekit::button surface="soft" intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
+                            <x-wirekit::button intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
                                 {{ __('visual-feedback::browser.clear') }}
                             </x-wirekit::button>
                         </x-wirekit::row>
@@ -105,15 +102,15 @@
                     <x-wirekit::table.body>
                         @foreach ($reports as $report)
                             <x-wirekit::table.row wire:key="vf-report-{{ $report->uuid }}">
-                                <x-wirekit::table.td>{{ $report->created_at }}</x-wirekit::table.td>
-                                <x-wirekit::table.td>{{ $report->mode }}</x-wirekit::table.td>
-                                <x-wirekit::table.td>{{ $report->category }}</x-wirekit::table.td>
+                                <x-wirekit::table.td><span class="whitespace-nowrap">{{ $receivedLabel($report->created_at) }}</span></x-wirekit::table.td>
+                                <x-wirekit::table.td>{{ $modeLabels[$report->mode] ?? $report->mode }}</x-wirekit::table.td>
+                                <x-wirekit::table.td>{{ $categoryLabels[$report->category] ?? $report->category }}</x-wirekit::table.td>
                                 <x-wirekit::table.td :attributes="$redact">{{ $report->subject ?: '—' }}</x-wirekit::table.td>
                                 <x-wirekit::table.td :attributes="$redact">
                                     {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                                 </x-wirekit::table.td>
                                 <x-wirekit::table.td align="right">
-                                    <x-wirekit::button size="sm" surface="soft" intent="neutral" wire:click="open('{{ $report->uuid }}')" loading-target="open('{{ $report->uuid }}')">
+                                    <x-wirekit::button size="sm" wire:click="open('{{ $report->uuid }}')" loading-target="open('{{ $report->uuid }}')">
                                         {{ __('visual-feedback::browser.open') }}
                                     </x-wirekit::button>
                                     {{-- wire:confirm rather than an inline handler: Livewire's own
@@ -160,13 +157,13 @@
                         <x-wirekit::stack>
                             <x-wirekit::data-list>
                                 <x-wirekit::data-list.item :label="__('visual-feedback::browser.col_date')">
-                                    {{ $detail->created_at }}
+                                    <span class="whitespace-nowrap">{{ $receivedLabel($detail->created_at) }}</span>
                                 </x-wirekit::data-list.item>
                                 <x-wirekit::data-list.item :label="__('visual-feedback::browser.col_mode')">
-                                    {{ $detail->mode }}
+                                    {{ $modeLabels[$detail->mode] ?? $detail->mode }}
                                 </x-wirekit::data-list.item>
                                 <x-wirekit::data-list.item :label="__('visual-feedback::browser.col_category')">
-                                    {{ $detail->category }}
+                                    {{ $categoryLabels[$detail->category] ?? $detail->category }}
                                 </x-wirekit::data-list.item>
                                 <x-wirekit::data-list.item :label="__('visual-feedback::browser.col_reporter')">
                                     {{-- On the value, not on the item, so the label stays readable in a screenshot. --}}
@@ -188,10 +185,11 @@
                                 {{-- `thumbnail` only when the disk can actually give a URL. On a private
                                      disk — every shipped configuration — there is none, and the card
                                      then shows the path, which is what a host needs to fetch the file
+                                     (where the picture shows, its file name is enough)
                                      with their own tooling. No download route is invented here; see the
                                      component docblock. --}}
                                 <x-wirekit::attachment
-                                    :name="$attachment['path']"
+                                    :name="$attachment['url'] !== null ? basename($attachment['path']) : $attachment['path']"
                                     :thumbnail="$attachment['url'] !== null && $attachment['previewable'] ? $attachment['url'] : null"
                                     :href="$attachment['url']"
                                 />
@@ -200,7 +198,7 @@
                     </x-wirekit::card.body>
 
                     <x-wirekit::card.footer>
-                        <x-wirekit::button surface="soft" intent="neutral" wire:click="close" loading-target="close">
+                        <x-wirekit::button intent="neutral" wire:click="close" loading-target="close">
                             {{ __('visual-feedback::browser.close') }}
                         </x-wirekit::button>
                     </x-wirekit::card.footer>
