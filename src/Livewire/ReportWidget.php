@@ -1496,11 +1496,11 @@ class ReportWidget extends Component
     private function refusalLine(SubmissionResult $result): ?string
     {
         return match ($result->rejectionReason) {
-            RejectionReason::RateLimited, RejectionReason::GlobalRateLimited => WidgetTexts::line(
-                $this->texts,
-                'rate_limited',
-                ['minutes' => max(1, (int) ceil(($result->retryAfter ?? 3600) / 60))],
-            ),
+            // A refusal for the limit without a wait is a counter the gate could not read, with `abuse.on_error` set
+            // to `closed`: no limit the reporter reached, so it says the general sentence and names no wait.
+            RejectionReason::RateLimited, RejectionReason::GlobalRateLimited => $result->retryAfter !== null
+                ? WidgetTexts::line($this->texts, 'rate_limited', ['minutes' => max(1, (int) ceil($result->retryAfter / 60))])
+                : ($this->texts['error'] ?? null),
             RejectionReason::ChallengeFailed => WidgetTexts::line($this->texts, 'challenge_failed'),
             default => $this->texts['error'] ?? null,
         };
@@ -1539,11 +1539,10 @@ class ReportWidget extends Component
      */
     private function fieldHelp(): array
     {
-        $separator = (string) trans('visual-feedback::messages.widget.help.thousands_separator');
-        $limit = static function (string $field, int $default) use ($separator): string {
+        $limit = static function (string $field, int $default): string {
             $value = config("visual-feedback.fields.{$field}.max_length");
 
-            return number_format(is_numeric($value) ? (int) $value : $default, 0, '', $separator);
+            return WidgetTexts::count(is_numeric($value) ? (int) $value : $default);
         };
 
         return [
@@ -1552,7 +1551,7 @@ class ReportWidget extends Component
             'phone' => (string) trans('visual-feedback::messages.widget.help.phone', ['max' => $limit('phone', 32)]),
             'category' => (string) trans('visual-feedback::messages.widget.help.category'),
             'subject' => (string) trans('visual-feedback::messages.widget.help.subject', ['max' => $limit('subject', 150)]),
-            'message' => (string) trans('visual-feedback::messages.widget.help.message', ['max' => number_format($this->messageMaxLengthHere(), 0, '', $separator)]),
+            'message' => (string) trans('visual-feedback::messages.widget.help.message', ['max' => WidgetTexts::count($this->messageMaxLengthHere())]),
             'attachments' => (string) trans('visual-feedback::messages.widget.help.attachments'),
         ];
     }

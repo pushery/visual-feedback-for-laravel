@@ -172,6 +172,10 @@ return [
             'privacy_notice_version' => 'Privacy notice version',
         ],
         'reported_by_the_browser' => '(reported by the browser)',
+        'capture_methods' => [
+            'native' => 'Screen capture',
+            'dom' => 'Drawn from the page',
+        ],
         'attachments' => '{1} :count attachment|[2,*] :count attachments',
     ],
 

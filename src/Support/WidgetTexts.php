@@ -63,6 +63,17 @@ final class WidgetTexts
     }
 
     /**
+     * A count the way a line of the catalog writes it, grouped by the thousands separator of the
+     * catalog's language. An application changes the separator with the catalog line
+     * `widget.help.thousands_separator`; the counter in the browser writes its count again in the
+     * language of the page.
+     */
+    public static function count(int $value): string
+    {
+        return number_format($value, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator'));
+    }
+
+    /**
      * One text: the widget's own where it has one, otherwise the catalog's.
      *
      * @param  array<string, string>  $texts

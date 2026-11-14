@@ -172,6 +172,10 @@ return [
             'privacy_notice_version' => 'Versie van de privacyverklaring',
         ],
         'reported_by_the_browser' => '(volgens de browser)',
+        'capture_methods' => [
+            'native' => 'Schermopname',
+            'dom' => 'Getekend uit de pagina',
+        ],
         'attachments' => '{1} :count bijlage|[2,*] :count bijlagen',
     ],
 

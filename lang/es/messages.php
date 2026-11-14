@@ -172,6 +172,10 @@ return [
             'privacy_notice_version' => 'Versión del aviso de privacidad',
         ],
         'reported_by_the_browser' => '(según el navegador)',
+        'capture_methods' => [
+            'native' => 'Captura de pantalla',
+            'dom' => 'Dibujada a partir de la página',
+        ],
         'attachments' => '{1} :count adjunto|[2,*] :count adjuntos',
     ],
 

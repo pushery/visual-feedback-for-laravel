@@ -50,7 +50,9 @@ final readonly class AbuseDecision
      *                           gives them one name. Optional: a gate that says nothing loses
      *                           nothing.
      * @param  ?int  $retryAfter  seconds until a rate limit that refused the attempt frees again,
-     *                            so the reporter can be told when to try again
+     *                            so the reporter can be told when to try again. A refusal for a
+     *                            limit without it means the counter could not be read, and the
+     *                            widget then names no wait.
      */
     public static function reject(RejectionReason $reason, bool $visible = false, ?string $detail = null, ?int $retryAfter = null): self
     {
