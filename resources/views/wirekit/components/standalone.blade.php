@@ -158,7 +158,7 @@
                     x-on:input="measure($event.target.value)"
                     :placeholder="__('visual-feedback::messages.widget.message_placeholder')"
                     x-bind:aria-invalid="vfInvalid('message')" x-bind:aria-describedby="vfDescribedBy('message')" />
-                <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ number_format(is_numeric($vfMax) ? (int) $vfMax : 50000, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator')) }}</span>
+                <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ \Pushery\VisualFeedback\Support\WidgetTexts::count(is_numeric($vfMax) ? (int) $vfMax : 50000) }}</span>
                 <span class="visual-feedback-sr-only" aria-live="polite" x-text="announced"
                     style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);"></span>
             </div>

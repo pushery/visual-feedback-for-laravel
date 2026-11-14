@@ -199,7 +199,7 @@
                 required
                 x-on:input="measure($event.target.value)"
                 :placeholder="__('visual-feedback::messages.widget.message_placeholder')" />
-            <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ number_format((int) $messageMax, 0, '', (string) trans('visual-feedback::messages.widget.help.thousands_separator')) }}</span>
+            <span class="visual-feedback-counter" aria-hidden="true" x-text="tally()">0 / {{ \Pushery\VisualFeedback\Support\WidgetTexts::count((int) $messageMax) }}</span>
             {{-- Off-screen live region, concealed twice and deliberately.
 
                  Correction. This said "this tree publishes no stylesheet of its own", and that has not

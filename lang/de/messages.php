@@ -172,6 +172,10 @@ return [
             'privacy_notice_version' => 'Version des Datenschutzhinweises',
         ],
         'reported_by_the_browser' => '(vom Browser gemeldet)',
+        'capture_methods' => [
+            'native' => 'Bildschirmaufnahme',
+            'dom' => 'Aus der Seite gezeichnet',
+        ],
         'attachments' => '{1} :count Anhang|[2,*] :count Anhänge',
     ],
 

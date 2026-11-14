@@ -90,13 +90,21 @@
 @endif
 
 @if (count($report->attachments) > 0)
-{{ trans_choice('visual-feedback::messages.mail.attachments', count($report->attachments), ['count' => count($report->attachments)]) }}
+{{-- Each attachment by its file name, the part of its storage path a reader recognizes, as the report
+     browser names a shown picture. A reporter chose that name, so it goes through MailCell::text()
+     like every other value in a list item. --}}
+**{{ trans_choice('visual-feedback::messages.mail.attachments', count($report->attachments), ['count' => count($report->attachments)]) }}**
+
+@foreach ($report->attachments as $attachment)
+- {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::text(basename($attachment)) }}
+@endforeach
 @endif
 
 @if (count($report->metadata) > 0)
 **{{ __('visual-feedback::messages.mail.technical_details') }}**
 
-{{-- A yes-or-no detail reads as a word, as the rest of the mail does, not as `true` or `false`.
+{{-- A yes-or-no detail reads as a word, as the rest of the mail does, not as `true` or `false`, and so does
+     the capture stage the browser named: a stage this mail has no word for stays as it came.
      The capture stage and the edited flag are the browser's own statements: the server cannot
      tell which stage made the file or whether it was cropped, so each row says whose word it is
      rather than reading as proof.
@@ -107,7 +115,7 @@
 | {{ __('visual-feedback::messages.mail.field') }} | {{ __('visual-feedback::messages.mail.value') }} |
 | :--- | :--- |
 @foreach ($report->metadata as $key => $value)
-| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Pushery\VisualFeedback\Channels\Mail\MailCell::metadataLabel((string) $key)) }} | {{ is_bool($value) ? \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __($value ? 'visual-feedback::messages.mail.yes' : 'visual-feedback::messages.mail.no')) : \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
+| {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell(\Pushery\VisualFeedback\Channels\Mail\MailCell::metadataLabel((string) $key)) }} | {{ is_bool($value) ? \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __($value ? 'visual-feedback::messages.mail.yes' : 'visual-feedback::messages.mail.no')) : ($key === 'capture_method' && $value === 'native' ? \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.capture_methods.native')) : ($key === 'capture_method' && $value === 'dom' ? \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.capture_methods.dom')) : \Pushery\VisualFeedback\Channels\Mail\MailCell::value($value))) }}@if (in_array($key, ['capture_method', 'screenshot_edited'], true)) {{ \Pushery\VisualFeedback\Channels\Mail\MailCell::cell((string) __('visual-feedback::messages.mail.reported_by_the_browser')) }}@endif |
 @endforeach
 </x-mail::table>
 @endif

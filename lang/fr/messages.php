@@ -172,6 +172,10 @@ return [
             'privacy_notice_version' => 'Version de l\'avis de confidentialité',
         ],
         'reported_by_the_browser' => '(selon le navigateur)',
+        'capture_methods' => [
+            'native' => 'Capture d’écran',
+            'dom' => 'Dessinée à partir de la page',
+        ],
         'attachments' => '{1} :count pièce jointe|[2,*] :count pièces jointes',
     ],
 

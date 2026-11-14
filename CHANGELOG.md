@@ -4,6 +4,21 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.31.0] - 2026-11-14
+
+### 🔧 Changed
+
+- **The views write the limit of the message counter through `WidgetTexts::count()`.** Four views called `number_format()` with the thousands separator of the catalog themselves, so a host that published them carried that formatting in its own copy. The count reads the same, the help lines of the fields use the same method, and a host that published the views takes the call from the views of the package.
+
+### 🐛 Fixed
+
+- **A refusal while the report counter is down no longer tells the reporter they sent too many reports.** With `abuse.on_error` set to `closed`, a counter the server could not read refused a report as a reached limit, and the widget said the reporter had sent several reports and should try again in 60 minutes, a wait it made up. A refusal for a limit that carries no wait says the general sentence `widget.error` now; a limit that was reached still names its wait.
+- **The report mail reads as text, not as a log.** The subject and the message stay fenced code, which keeps what a reporter typed inert and exactly as typed, and the mail theme now sets that code in the face and size of the text around it instead of the client's monospace. The lists of a label and a value, who reported it and the report's context, stand without bullets, and a label in the table of technical details keeps its line, where "Viewport width" and "Capture method" broke after their first word.
+- **The report mail names its attachments.** Under "1 attachment" stands each file by its name, where the line gave a count alone.
+- **The report mail says in words how the browser captured the picture.** The capture method reads "Screen capture" or "Drawn from the page", in every language of the package, where it showed the browser's own `native` or `dom`. A stage the mail has no word for is shown as it came.
+
+  **Upgrade:** a copy of the mail view or of its theme published before this release keeps the old lines; publish them again to take these.
+
 ## [0.30.0] - 2026-11-13
 
 ### 🔧 Changed
@@ -1482,7 +1497,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.28.0...v0.29.0
