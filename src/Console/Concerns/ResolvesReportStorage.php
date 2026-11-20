@@ -36,7 +36,12 @@ trait ResolvesReportStorage
         return app(AttachmentPolicy::class)->directory();
     }
 
-    /** @return list<string> the stored attachment paths from a row's `attachments` JSON. */
+    /**
+     * The stored attachment paths from a row's `attachments` JSON.
+     *
+     * @param  mixed  $json  the attachments column as the driver returns it: a JSON string, or null
+     * @return list<string>
+     */
     private function attachmentPaths(mixed $json): array
     {
         $decoded = is_string($json) ? json_decode($json, true) : null;

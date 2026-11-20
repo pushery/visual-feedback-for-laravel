@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/pushery/visual-feedback-for-laravel">
-    <img src="art/header.png" alt="Visual Feedback for Laravel" width="100%">
+    <img src="https://raw.githubusercontent.com/pushery/visual-feedback-for-laravel/main/art/header.png" alt="Visual Feedback for Laravel" width="100%">
   </a>
 </p>
 
@@ -12,13 +12,13 @@
 [![Livewire 4.3.4+](https://img.shields.io/badge/Livewire-4.3.4%2B-FB70A9?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![License](https://img.shields.io/packagist/l/pushery/visual-feedback-for-laravel.svg)](LICENSE)
 
-[![Tests](https://img.shields.io/badge/tests-Pest%205-8BC34A.svg)](https://pestphp.com)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
-![Type Coverage](https://img.shields.io/badge/types-100%25-brightgreen.svg)
-[![PHPStan](https://img.shields.io/badge/PHPStan-max-blue.svg)](https://phpstan.org)
-[![Code Style](https://img.shields.io/badge/code%20style-pint-orange.svg)](https://laravel.com/docs/pint)
-![Databases](https://img.shields.io/badge/tested%20on-PostgreSQL%20%2B%20MySQL-336791.svg)
-![Mutation](https://img.shields.io/badge/mutation-%E2%89%A585%25-blueviolet.svg)
+[![Tests: Pest 5](https://img.shields.io/badge/tests-Pest%205-8BC34A.svg)](https://pestphp.com)
+![Coverage: 100%](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
+![Type coverage: 100%](https://img.shields.io/badge/types-100%25-brightgreen.svg)
+[![PHPStan: level 10](https://img.shields.io/badge/PHPStan-10-blue.svg)](https://phpstan.org)
+[![Code style: Pint](https://img.shields.io/badge/code%20style-pint-orange.svg)](https://laravel.com/docs/pint)
+![Tested on: PostgreSQL + MySQL](https://img.shields.io/badge/tested%20on-PostgreSQL%20%2B%20MySQL-336791.svg)
+![Mutation score: ≥85%](https://img.shields.io/badge/mutation-%E2%89%A585%25-blueviolet.svg)
 
 In-page feedback widget with client-side screenshot capture for Laravel and Livewire.
 
@@ -103,8 +103,8 @@ This package is built and maintained by [Pushery](https://www.pushery.com) — a
 Berlin-based studio building Laravel applications, SaaS products, and open-source
 tools.
 
-Building a Laravel UI? [WireKit](https://www.wirekit.app), Pushery's open-source
-Livewire component kit, gives you a polished component library out of the box.
+Building a Laravel UI? [WireKit](https://www.wirekit.app) is Pushery's open-source
+Livewire component kit, and the widget's second view tree is built with it.
 Browse the rest of our work at [pushery.com](https://www.pushery.com).
 
 ## License

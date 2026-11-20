@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Pushery\VisualFeedback\Metadata\MetadataSanitizer;
 use Pushery\VisualFeedback\Support\EnvFlag;
+use Pushery\VisualFeedback\Support\EnvSwitch;
 
 return [
 
@@ -20,7 +21,7 @@ return [
     |
     */
 
-    // Every boolean key in this file reads its env value through `filter_var`, and that is not
+    // Every switch in this file reads its env value through `EnvSwitch::read()`, and that is not
     // decoration. `env()` converts exactly four spellings -- `true`, `false`, `empty`, `null` --
     // and hands back everything else as a string. A non-empty string is truthy, so without it
     // `VISUAL_FEEDBACK_ENABLED=off` would read as on. Nothing throws and nothing logs; from the
@@ -32,17 +33,17 @@ return [
     // a cast is no safer than one without it, while reading like a safeguard and stopping
     // nobody.
     //
-    // The `?? <default>` is load-bearing too: without it an unreadable value becomes `null` and
-    // therefore falsy, so a typo would switch a feature off instead of falling back to what this
-    // file declares. The right answer to "cannot read that" is the default.
+    // `EnvSwitch::read()` reads `off`, `no`, `false` and `0` as off and `on`, `yes`, `true` and
+    // `1` as on, and anything else, an empty value (`KEY=`), a literal `KEY=null` and a typo
+    // included, as the default this file declares. The rule lives in the package rather than
+    // here, so a fix to it reaches a published copy of this file with the next update.
     //
-    // Two edges, measured rather than assumed, and left as they are because they match what
-    // Laravel itself does with an env value: an empty value (`KEY=`) and a literal `KEY=null`
-    // both read as `false`, not as the default -- `filter_var` calls them readable-and-false, so
-    // the `??` never sees them. `KEY=garbage` is the unreadable case the `??` exists for. The
-    // master switch, `mail.require_deliverable_transport`, the mail channel, the subject field,
-    // the screenshot editor and `retention.prune_delivered_only` are read through
-    // `EnvFlag::protection()` instead, where an empty value takes the default.
+    // Two switches read their value another way, on purpose: `webhook.include_reporter` keeps
+    // `filter_var`, so an empty value and `KEY=null` drop the reporter's data as `false` does,
+    // and `matomo.enabled` goes through `EnvFlag::boolean()`, where an empty value switches the
+    // tracking off. A number keeps `filter_var` with `?? <default>`, and the `??` is
+    // load-bearing: without it an unreadable value becomes `null`, and the right answer to
+    // "cannot read that" is the default.
 
     // Master switch — a kill switch that needs no code change.
     //
@@ -59,7 +60,7 @@ return [
     // An empty `VISUAL_FEEDBACK_ENABLED=` keeps the widget on: only `false`, `off`, `no` or `0`
     // switches it off. On a host where the widget is the way to report a barrier, an empty line
     // in a server's environment would otherwise take that way away without anybody noticing.
-    'enabled' => EnvFlag::protection(env('VISUAL_FEEDBACK_ENABLED', true), true),
+    'enabled' => EnvSwitch::read(env('VISUAL_FEEDBACK_ENABLED', true), true),
 
     // Sign-in only. True means: no floating button, no trigger, no form for a guest, and a submit
     // from a guest session refused with `RejectionReason::AuthenticationRequired` — an enum case
@@ -78,7 +79,7 @@ return [
     // decides whose name is on a report — so a host on a non-default guard binds their own
     // resolver and this switch follows it. There is no second guard-name setting, because a
     // second answer could only disagree with the first.
-    'require_authentication' => filter_var(env('VISUAL_FEEDBACK_REQUIRE_AUTHENTICATION', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+    'require_authentication' => EnvSwitch::read(env('VISUAL_FEEDBACK_REQUIRE_AUTHENTICATION', false), false),
 
     /*
     |--------------------------------------------------------------------------
@@ -134,7 +135,7 @@ return [
     'fields' => [
         'subject' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_SUBJECT_MODE')
-                ?? (EnvFlag::protection(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), true) ? 'optional' : 'off'),
+                ?? (EnvSwitch::read(env('VISUAL_FEEDBACK_FIELD_SUBJECT', true), true) ? 'optional' : 'off'),
             'max_length' => filter_var(
                 env('VISUAL_FEEDBACK_FIELD_SUBJECT_MAX_LENGTH', 150),
                 FILTER_VALIDATE_INT,
@@ -150,7 +151,7 @@ return [
         ],
         'name' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_NAME_MODE')
-                ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
+                ?? (EnvSwitch::read(env('VISUAL_FEEDBACK_GUEST_REQUIRE_NAME', false), false) ? 'required' : 'optional'),
             'max_length' => filter_var(
                 env('VISUAL_FEEDBACK_FIELD_NAME_MAX_LENGTH', 150),
                 FILTER_VALIDATE_INT,
@@ -159,7 +160,7 @@ return [
         ],
         'email' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_EMAIL_MODE')
-                ?? (filter_var(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'required' : 'optional'),
+                ?? (EnvSwitch::read(env('VISUAL_FEEDBACK_GUEST_REQUIRE_EMAIL', false), false) ? 'required' : 'optional'),
             'max_length' => filter_var(
                 env('VISUAL_FEEDBACK_FIELD_EMAIL_MAX_LENGTH', 254),
                 FILTER_VALIDATE_INT,
@@ -168,7 +169,7 @@ return [
         ],
         'phone' => [
             'mode' => env('VISUAL_FEEDBACK_FIELD_PHONE_MODE')
-                ?? (filter_var(env('VISUAL_FEEDBACK_FIELD_PHONE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true ? 'optional' : 'off'),
+                ?? (EnvSwitch::read(env('VISUAL_FEEDBACK_FIELD_PHONE', false), false) ? 'optional' : 'off'),
             'max_length' => filter_var(
                 env('VISUAL_FEEDBACK_FIELD_PHONE_MAX_LENGTH', 32),
                 FILTER_VALIDATE_INT,
@@ -288,10 +289,10 @@ return [
         'flatten_custom_elements' => true,
         'iframe_placeholder' => true,
         'redact_attribute' => 'data-visual-feedback-redact',
-        'debug' => filter_var(env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+        'debug' => EnvSwitch::read(env('VISUAL_FEEDBACK_SCREENSHOT_DEBUG', false), false),
         // The editor a reporter opens on a captured screenshot to crop it before attaching it. Off,
         // the preview offers no Edit button and the page never fetches the editor's file.
-        'editor' => EnvFlag::protection(env('VISUAL_FEEDBACK_SCREENSHOT_EDITOR', true), true),
+        'editor' => EnvSwitch::read(env('VISUAL_FEEDBACK_SCREENSHOT_EDITOR', true), true),
     ],
 
     /*
@@ -580,7 +581,7 @@ return [
             // An empty `VISUAL_FEEDBACK_CHANNEL_MAIL=` keeps mail on. With the other channels at
             // their defaults a report leaves by mail alone, and an empty line would drop every
             // report without anybody noticing.
-            'enabled' => EnvFlag::protection(env('VISUAL_FEEDBACK_CHANNEL_MAIL', true), true),
+            'enabled' => EnvSwitch::read(env('VISUAL_FEEDBACK_CHANNEL_MAIL', true), true),
             'connection' => env('VISUAL_FEEDBACK_MAIL_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_MAIL_QUEUE'),
             'tries' => filter_var(
@@ -591,7 +592,7 @@ return [
             'backoff' => 30,
         ],
         'database' => [
-            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_DATABASE', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+            'enabled' => EnvSwitch::read(env('VISUAL_FEEDBACK_CHANNEL_DATABASE', false), false),
             'connection' => env('VISUAL_FEEDBACK_DATABASE_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_DATABASE_QUEUE'),
             'tries' => filter_var(
@@ -602,7 +603,7 @@ return [
             'backoff' => 30,
         ],
         'webhook' => [
-            'enabled' => filter_var(env('VISUAL_FEEDBACK_CHANNEL_WEBHOOK', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+            'enabled' => EnvSwitch::read(env('VISUAL_FEEDBACK_CHANNEL_WEBHOOK', false), false),
             'connection' => env('VISUAL_FEEDBACK_WEBHOOK_CONNECTION'),
             'queue' => env('VISUAL_FEEDBACK_WEBHOOK_QUEUE'),
             'tries' => filter_var(
@@ -719,7 +720,7 @@ return [
         // `laravel.log` during development is a legitimate thing to want. It is never consulted
         // while the application runs its tests, where `array` is the correct answer.
         // An empty value keeps the check on: only an explicit false switches it off.
-        'require_deliverable_transport' => EnvFlag::protection(env('VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT', true), true),
+        'require_deliverable_transport' => EnvSwitch::read(env('VISUAL_FEEDBACK_MAIL_REQUIRE_DELIVERABLE_TRANSPORT', true), true),
     ],
 
     /*
@@ -804,7 +805,7 @@ return [
         // `true` holds a report back from pruning while one of its channels has not delivered it;
         // `false` makes `reports_days` a hard ceiling. An empty value keeps `true`: an empty line
         // must not delete a report no channel has delivered.
-        'prune_delivered_only' => EnvFlag::protection(env('VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY', true), true),
+        'prune_delivered_only' => EnvSwitch::read(env('VISUAL_FEEDBACK_RETENTION_PRUNE_DELIVERED_ONLY', true), true),
     ],
 
     /*
@@ -885,7 +886,7 @@ return [
         // It only does anything when `assets` points somewhere else. Served from your own
         // `public/` the bytes are already same-origin, and the digest would be checking the file
         // against itself.
-        'assets_integrity' => filter_var(env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+        'assets_integrity' => EnvSwitch::read(env('VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY', false), false),
     ],
 
     /*

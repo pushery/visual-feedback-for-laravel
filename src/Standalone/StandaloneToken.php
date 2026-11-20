@@ -35,7 +35,7 @@ final readonly class StandaloneToken
     {
         $parts = explode('.', $token);
 
-        if (count($parts) !== 3 || preg_match('/^\d+\z/', $parts[0]) !== 1 || ! hash_equals($this->sign($parts[0].'.'.$parts[1]), $parts[2])) {
+        if (count($parts) !== 3 || preg_match('/^\d+\z/', $parts[0]) !== 1 || ! $this->signedHere($parts[0].'.'.$parts[1], $parts[2])) {
             return null;
         }
 
@@ -44,7 +44,27 @@ final readonly class StandaloneToken
         return $openedAt > $now || $now - $openedAt > $this->ttl() ? null : new DateTimeImmutable('@'.$openedAt);
     }
 
+    /**
+     * Whether the signature is one this application made, under its key or one of `app.previous_keys`. Laravel takes
+     * those for its own signatures as well, so a form a reporter opened before the key was rotated still sends while
+     * the old key stays listed.
+     */
+    private function signedHere(string $payload, string $signature): bool
+    {
+        return array_any([$this->key(), ...$this->previousKeys()], fn (string $key): bool => hash_equals($this->signWith($payload, $key), $signature));
+    }
+
     private function sign(string $payload): string
+    {
+        return $this->signWith($payload, $this->key());
+    }
+
+    private function signWith(string $payload, string $key): string
+    {
+        return hash_hmac('sha256', 'visual-feedback.standalone|'.$payload, $key);
+    }
+
+    private function key(): string
     {
         $key = $this->config->get('app.key');
 
@@ -52,7 +72,26 @@ final readonly class StandaloneToken
             throw new RuntimeException('The standalone widget signs its form tokens with the application key, and app.key is empty.');
         }
 
-        return hash_hmac('sha256', 'visual-feedback.standalone|'.$payload, $key);
+        return $key;
+    }
+
+    /**
+     * The keys the application rotated away from and still accepts, as `config/app.php` lists them.
+     *
+     * @return list<string>
+     */
+    private function previousKeys(): array
+    {
+        $listed = $this->config->get('app.previous_keys');
+        $keys = [];
+
+        foreach (is_array($listed) ? $listed : [] as $key) {
+            if (is_string($key) && $key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
     }
 
     private function ttl(): int

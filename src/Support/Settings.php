@@ -67,6 +67,14 @@ final readonly class Settings
         return app(Repository::class);
     }
 
+    /** The application key, which keys what the package derives from an address. Empty where none is set. */
+    public function appKey(): string
+    {
+        $key = $this->config()->get('app.key');
+
+        return is_string($key) ? $key : '';
+    }
+
     public function enabled(): bool
     {
         // Read like a protective switch: absence and a blank value keep the widget on, the
@@ -297,10 +305,8 @@ final readonly class Settings
     // implementation of the same rule, and maxFiles() even read `0` differently from the policy
     // that enforces the count.
     //
-    // Worse than dead code: tests asserted through them that the caps "never become unlimited",
-    // which is a guarantee about a path no request takes. The assurance read as coverage of the
-    // upload perimeter and covered nothing. It lives with the enforcers, in
-    // AttachmentPolicyDefaultsTest and AttachmentValidatorDefaultsTest.
+    // That the caps never become unlimited is a guarantee of the enforcers, the path every upload
+    // takes.
 
     /**
      * How one of the configurable form fields is meant to behave: `off`, `optional` or `required`.

@@ -41,6 +41,7 @@ final class FabCorner
     ];
 
     /**
+     * @param  mixed  $position  a value of the package's config, which a host may have set to any type
      * @return 'bottom-end'|'bottom-start'|'top-end'|'top-start'
      */
     public static function of(mixed $position): string

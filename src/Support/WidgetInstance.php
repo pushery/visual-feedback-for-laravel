@@ -22,13 +22,22 @@ final class WidgetInstance
     /** The modal name of a widget without an instance name, the one the kit's modal always had. */
     public const string MODAL = 'visual-feedback';
 
-    /** An instance name the views and the bundle can carry as it is, or null. */
+    /**
+     * An instance name the views and the bundle can carry as it is, or null.
+     *
+     * @param  mixed  $instance  the instance name a host passes to the widget, which may be any value Blade hands over
+     */
     public static function name(mixed $instance): ?string
     {
+        // `$` cannot let a line feed at the end through: the name is trimmed before it is matched.
         return is_string($instance) && preg_match('/^[A-Za-z0-9_-]{1,64}$/', trim($instance)) === 1 ? trim($instance) : null;
     }
 
-    /** The Alpine expression a trigger dispatches to open the widget of this instance, or the page-wide one. */
+    /**
+     * The Alpine expression a trigger dispatches to open the widget of this instance, or the page-wide one.
+     *
+     * @param  mixed  $instance  the instance name a host passes to the widget, which may be any value Blade hands over
+     */
     public static function openExpression(mixed $instance): string
     {
         $name = self::name($instance);
@@ -40,7 +49,11 @@ final class WidgetInstance
         return "\$dispatch('visual-feedback:open', { instance: '{$name}' })";
     }
 
-    /** The name of the WireKit modal of the widget of this instance. */
+    /**
+     * The name of the WireKit modal of the widget of this instance.
+     *
+     * @param  mixed  $instance  the instance name a host passes to the widget, which may be any value Blade hands over
+     */
     public static function modalName(mixed $instance): string
     {
         $name = self::name($instance);

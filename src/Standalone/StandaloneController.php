@@ -285,6 +285,9 @@ final readonly class StandaloneController
 
         try {
             $filesystem = Storage::disk($policy->disk());
+            // The answer is not read: Laravel's disks answer a refused delete with false, and a file that
+            // stays is an orphan in the attachments directory, which visual-feedback:sweep-orphans deletes
+            // once it is older than its cutoff.
             $filesystem->delete($paths);
 
             app(EmptyDirectoryPruner::class)->prune(
@@ -296,12 +299,15 @@ final readonly class StandaloneController
         }
     }
 
-    /** @return list<UploadedFile> */
+    /**
+     * @param  mixed  $files  what the file field of the request holds: one upload, a list of them, or nothing
+     * @return list<UploadedFile>
+     */
     private function uploads(mixed $files): array
     {
         $files = $files instanceof UploadedFile ? [$files] : (is_array($files) ? $files : []);
 
-        return array_values(array_filter($files, static fn (mixed $file): bool => $file instanceof UploadedFile));
+        return array_values(collect($files)->whereInstanceOf(UploadedFile::class)->all());
     }
 
     /**

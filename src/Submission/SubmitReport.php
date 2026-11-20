@@ -317,16 +317,11 @@ final readonly class SubmitReport
         // Dropping is still right for a value no category key can be — an array, an object, a
         // bool, a null. Those cannot round-trip through a form field, so admitting them would
         // widen the allowlist rather than repair it.
-        /** @var list<string> $categories */
-        $categories = array_values(array_map(
-            strval(...),
-            array_filter(
-                $input->allowedCategories !== []
-                    ? $input->allowedCategories
-                    : (is_array($configured = $this->config->get('visual-feedback.categories')) ? $configured : []),
-                static fn (mixed $key): bool => is_string($key) || is_int($key),
-            )
-        ));
+        $categories = $this->categoryKeys(
+            $input->allowedCategories !== []
+                ? $input->allowedCategories
+                : (is_array($configured = $this->config->get('visual-feedback.categories')) ? $configured : []),
+        );
 
         $subjectMax = $this->configInt('visual-feedback.fields.subject.max_length', 150);
         $messageMax = $this->configInt('visual-feedback.fields.message.max_length', 50_000);
@@ -404,6 +399,26 @@ final readonly class SubmitReport
         $field = (string) array_key_first($errors);
 
         return new ValidationFailure($field, (string) ($errors[$field][0] ?? ''));
+    }
+
+    /**
+     * The keys of a category list as the strings a form field sends back: a string and an int stand,
+     * the int cast, and any other value, which no category key can be, is dropped.
+     *
+     * @param  array<array-key, mixed>  $offered
+     * @return list<string>
+     */
+    private function categoryKeys(array $offered): array
+    {
+        $keys = [];
+
+        foreach ($offered as $key) {
+            if (is_string($key) || is_int($key)) {
+                $keys[] = (string) $key;
+            }
+        }
+
+        return $keys;
     }
 
     /**

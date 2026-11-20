@@ -62,7 +62,8 @@ final readonly class AbuseGateManager implements AbuseGate
                     return $decision;
                 }
             } catch (Throwable $exception) {
-                $opens = $this->settings->additionalGateOpensOnError($name);
+                // A driver configured under a name made of digits is an int key, the way PHP stores it.
+                $opens = $this->settings->additionalGateOpensOnError((string) $name);
 
                 // `error`, not `warning`, and it is logged under both modes. A gate that throws is
                 // a defect in that gate, and the consequence is that the challenge it enforces was

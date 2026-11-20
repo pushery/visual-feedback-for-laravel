@@ -73,6 +73,8 @@ final readonly class TrackReportSubmission
      * Asked inside the belt above: a hook that throws, or a key that names nothing invokable, costs
      * the event and a warning in the log, never the report. Only `true` skips, so a hook that
      * answers anything else still counts the report.
+     *
+     * @param  mixed  $hook  the skip hook as the host configured it, which may be any value
      */
     private function skips(mixed $hook, ReportSubmitted $event): bool
     {

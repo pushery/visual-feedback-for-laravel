@@ -66,7 +66,10 @@ final class ChannelRegistry
         $logger = app(LoggerInterface::class);
         $channels = [];
 
-        foreach ($this->factories as $key => $factory) {
+        foreach ($this->factories as $registered => $factory) {
+            // A channel registered under a name made of digits is an int key, the way PHP stores it.
+            $key = (string) $registered;
+
             if (! $this->isEnabled($key)) {
                 continue; // no instantiation for a disabled channel
             }

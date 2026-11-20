@@ -232,15 +232,35 @@ deletes nothing and orphaned attachments accumulate:
 ```php
 // routes/console.php
 use Illuminate\Support\Facades\Schedule;
+use Pushery\VisualFeedback\Support\PruneExpiredCacheKeys;
 
 Schedule::command('visual-feedback:prune')->daily()->withoutOverlapping()->onOneServer();
 Schedule::command('visual-feedback:sweep-orphans')->daily()->withoutOverlapping()->onOneServer();
+Schedule::call(PruneExpiredCacheKeys::class)->daily(); // where the cache store is the database store
 ```
 
 Both are safe to add before a retention window is chosen: with `reports_days` unset, prune
 is a clean no-op, and a value under one day is refused rather than deleting every report. The sweep is needed even then — the ordinary attachment cleanup runs off a
 cache-backed reference count, and a `cache:clear` on deploy loses it; the age-based sweep is
 the only thing that collects the residue, and it works without the optional reports table.
+
+`PruneExpiredCacheKeys` matters on the database cache store, which deletes an expired entry only
+when its key is read again: the receipts, the settle claims, the erasure records and the
+rate-limit counters are written for one report or one visitor and would stay rows of the cache
+table for good. It deletes the expired entries under `visual-feedback:` from the default store
+and the rate limiter's store, wherever either is a database store, and does nothing elsewhere.
+
+**Choose a default cache store that keeps its entries.** The delivery bookkeeping (the receipt,
+the claim that makes each channel settle once, the attachment counter) and the erasure records of
+`visual-feedback:forget` live there. A lost claim lets a channel settle twice, a lost receipt can
+keep a report past its retention window, and a lost erasure record lets a delivery still queued
+store, mail or post an erased report. A store loses entries when it evicts them (Redis under any
+`maxmemory-policy` but `noeviction`, the `volatile-*` policies included, and Memcached without
+`-M`), when `cache:clear` or `optimize:clear` flushes it, and when it restarts without persistence
+(Redis without `appendonly yes`, Memcached every time). Use the database store, or Redis with
+`maxmemory-policy noeviction` and `appendonly yes`. A Redis under `noeviction` that fills up
+refuses writes instead, so give it the memory the application's cache needs. A deploy that
+rebuilds its caches with `php artisan optimize` leaves the store alone.
 
 **Run `visual-feedback:forget` by hand.** It answers one person's erasure request and does
 not belong on a schedule. For a signed-in member, erase by id rather than by address, because
@@ -512,6 +532,7 @@ The built-in floor — honeypot, time trap, per-user and per-guest-IP rate limit
 no `abuse.driver` value removes it. An additional gate layers ON TOP of it, never instead:
 
 ```php
+use App\Abuse\AcmeGate;
 use Pushery\VisualFeedback\Contracts\AbuseGate;
 use Pushery\VisualFeedback\Facades\VisualFeedback;
 
@@ -608,9 +629,10 @@ Deliver reports somewhere else with a class implementing
 `dispatch(Report $report)`. Register the factory in a service provider's `boot()`:
 
 ```php
+use App\Feedback\SlackReportChannel;
 use Pushery\VisualFeedback\Facades\VisualFeedback;
 
-VisualFeedback::extend('slack', fn () => new App\Feedback\SlackReportChannel());
+VisualFeedback::extend('slack', fn () => new SlackReportChannel());
 ```
 
 If that channel STORES the report for someone to open later, implement
@@ -679,6 +701,10 @@ are isolated from each other: one failing never stops the rest.
   concealment rule. Strip it and a strict `style-src` leaves that field visible.
 - Do not write a channel that stores reports without `RetainsReport`. Nothing fails when you
   forget it; the attachments are simply gone by the time anyone opens the report.
+- Do not run `cache:clear` or `optimize:clear` in a deploy, or keep the default cache store on a
+  Redis that evicts or forgets on restart, or on Memcached without `-M`. The delivery bookkeeping
+  and the erasure records live there, and a lost erasure record lets a delivery still queued bring
+  an erased report back.
 - Do not assume a green submit means a delivered report. A missing recipient, an idle queue
   and a rejected webhook signature all end in the same success screen; the log is where the
   difference is.

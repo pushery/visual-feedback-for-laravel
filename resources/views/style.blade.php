@@ -12,8 +12,8 @@
 
     In the plain tree every color is a CSS custom property with a dark value, under
     `prefers-color-scheme: dark` by default or under the application's own selector where
-    `ui.dark_mode` is `class`, so the widget is dark-mode-neutral out of the box and a host can
-    retint it by overriding the `--vf-*` properties. Publish and edit it with:
+    `ui.dark_mode` is `class`, so the widget takes its dark colors without a setting of its own,
+    and a host can retint it by overriding the `--vf-*` properties. Publish and edit it with:
 
         php artisan vendor:publish --tag=visual-feedback-views
 
@@ -891,6 +891,16 @@
 
     .visual-feedback-browser-pager-edge {
         padding: 0.5rem 0.875rem;
+    }
+
+    {{-- Set like a heading, because a Tailwind host's preflight leaves every heading at the size and
+       weight of body text. --}}
+    .visual-feedback-browser-empty-title {
+        margin: 0;
+        padding: var(--vf-gap) var(--vf-gap) 0;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.3;
     }
 
     .visual-feedback-browser-empty {

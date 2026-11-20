@@ -16,6 +16,9 @@ final readonly class ConfiguredLocale
 {
     public function __construct(public ?string $locale) {}
 
+    /**
+     * @param  mixed  $value  a value of the package's config, which a host may have set to any type
+     */
     public static function from(mixed $value): self
     {
         return new self(is_string($value) && $value !== '' ? $value : null);

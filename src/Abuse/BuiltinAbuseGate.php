@@ -331,8 +331,10 @@ final readonly class BuiltinAbuseGate implements AbuseGate
     private function rateLimitKey(ReportAttempt $attempt): string
     {
         if ($attempt->reporter->isGuest) {
-            // Per guest IP; hashed so an IPv6's colons stay cache-key-safe and no raw IP is stored.
-            return 'visual-feedback:abuse:guest:'.hash('sha256', $this->rateLimitSubject($attempt->ipAddress));
+            // Per guest IP, keyed with the application key so an IPv6's colons stay cache-key-safe and no
+            // address can be read back: a plain hash of an IPv4 address is undone by hashing all of them, and
+            // a rate-limit key is a cache key, which an error tracker records.
+            return 'visual-feedback:abuse:guest:'.hash_hmac('sha256', $this->rateLimitSubject($attempt->ipAddress), $this->settings->appKey());
         }
 
         return 'visual-feedback:abuse:user:'.($attempt->reporter->id ?? 'unknown');

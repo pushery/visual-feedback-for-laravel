@@ -33,7 +33,7 @@ final class PruneReports extends Command
     /**
      * The channel key of the writer of this table — DatabaseChannel::key(). Its own receipt in a
      * row's `deliveries` snapshot is never anything but `pending`, so the delivered-only guard
-     * has to skip it. `PruneIgnoresItsOwnChannelReceiptTest` holds the string against the channel.
+     * has to skip it.
      */
     private const string OWN_CHANNEL = 'database';
 
@@ -139,6 +139,8 @@ final class PruneReports extends Command
      * `reports_days`, the same span as the prune cutoff, so the receipt has expired by the
      * moment a row becomes prunable and the guard would flip from "never prunes" to "always
      * prunes".
+     *
+     * @param  mixed  $json  the deliveries the column as the driver returns it: a JSON string, or null
      */
     private function hasPendingDelivery(mixed $json): bool
     {
