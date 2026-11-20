@@ -22,6 +22,9 @@
         <p class="visual-feedback-browser-error" role="alert">{{ __('visual-feedback::browser.delete_failed') }}</p>
     @endif
     @if (! $tableExists)
+        {{-- Titled one level below the browser's title, as the WireKit tree titles its empty state, so a
+             reader moving by heading finds it in both trees. --}}
+        <h{{ $sectionLevel }} class="visual-feedback-browser-empty-title">{{ __('visual-feedback::browser.no_table_title') }}</h{{ $sectionLevel }}>
         <p class="visual-feedback-browser-empty">
             {{ __('visual-feedback::browser.no_table') }}
         </p>
@@ -63,6 +66,7 @@
         </form>
 
         @if ($reports !== null && $reports->total() === 0)
+            <h{{ $sectionLevel }} class="visual-feedback-browser-empty-title">{{ __('visual-feedback::browser.none_title') }}</h{{ $sectionLevel }}>
             <p class="visual-feedback-browser-empty">{{ __('visual-feedback::browser.none') }}</p>
         @else
             {{-- The table scrolls inside its own frame, so a narrow screen does not push the whole

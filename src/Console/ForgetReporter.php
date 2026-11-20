@@ -180,7 +180,11 @@ final class ForgetReporter extends Command
         return $failed ? self::FAILURE : self::SUCCESS;
     }
 
-    /** An argument or option value that names something: a non-blank string, as given. */
+    /**
+     * An argument or option value that names something: a non-blank string, as given.
+     *
+     * @param  mixed  $value  an argument or option as the console hands it over: a string, an array or null
+     */
     private function given(mixed $value): ?string
     {
         return is_string($value) && trim($value) !== '' ? $value : null;
@@ -192,6 +196,8 @@ final class ForgetReporter extends Command
      * The query has already matched with the column's collation. Where that collation ignores
      * case, a row in another case is the same address; where it also ignores accents, width or
      * letters spelled out, as MySQL's default collations do, the row belongs to another address.
+     *
+     * @param  mixed  $stored  the stored address as the driver returns it
      */
     private function sameAddress(mixed $stored, string $requested): bool
     {

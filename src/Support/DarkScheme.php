@@ -28,6 +28,9 @@ final class DarkScheme
 
     /**
      * The selector the dark colors stand under, or null where they follow the operating system.
+     *
+     * @param  mixed  $mode  a value of the package's config, which a host may have set to any type
+     * @param  mixed  $selector  a value of the package's config, which a host may have set to any type
      */
     public static function selector(mixed $mode, mixed $selector): ?string
     {
@@ -45,6 +48,7 @@ final class DarkScheme
      */
     private static function isContained(string $selector): bool
     {
+        // `$` cannot let a line feed at the end through: selector() trims the value before it asks.
         if ($selector === '' || strlen($selector) > self::MAX_LENGTH
             || preg_match('/^[A-Za-z0-9_.#:,=*+~>()\[\]"\' -]+$/', $selector) !== 1) {
             return false;

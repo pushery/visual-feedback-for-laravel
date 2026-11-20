@@ -281,6 +281,8 @@ final class ReportBrowser extends Component
      * When a report arrived, as its reader writes a date and a time. The column holds the moment as the
      * application wrote it, in its own time zone, and a value that does not read as a moment is shown as
      * it is rather than as the moment the page was rendered.
+     *
+     * @param  mixed  $value  the created_at column as the driver returns it
      */
     private function receivedLabel(mixed $value): string
     {
@@ -378,6 +380,7 @@ final class ReportBrowser extends Component
     /**
      * The attachment entries of one report, decoded.
      *
+     * @param  mixed  $json  the attachments the column as the driver returns it: a JSON string, or null
      * @return list<string>
      */
     private function attachmentsOf(mixed $json): array
@@ -401,6 +404,7 @@ final class ReportBrowser extends Component
      * The attachments of the open report as the detail pane shows them: each path, its URL when
      * the disk has one, and whether the picture can be shown inline.
      *
+     * @param  mixed  $json  the attachments the column as the driver returns it: a JSON string, or null
      * @return list<array{path: string, url: ?string, previewable: bool}>
      */
     private function attachmentsShown(mixed $json): array

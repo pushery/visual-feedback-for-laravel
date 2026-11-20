@@ -40,8 +40,8 @@ final readonly class AttachmentPolicy
         $configured = $this->config->get('visual-feedback.attachments.mimes');
 
         return array_values(array_filter(
-            is_array($configured) ? $configured : [],
-            fn (mixed $short): bool => is_string($short) && isset(self::MAP[$short]),
+            array_filter(is_array($configured) ? $configured : [], is_string(...)),
+            fn (string $short): bool => isset(self::MAP[$short]),
         ));
     }
 

@@ -18,7 +18,11 @@ final readonly class CspNonce
 {
     public function __construct(private Vite $vite) {}
 
-    /** The nonce to render, or null when there is none to render. */
+    /**
+     * The nonce to render, or null when there is none to render.
+     *
+     * @param  mixed  $given  a nonce as the view hands it over, which may be any value a host passes
+     */
     public function resolve(mixed $given = null): ?string
     {
         if (is_string($given) && $given !== '') {

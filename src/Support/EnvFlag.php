@@ -17,6 +17,8 @@ final class EnvFlag
      * as false. For a switch whose default protects, `VISUAL_FEEDBACK_EXAMPLE=` would then turn the
      * protection off. Here a blank value takes the default, and only an explicit false switches it
      * off.
+     *
+     * @param  mixed  $value  a value from the environment or the config, which a host may have set to any type
      */
     public static function protection(mixed $value, bool $default): bool
     {
@@ -39,6 +41,8 @@ final class EnvFlag
      * string, which a `(bool)` cast reads as on. Here `off`, `no`, `false`, `0` and a blank value
      * read as false and `on`, `yes`, `true` and `1` as true, as FILTER_VALIDATE_BOOLEAN reads them
      * in the shipped file. A missing key and an unreadable value take the default.
+     *
+     * @param  mixed  $value  a value from the environment or the config, which a host may have set to any type
      */
     public static function boolean(mixed $value, bool $default): bool
     {

@@ -230,6 +230,9 @@ final readonly class ReportDeliveryTracker
         }
 
         $disk = $this->filesystem->disk($this->disk());
+        // The answer is not read: Laravel's disks answer a refused delete with false, and a file that
+        // stays is an orphan in the attachments directory, which visual-feedback:sweep-orphans deletes
+        // once it is older than its cutoff.
         $disk->delete($report->attachments);
         // delete() takes the files and leaves their per-file subdirectory standing, one per
         // report, forever.

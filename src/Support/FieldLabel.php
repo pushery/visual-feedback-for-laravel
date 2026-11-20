@@ -18,6 +18,6 @@ final class FieldLabel
 {
     public static function withoutOptionalMarker(string $label): string
     {
-        return trim((string) preg_replace('/\s*\([^()]*\)\s*$/u', '', $label));
+        return trim((string) preg_replace('/\s*\([^()]*\)\s*$/uD', '', $label));
     }
 }

@@ -127,6 +127,8 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
      * report — while the JSON column held an empty string, which on MySQL's real `json` type is
      * not even a legal value. Throwing lets the queue retry and settle failed, which is a state
      * somebody can see.
+     *
+     * @param  mixed  $value  a value of the report, which may be any JSON value
      */
     private function json(mixed $value): string
     {

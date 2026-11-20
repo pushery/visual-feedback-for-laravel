@@ -342,6 +342,8 @@ class ReportWidget extends Component
      * Typed `mixed` on purpose. Livewire assigns a client value without strict types, so a `bool`
      * would read the string `"yes"` as true and answer an array with a 419, and neither is what the
      * capture module sends. Here any other value is kept and ignored.
+     *
+     * @var mixed the browser's word, of any type, of which only a real true counts
      */
     public mixed $screenshotEdited = false;
 
@@ -458,9 +460,10 @@ class ReportWidget extends Component
         $values['id'] = $this->getId();
 
         // Encrypted, not merely signed: a signature would keep the values readable in the page,
-        // which is the other half of what the lock never gave. Laravel's own APP_KEY, so a host
-        // rotating it invalidates every open page -- which reads as a tamper: those pages ask the
-        // reporter to reload before sending, and nothing throws.
+        // which is the other half of what the lock never gave. Laravel's own key, and its encrypter
+        // opens what an older key sealed while that key stays in APP_PREVIOUS_KEYS. A page sealed
+        // under a key no longer listed reads as a tamper: it asks the reporter to reload before
+        // sending, and nothing throws.
         $this->sealedProps = Crypt::encryptString((string) json_encode($values));
     }
 
@@ -636,10 +639,10 @@ class ReportWidget extends Component
         $allowed = config('visual-feedback.mail.allowed_recipients');
 
         $permitted = array_map(
-            static fn (mixed $one): string => mb_strtolower(trim((string) $one)),
+            static fn (string $one): string => mb_strtolower(trim($one)),
             array_filter(
-                [$configured, ...(is_array($allowed) ? $allowed : [])],
-                static fn (mixed $one): bool => is_string($one) && trim($one) !== '',
+                array_filter([$configured, ...(is_array($allowed) ? $allowed : [])], is_string(...)),
+                static fn (string $one): bool => trim($one) !== '',
             ),
         );
 
@@ -1076,6 +1079,8 @@ class ReportWidget extends Component
     /**
      * The end of the handshake, with the same check: an address handed out before the host
      * switched uploads off stays valid until it expires.
+     *
+     * @param  mixed  $tmpPath  the temporary path or paths Livewire's upload endpoint answered, as the browser hands them back
      */
     public function _finishUpload(string $name, mixed $tmpPath, bool $isMultiple, bool $append = true): void
     {
@@ -1617,10 +1622,7 @@ class ReportWidget extends Component
             $this->screenshot = null;
         }
 
-        $kept = array_values(array_filter(
-            $this->attachments,
-            static fn (mixed $file): bool => ! $file instanceof TemporaryUploadedFile || $file->exists(),
-        ));
+        $kept = array_values(array_filter($this->attachments, $this->stillOnDisk(...)));
 
         $attachmentsGone = count($kept) !== count($this->attachments);
         $this->attachments = $kept;
@@ -1630,6 +1632,17 @@ class ReportWidget extends Component
             $attachmentsGone => ['field' => 'files', 'message' => (string) trans('visual-feedback::messages.validation.attachment_expired')],
             default => null,
         };
+    }
+
+    /**
+     * Whether an attachment stays: anything but a temporary upload, and a temporary upload whose file
+     * is still on the disk.
+     *
+     * @param  mixed  $file  an entry of the attachments, as Livewire hydrated it from the browser
+     */
+    private function stillOnDisk(mixed $file): bool
+    {
+        return ! $file instanceof TemporaryUploadedFile || $file->exists();
     }
 
     /**
@@ -1743,6 +1756,9 @@ class ReportWidget extends Component
 
         try {
             $filesystem = Storage::disk($disk);
+            // The answer is not read: Laravel's disks answer a refused delete with false, and a file that
+            // stays is an orphan in the attachments directory, which visual-feedback:sweep-orphans deletes
+            // once it is older than its cutoff.
             $filesystem->delete($paths);
 
             // The directory, too. `storeAttachments()` writes each file into its own
@@ -1834,6 +1850,8 @@ class ReportWidget extends Component
         /** @var string $metadataFile */
         $metadataFile = FileUploadConfiguration::path($upload->getFilename().'.json');
 
+        // The answer is not read, of either delete: what stays is a temporary upload, which Livewire's
+        // own cleanup of old uploads in its temporary directory removes.
         $upload->delete();
         $storage->delete($metadataFile);
     }

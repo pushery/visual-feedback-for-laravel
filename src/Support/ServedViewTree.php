@@ -72,10 +72,9 @@ final readonly class ServedViewTree
         // and it is not something a host adds by decorating a form.
         //
         // Written without its `visual-feedback::` namespace prefix on purpose. With it, the
-        // string is a well-formed view name, and `ShipTreeResolvesWithinItselfTest` reads shipped
-        // code for view names and checks each one resolves — so a marker that merely looks like a
-        // reference gets reported as a view the release would leave behind. The suffix is just as
-        // specific and is not a name anything tries to resolve.
+        // string is a well-formed view name, and a marker that merely looks like a reference
+        // reads as one to anything that resolves view names. The suffix is just as specific and
+        // is not a name anything tries to resolve.
         $template = @file_get_contents($resolved);
 
         return is_string($template) && str_contains($template, 'wirekit.livewire._report-form');

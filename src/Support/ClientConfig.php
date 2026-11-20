@@ -74,7 +74,9 @@ final class ClientConfig
     {
         $configured = config('visual-feedback.screenshot.redact_attribute');
 
-        return is_string($configured) && preg_match('/^[A-Za-z_:][A-Za-z0-9_.:-]*$/', $configured) === 1
+        // `\z`, not `$`: a value from the environment can end in a line feed, which `$` lets through,
+        // and the capture would then look for an attribute no element carries.
+        return is_string($configured) && preg_match('/^[A-Za-z_:][A-Za-z0-9_.:-]*\z/', $configured) === 1
             ? $configured
             : self::DEFAULT_REDACT_ATTRIBUTE;
     }

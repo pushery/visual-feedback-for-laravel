@@ -8,9 +8,10 @@ a pull request the one form of help that cannot be accepted.
 
 The GitHub repository that carries this file, and the Packagist package built from it, are
 a **generated mirror**. Development happens in a private repository; each release rebuilds
-the public tree from an allowlist — `src`, `config`, `database`, `routes`, `resources`,
-`lang`, `art`, `dist`, plus the manifest and these top-level documents — and replaces the
-public branch with the result.
+the public tree from an allowlist — `src`, `config`, `database`, `routes`, `resources`, `lang`,
+`art`, `dist`, plus the manifest and these top-level documents — and replaces the public branch
+with the result; a directory on that list that this package declines, like routes, is simply
+absent.
 
 Two consequences, and neither of them is about the quality of the contribution:
 
@@ -59,7 +60,7 @@ version; nothing else is wrong.
 
 This is what a report is measured against, and what a fix has to keep intact.
 
-The package holds itself to Laravel Pint, Larastan at `max`, Rector, and Pest with 100% line
+The package holds itself to Laravel Pint, Larastan at level 10, Rector, and Pest with 100% line
 and type coverage, plus mutation testing, a real-browser end-to-end suite, and cross-engine
 tests against real PostgreSQL and MySQL 8.4 (the engines it runs on in production). The
 public API stays stable within a major version, and every consumer-visible change carries a

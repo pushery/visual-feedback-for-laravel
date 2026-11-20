@@ -18,6 +18,7 @@ final class Backoff
     public const int DEFAULT = 30;
 
     /**
+     * @param  mixed  $configured  a value of the package's config, which a host may have set to any type
      * @return int|non-empty-list<int>
      */
     public static function from(mixed $configured): int|array

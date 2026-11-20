@@ -50,6 +50,8 @@ final class MailCell
     {
         $label = self::cell($text);
 
+        // `$` lets a line feed at the end through, and filter_var() refuses it: FILTER_VALIDATE_URL
+        // refuses every character a URL cannot hold, white space included.
         if (! is_string($url) || preg_match('#^https?://[^\s<>]+$#i', $url) !== 1 || filter_var($url, FILTER_VALIDATE_URL) === false) {
             return $label;
         }

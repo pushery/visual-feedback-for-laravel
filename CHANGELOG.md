@@ -4,6 +4,38 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.32.0] - 2026-11-20
+
+### ✨ Added
+
+- **`PruneExpiredCacheKeys` deletes the expired entries the package leaves in a database cache store.** The database store deletes an expired entry only when its key is read again, and the delivery receipts, the claims that make each channel settle once, the erasure records and the rate-limit counters are written for one report or one visitor and are not read again, so on that store each one stayed a row of the cache table for good. Scheduled with `Schedule::call(PruneExpiredCacheKeys::class)->daily()`, it deletes the expired entries under `visual-feedback:` from the default store and from the store of the rate limiter, wherever either is a database store, a thousand rows to a statement. On any other store it does nothing.
+
+  **Upgrade:** an application on the database cache store adds `Schedule::call(PruneExpiredCacheKeys::class)->daily();` to `routes/console.php`, with `use Pushery\VisualFeedback\Support\PruneExpiredCacheKeys;`. On any other store there is nothing to do.
+
+### 🔧 Changed
+
+- **`Support\MigrationLocks` is internal.** 0.23.0 added it as public API, for a migration of this package that alters a table and is published into an application. No migration of this package calls it, so the class leaves the public API: an application that calls it from a migration of its own keeps working until a later release changes or removes it.
+
+### 🐛 Fixed
+
+- **A redaction attribute configured with a line feed at its end falls back to the default.** `screenshot.redact_attribute` can come from a double-quoted `.env` value that ends in a line feed, and the name passed the check with it, so the capture and the report browser looked for an attribute no element carries. Such a name now counts as one no element can carry, like a name with a space, and the package's own `data-visual-feedback-redact` applies, as it does for every name the check refuses.
+- **A form of the standalone widget opened before the application key was rotated still sends.** Its form token was checked against `app.key` alone, so for the two hours a token lives, every form opened under the old key was refused once the key changed. The token is checked against `app.previous_keys` as well now, as Laravel checks its own signatures, while it is still signed with the current key.
+- **A channel or an abuse driver named only by digits works.** PHP stores a name such as `7` as an integer key, and the check whether a channel is on and the failure mode of an abuse driver that errored take the name as a string. A report failed with a type error before it reached any channel, and a driver that errored failed the submission instead of opening or closing as `abuse.drivers.<name>.on_error` says.
+- **The report browser built on plain Blade titles its empty states.** With no report to show, or without the reports table, it showed the explaining sentence alone, where the WireKit view titles it "Nothing to show" or "No reports table". Both views title it now, one level below the title of the browser, so a screen reader moving by heading finds it in either.
+
+  **Upgrade:** a copy of the report browser view published before this release keeps the old markup; publish it again to take the titles.
+
+### 🔒 Security
+
+- **A guest's address is keyed with the application key in its rate-limit key.** The key held a plain SHA-256 of the address, which anyone undoes for IPv4 by hashing every address, and a rate-limit key is a cache key, which an error tracker records. It is an HMAC under `app.key` now. The counters of guests start anew once with the deploy.
+
+### 📚 Documentation
+
+- **The examples import every class they name.** Four examples of the documentation and two of the Boost skill named a class their `use` lines left out: the abuse gate and the Slack channel of the application, its `User` model, `Livewire` and the report widget. Copied as they stood into a file with those lines, they failed on a class PHP could not find.
+- **The README and the installation page say what the tests cover and what WireKit is for here, without the stock phrase.** The installation page closed the list of the databases the suites run on with a promise about Laravel Cloud that no test of the package checks, and now names them as the databases Laravel Cloud runs. The README says the widget's second view tree is built with WireKit, where it promised a component library without setup.
+- **The page on placing the trigger names the address the standalone routes answer under in `routes/api.php`.** Laravel loads that file under its own prefix `api`, and the example named the routes without it. The component finds them by their route names, so it was never affected.
+- **The pages name what loses the bookkeeping of a delivery and the erasure records, and which stores keep them.** Both live in the default cache store, which loses an entry when it evicts it, when `cache:clear` or `optimize:clear` flushes it, or when it restarts without persistence. A lost claim lets a channel settle twice, a lost receipt can keep a report past its retention window, and a lost erasure record lets a delivery still queued store, mail or post an erased report. The pages on delivery channels and on privacy and retention, and the Boost skill, recommend the database store or Redis with `maxmemory-policy noeviction` and `appendonly yes`, and Memcached only with `-M`.
+
 ## [0.31.0] - 2026-11-14
 
 ### 🔧 Changed
@@ -1497,7 +1529,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...v0.30.0
 [0.29.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.0...v0.29.1
