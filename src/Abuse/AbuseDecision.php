@@ -16,7 +16,7 @@ use Pushery\VisualFeedback\Events\RejectionReason;
  * answer for anything a bot triggers — a honeypot hit or a forged token gets the same decoy
  * success screen a real submission gets, so an attacker learns nothing. It is the wrong answer for
  * something a human can fail: a rate limit they will be under again in an hour, or an interactive
- * challenge they simply got wrong. Those people need to be told, or they walk away believing they
+ * challenge they got wrong. Those people need to be told, or they walk away believing they
  * were heard.
  *
  * The gate decides, because only the gate knows which of the two it just caught. The pipeline used

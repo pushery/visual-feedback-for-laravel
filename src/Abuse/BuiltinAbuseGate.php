@@ -107,7 +107,7 @@ final readonly class BuiltinAbuseGate implements AbuseGate
      * It is deliberately not on the `AbuseGate` contract. A third-party gate may have nothing
      * that is free to evaluate, and requiring one would either force a meaningless implementation
      * or make the early call a promise the interface cannot keep. The widget asks for this class,
-     * and any other gate simply keeps today's ordering.
+     * and any other gate keeps today's ordering.
      */
     public function silentFloor(ReportAttempt $attempt): AbuseDecision
     {

@@ -155,7 +155,7 @@ final class SendReportWebhook implements ShouldBeEncrypted, ShouldQueue
         // Without it json_encode returns false for a payload it cannot encode — a byte sequence
         // that is not valid UTF-8 — a `(string)` cast turned that into '', and the job then
         // delivered an empty body, correctly signed, which the receiver accepted with 200 and the
-        // report settled delivered. Nothing logged, no event, no retry: the content was simply
+        // report settled delivered. Nothing logged, no event, no retry: the content was
         // gone and the maintainer was told it arrived. Throwing instead lets the queue retry and,
         // once the attempts are spent, `failed()` writes the failed receipt and fires
         // ReportDeliveryFailed — a maintainer sees that a report did not arrive.

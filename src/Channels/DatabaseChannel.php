@@ -16,7 +16,7 @@ use Pushery\VisualFeedback\Support\TableLookup;
 /**
  * The optional database delivery channel. It writes the report to the
  * `visual_feedback_reports` table — but only when that (opt-in, non-auto-loaded) migration has
- * been published and run: without the table it is simply unavailable, never an error. It records
+ * been published and run: without the table it is unavailable, never an error. It records
  * a pending receipt and enqueues its own SendReportToDatabase job (tuned per `channels.database`),
  * which does the UPSERT keyed on the report UUID off the submit path and settles through the
  * ReportDeliveryTracker.

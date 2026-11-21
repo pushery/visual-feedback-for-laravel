@@ -4,6 +4,31 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.33.0] - 2026-11-21
+
+### ✨ Added
+
+- **`VisualFeedback::cspStyleHashes()` names the hashes of the two style blocks a capture writes.** A capture of the DOM stage writes a block that holds animations still and the renderer's block that hides the real pseudo-elements into its copy of the page, and the copy is held to the page's policy. Under a nonce both blocks carry it. A policy that admits inline styles by hash lists these two in `style-src`; without them the browser refuses both, animations keep moving while the copy is drawn, and the renderer cannot hide the real pseudo-elements while it draws its own.
+
+### 🔧 Changed
+
+- **`PruneExpiredCacheKeys` clears a file store as well.** Beside the expired rows under `visual-feedback:` in a database store, it now deletes the expired files of a file store, which names its files by a hash of the key and so cannot tell the package's from the application's; the store already treats each of them as missing. Redis, Memcached and every other store that expires entries itself stay untouched. The call in the schedule stays `Schedule::call(PruneExpiredCacheKeys::class)->daily();`.
+
+### 🐛 Fixed
+
+- **A page left with a typed report asks first.** The form of the WireKit tree was no region of WireKit's unsaved tracker, so a reload, a closed tab or an address typed in lost a typed message without a question. The form is a region now, `x-wk-unsaved.until-saved.confirm`: only a send that comes back without a validation error counts as saved, so the screenshot and the attachments, which send requests of their own while the report is written, do not count the typed fields as saved. A Discard in the dialog now clears the typed fields and the category, as the word says, through the new `discardEntries()` the WireKit tree calls on `wirekit:modal-dismissed`; a screenshot and the attachments stay, because the dialog asks only about its fields. After a send or a discard nothing asks. A host that published the WireKit views adds the attribute to its form and the listener to its widget.
+
+### 🔒 Security
+
+- **An erasure record no longer names the person to whoever reads the cache keys.** `visual-feedback:forget` kept its record under a plain SHA-256 of the address or the id, and a cache key is what an error tracker records, so a guessed address could be tested against it, one hash per guess, and a match told that this person had asked to be erased. The record is now an HMAC under the application key, and a record made before a rotation of `APP_KEY` still holds while the old key stays in `APP_PREVIOUS_KEYS`.
+
+  **Upgrade:** a record kept before this release is not read any more. Where `visual-feedback:forget` ran within the last `retention.reports_days` days and a delivery for that person may still wait in the queue or among the failed jobs, running the command again for the same person records the erasure under the new key.
+
+### 📚 Documentation
+
+- **The comments of the migration that creates `visual_feedback_reports` say what is true of `jsonb()` and of the index on `mode`.** They called `jsonb()` PostgreSQL-only, which Laravel translates on every engine, and said `mode` stays without an index, which a later migration of the same release adds. Nothing in the schema changes; a republished copy carries the corrected comments.
+- **The configuration names the key of the guest rate limit as it is.** The comment above `metadata` still said the limit keys on a SHA-256 of the guest's address, which 0.32.0 replaced by an HMAC under the application key. A copy of the configuration published before this release keeps the old sentence; the documentation already named the keyed hash.
+
 ## [0.32.0] - 2026-11-20
 
 ### ✨ Added
@@ -1529,7 +1554,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.29.1...v0.30.0

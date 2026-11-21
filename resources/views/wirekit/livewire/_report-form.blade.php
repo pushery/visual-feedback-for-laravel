@@ -82,7 +82,10 @@
 
          Both trees carry `required` on these two controls, so an empty field is part of this
          too, not only a mistyped address. --}}
-    <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
+    {{-- A region of the kit's unsaved tracker that asks before the page is left with a typed report. Only a send that
+         comes back without a validation error counts as saved: the screenshot and the attachments send requests of
+         their own while the report is written, and those must not count the typed fields as saved. --}}
+    <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)" x-wk-unsaved.until-saved.confirm>
         {{-- In modal mode the heading lives in <x-wirekit::modal.header>, which owns the id the
              dialog's aria-labelledby points at; rendering it twice would announce it twice. The
              inline (card) surface has no header component, so it keeps its own heading. --}}

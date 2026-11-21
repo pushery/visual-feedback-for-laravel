@@ -21,7 +21,11 @@ use Pushery\VisualFeedback\Data\Report;
  *
  * Three kinds of marker, one per kind of erasure: every report under an address, only the guest
  * reports under an address, and every report of a signed-in reporter by id, under whatever
- * address it used. An address is compared without case, and every key is stored only as a hash.
+ * address it used. An address is compared without case, and every key holds what it names only as
+ * a hash keyed with the application key: a cache key is what an error tracker records, and a
+ * plain hash of an address is undone by hashing every candidate, which would tell whoever reads
+ * the keys that this person asked to be erased. A marker set before the application key was
+ * rotated still holds while `app.previous_keys` lists the old key.
  */
 final readonly class ErasedReporters
 {
@@ -30,19 +34,19 @@ final readonly class ErasedReporters
     /** Every report under this address, signed in or not. */
     public function remember(string $email): void
     {
-        $this->mark($this->key('', mb_strtolower(trim($email))));
+        $this->mark('', mb_strtolower(trim($email)));
     }
 
     /** Only the reports sent as a guest under this address. */
     public function rememberGuest(string $email): void
     {
-        $this->mark($this->key('guest:', mb_strtolower(trim($email))));
+        $this->mark('guest:', mb_strtolower(trim($email)));
     }
 
     /** Every report of the signed-in reporter with this id, under any address. */
     public function rememberReporter(string $id): void
     {
-        $this->mark($this->key('reporter:', $id));
+        $this->mark('reporter:', $id);
     }
 
     /** Whether the reporter of this report was erased after the report was submitted. */
@@ -52,35 +56,69 @@ final readonly class ErasedReporters
         $submittedAt = $report->submittedAt->getTimestamp();
         $email = is_string($reporter->email) && trim($reporter->email) !== '' ? mb_strtolower(trim($reporter->email)) : null;
 
-        if ($email !== null && $this->erasedSince($this->key('', $email), $submittedAt)) {
+        if ($email !== null && $this->erasedSince('', $email, $submittedAt)) {
             return true;
         }
 
-        if ($email !== null && $reporter->isGuest && $this->erasedSince($this->key('guest:', $email), $submittedAt)) {
+        if ($email !== null && $reporter->isGuest && $this->erasedSince('guest:', $email, $submittedAt)) {
             return true;
         }
 
-        return is_string($reporter->id) && $reporter->id !== '' && $this->erasedSince($this->key('reporter:', $reporter->id), $submittedAt);
+        return is_string($reporter->id) && $reporter->id !== '' && $this->erasedSince('reporter:', $reporter->id, $submittedAt);
     }
 
-    private function mark(string $key): void
+    private function mark(string $kind, string $subject): void
     {
-        $this->cache->put($key, Carbon::now()->getTimestamp(), $this->ttlSeconds());
+        $this->cache->put($this->key($kind, $subject, $this->applicationKey()), Carbon::now()->getTimestamp(), $this->ttlSeconds());
     }
 
-    private function erasedSince(string $key, int $submittedAt): bool
+    /** Whether a marker of this kind names the subject, set at or after the submission, under the key or a previous one. */
+    private function erasedSince(string $kind, string $subject, int $submittedAt): bool
     {
-        $erasedAt = $this->cache->get($key);
+        foreach ([$this->applicationKey(), ...$this->previousKeys()] as $applicationKey) {
+            $erasedAt = $this->cache->get($this->key($kind, $subject, $applicationKey));
 
-        // Redis stores a number without serializing it and hands it back as a numeric string, while an
-        // in-memory store returns the int that went in, so the marker is read as a number.
-        return is_numeric($erasedAt) && (int) $erasedAt >= $submittedAt;
+            // Redis stores a number without serializing it and hands it back as a numeric string, while an
+            // in-memory store returns the int that went in, so the marker is read as a number.
+            if (is_numeric($erasedAt) && (int) $erasedAt >= $submittedAt) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    /** The cache key of a marker: its kind and a hash of what it names. */
-    private function key(string $kind, string $subject): string
+    /** The cache key of a marker: its kind and a hash of what it names, keyed with an application key. */
+    private function key(string $kind, string $subject, string $applicationKey): string
     {
-        return 'visual-feedback:erased:'.$kind.hash('sha256', $subject);
+        return 'visual-feedback:erased:'.$kind.hash_hmac('sha256', $subject, $applicationKey);
+    }
+
+    /** The application key, which keys every marker. Empty where none is set. */
+    private function applicationKey(): string
+    {
+        $key = $this->config->get('app.key');
+
+        return is_string($key) ? $key : '';
+    }
+
+    /**
+     * The keys the application rotated away from and still accepts, as `config/app.php` lists them.
+     *
+     * @return list<string>
+     */
+    private function previousKeys(): array
+    {
+        $listed = $this->config->get('app.previous_keys');
+        $keys = [];
+
+        foreach (is_array($listed) ? $listed : [] as $key) {
+            if (is_string($key) && $key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
     }
 
     private function ttlSeconds(): int

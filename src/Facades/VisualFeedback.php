@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static void extend(string $key, Closure $factory)
  * @method static void extendAbuse(string $driver, Closure $factory)
+ * @method static list<non-empty-string> cspStyleHashes()
  *
  * @see \Pushery\VisualFeedback\VisualFeedback
  */

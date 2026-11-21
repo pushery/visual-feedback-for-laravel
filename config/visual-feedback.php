@@ -107,7 +107,7 @@ return [
     | of UTF-8, which is exactly why the shipped migration gives it `mediumText`
     | rather than MySQL's 64 KB `text` — size your own column the same way if you
     | write reports somewhere else. The shipped limits do stay inside the shipped
-    | columns, and the package's own suite holds them there. Two of those columns,
+    | columns, and every release is checked for that. Two of those columns,
     | the reporter's name and email, take your application's default string length,
     | 255 unless `Schema::defaultStringLength()` lowers it: an application that sets
     | 191 there gets 191-wide columns, so keep `email` at or under that width.
@@ -307,9 +307,10 @@ return [
     | No raw IP address is ever stored, and none reaches the report, this metadata,
     | the database or any channel — the optional migration ships no `ip_address`
     | column at all. The address is read at submit, for one purpose: the guest rate
-    | limit keys on a SHA-256 of it, which lives in your cache for the length of the
-    | window and nowhere else. Written out because you may need it for your own
-    | processing record: a hashed IP is pseudonymous, not anonymous.
+    | limit keys on an HMAC-SHA-256 of it under your application key, which lives in
+    | your cache for the length of the window and nowhere else. Written out because
+    | you may need it for your own processing record: a keyed hash of an IP is
+    | pseudonymous, not anonymous.
     |
     */
     'metadata' => [

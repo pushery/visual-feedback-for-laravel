@@ -15,7 +15,7 @@ use Pushery\Webhooks\WebhookManager;
  * signing, retries, de-duplication and a delivery dashboard, instead of the built-in signed
  * HTTP fallback. `class_exists()` on the facade is compile-time safe: in a
  * consumer without the package, `Webhooks::class` resolves to the bare string and no
- * autoload fires, so `isInstalled()` is simply false and `dispatch()` is never reached.
+ * autoload fires, so `isInstalled()` is false and `dispatch()` is never reached.
  *
  * `tenant: null` reaches only global subscriptions — a host lists the event in its
  * `webhooks.platform.catalog` for its management UI, and a multi-tenant host that wants

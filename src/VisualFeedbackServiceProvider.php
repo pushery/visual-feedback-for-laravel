@@ -271,7 +271,7 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
 
             // `php artisan about` carries the state of the published bundle. Forgetting to
             // republish after an upgrade is the one failure this setup produces, and it was the
-            // only one with no signal — the old copy keeps working and is simply the previous
+            // only one with no signal — the old copy keeps working and is the previous
             // release. The closure defers the measurement to the moment somebody asks, and the
             // console guard keeps it off every web request entirely.
             AboutCommand::add('Visual Feedback', fn (): array => [

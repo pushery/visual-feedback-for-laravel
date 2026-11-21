@@ -430,7 +430,7 @@ capture.
 
 Two smaller ones: an underline from `text-decoration` is not always reproduced, and an image that
 failed to load leaves no trace at all — on screen the browser draws its broken-image affordance
-and the `alt` text, in the capture that area is simply empty. A report about a missing image
+and the `alt` text, in the capture that area is empty. A report about a missing image
 therefore shows a gap rather than the evidence.
 
 Everything else on a normal page — gradients, `oklch` fills, `box-shadow` and Tailwind's `ring-*`,
@@ -700,7 +700,7 @@ are isolated from each other: one failing never stops the rest.
   layout-only block — spacing, the flex row under the screenshot preview, and the honeypot's
   concealment rule. Strip it and a strict `style-src` leaves that field visible.
 - Do not write a channel that stores reports without `RetainsReport`. Nothing fails when you
-  forget it; the attachments are simply gone by the time anyone opens the report.
+  forget it; the attachments are gone by the time anyone opens the report.
 - Do not run `cache:clear` or `optimize:clear` in a deploy, or keep the default cache store on a
   Redis that evicts or forgets on restart, or on Memcached without `-M`. The delivery bookkeeping
   and the erasure records live there, and a lost erasure record lets a delivery still queued bring
