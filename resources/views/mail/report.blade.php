@@ -23,8 +23,8 @@
     escapes code-block content on output (a `<script>` is served as `&lt;script&gt;`), and
     MailCell::fence() makes the delimiter one backtick longer than the longest run the reporter
     typed, so the block cannot be closed early. Both halves — the inertness and the fidelity —
-    are held together by the package's own suite, and they have to be: a change that buys one at
-    the cost of the other reads as an improvement in isolation.
+    are held together, and they have to be: a change that buys one at the cost of the other
+    reads as an improvement in isolation.
 
     One accepted trade, in the text/plain alternative only: renderText() passes the whole rendered
     body through html_entity_decode(), so a reporter who types a literal `&amp;` sees `&` there.

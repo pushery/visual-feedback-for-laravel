@@ -623,7 +623,7 @@ class ReportWidget extends Component
      *
      * Permitted means `mail.to` or listed under `mail.allowed_recipients`. Everything else answers
      * null, which the mail channel reads as "use `mail.to`" — so an address that is not permitted
-     * cannot redirect a report, it simply does not reach the header.
+     * cannot redirect a report, it does not reach the header.
      *
      * The comparison is case-insensitive on the whole address, which is coarser than the RFC (the
      * local part is technically case-sensitive) and correct for what this list is: a host writing
@@ -1345,7 +1345,7 @@ class ReportWidget extends Component
         // It skips the write, not the submission, and that distinction is the whole design.
         // Returning early here would also skip `handle()` — and with it the rejection event a host
         // listens to, the decoy-success decision, and the mapping of the failure onto a field. A
-        // host counting honeypot hits would simply stop seeing them, which is a worse defect than
+        // host counting honeypot hits would stop seeing them, which is a worse defect than
         // the cost this saves. So the pipeline runs exactly as it would without the early check and
         // reaches the same verdict;
         // only the files are not there to be written and discarded again.
@@ -1719,6 +1719,18 @@ class ReportWidget extends Component
     }
 
     /**
+     * The reader dismissed the WireKit dialog: after answering Discard for the fields they changed, or with none changed.
+     * The fields go back to where the report started, so the page asks nothing more before it is left. The screenshot
+     * and the attachments stay, because the dialog asks only about its fields, and a capture that nobody was asked
+     * about is not dropped.
+     */
+    public function discardEntries(): void
+    {
+        $this->reset(['category', 'subject', 'message', 'guestName', 'guestEmail', 'guestPhone', 'privacyAcknowledged']);
+        $this->category = $this->firstCategory();
+    }
+
+    /**
      * The category the picker shows before the reporter touches it.
      *
      * The picker has no placeholder option, so a browser selects its first option and shows
@@ -1729,7 +1741,7 @@ class ReportWidget extends Component
      *
      * So the server adopts what the UI shows. The alternative — a placeholder option forcing
      * an explicit choice — is a product decision with a seven-locale string behind it; this is
-     * the part that is simply a defect.
+     * the part that is a defect.
      */
     private function firstCategory(): string
     {
@@ -1956,7 +1968,7 @@ class ReportWidget extends Component
      * AttachmentValidator's finfo re-check on its content, and then land in the maintainer's
      * inbox as `report.html` — a document their browser will happily execute once they save and
      * open it, from a mail that appears to come from their own tooling. This is the same defense
-     * storeScreenshot() has two methods up, where the name is simply fixed at `screenshot.png`.
+     * storeScreenshot() has two methods up, where the name is fixed at `screenshot.png`.
      *
      * @return list<string>
      */

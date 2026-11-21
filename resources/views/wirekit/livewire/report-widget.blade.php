@@ -38,6 +38,10 @@
          reaches the markup, so no mode puts a moving value into a rendered page.) --}}
     @if ($mode === 'modal')
         x-on:visual-feedback:open.window="vfOpenWireKit($event)"
+        {{-- The kit's dialog closes on a reader's dismissal only once they answered Discard for the fields they changed,
+             and it leaves the fields as they were. Clearing them here is what Discard means, and it lets the unsaved
+             tracker around the form count them as saved, so the page asks nothing more before it is left. --}}
+        x-on:wirekit:modal-dismissed.window="$event.detail.name === {{ \Pushery\WireKit\Support\AlpinePayload::from(\Pushery\VisualFeedback\Support\WidgetInstance::modalName($instance)) }} && $wire.discardEntries()"
     @endif
     {{-- The name this widget answers to, and the name of its modal, which the kit opens by name:
          two modals of one name open together. --}}

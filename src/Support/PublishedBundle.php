@@ -14,7 +14,7 @@ use Psr\Log\LoggerInterface;
  *
  * Forgetting `vendor:publish --tag=visual-feedback-assets --force` after an upgrade is the one
  * bug this setup can produce, and without this check it has no signal at all: the copy in
- * `public/` keeps working, keeps being served, and is simply the previous release. Nothing
+ * `public/` keeps working, keeps being served, and is the previous release. Nothing
  * fails, and the fix arrives as a bug report about behavior that was fixed weeks ago.
  *
  * The check is server-side on purpose, and that is the whole design decision. Any client-side

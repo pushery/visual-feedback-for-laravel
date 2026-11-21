@@ -12,7 +12,7 @@ namespace Pushery\VisualFeedback\Support;
  * for the floating panel, no dialog styling, and no concealment rule for the honeypot, which
  * lives in that sheet.
  *
- * Nothing fails. The widget renders, opens and sends; it simply looks like nothing else on
+ * Nothing fails. The widget renders, opens and sends; it looks like nothing else on
  * the page. A defect that raises no signal is not fixed, it is got used to.
  *
  * The state lives for one request or one queued job rather than for the process, on purpose:

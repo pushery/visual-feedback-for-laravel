@@ -10,7 +10,7 @@ The GitHub repository that carries this file, and the Packagist package built fr
 a **generated mirror**. Development happens in a private repository; each release rebuilds
 the public tree from an allowlist — `src`, `config`, `database`, `routes`, `resources`, `lang`,
 `art`, `dist`, plus the manifest and these top-level documents — and replaces the public branch
-with the result; a directory on that list that this package declines, like routes, is simply
+with the result; a directory on that list that this package declines, like routes, is
 absent.
 
 Two consequences, and neither of them is about the quality of the contribution:

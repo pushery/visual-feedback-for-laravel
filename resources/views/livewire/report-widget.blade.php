@@ -133,7 +133,7 @@
                          included the stylesheet. The class is what hides it when a content
                          security policy allows the stylesheet (nonce or hash) but forbids
                          style attributes -- `style-src-attr 'none'` is ordinary hardening,
-                         and under it an attribute-only concealment is simply dropped.
+                         and under it an attribute-only concealment is dropped.
                          What is at stake is not cosmetic: an exposed honeypot is filled in
                          by real reporters, and a honeypot hit shows the success screen on
                          purpose. Both sides then believe a report was delivered that
@@ -156,7 +156,7 @@
                      viewport: the form gives this region 238px, and a Turnstile widget is 300px
                      wide by specification. Without it the widget overflows by 64px, the page does
                      not scroll, and the right-hand part of a challenge a reporter has to solve is
-                     simply unreachable. The style is inline rather than in the package stylesheet
+                     unreachable. The style is inline rather than in the package stylesheet
                      because the WireKit tree does not load that sheet.
 
                      `x-init` hands the region to the widget, which marks it while it takes no
@@ -259,7 +259,7 @@
                     {{-- Every capture step swaps the visible control, and the one being swapped
                          out is the one the keyboard user just pressed. Each terminal state names
                          its successor via x-ref, so focus lands there instead of on <body>; the
-                         transient states (capturing, uploading) name nothing and are simply
+                         transient states (capturing, uploading) name nothing and are
                          skipped, and the next terminal state picks focus back up. --}}
                     {{-- No arguments: `@js()` renders an array as `JSON.parse('…')`, and `JSON` is
                          an identifier the CSP evaluator cannot resolve, although the Blade source
@@ -435,7 +435,7 @@
                                      this one. Without the skip a single malformed entry takes the
                                      whole widget render down with a call on null — the reporter
                                      sees an error page instead of the form, for a file they could
-                                     simply have removed. --}}
+                                     have removed. --}}
                                 @continue (! $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile)
                                 {{-- The key is the file's own temporary name, never the loop index.
                                      Removing an entry re-indexes the rest, so an index key made the

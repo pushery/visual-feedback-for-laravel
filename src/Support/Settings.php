@@ -103,7 +103,7 @@ final readonly class Settings
      * the token-styled tree without configuring anything and a host that does not is never
      * served templates whose components do not exist. `wirekit` forces it — and forcing it
      * without the package present is a host's own decision to make, so it is not second-guessed
-     * here; the components will simply fail to resolve, loudly, which is the right outcome for
+     * here; the components will fail to resolve, loudly, which is the right outcome for
      * an explicit setting.
      */
     public function servesWireKitViews(): bool

@@ -20,6 +20,19 @@ use Pushery\VisualFeedback\Contracts\ReportChannel;
  */
 final readonly class VisualFeedback
 {
+    /**
+     * The texts of the two style blocks a capture writes into its copy of the page: the rule that
+     * holds animations and transitions still while the copy is drawn, and the renderer's rule that
+     * hides the real pseudo-elements while it draws its own. Both texts are fixed, so a policy can
+     * admit them by hash.
+     *
+     * @var list<non-empty-string>
+     */
+    private const array CAPTURE_STYLE_BLOCKS = [
+        '*{animation-play-state:paused !important;transition:none !important}',
+        ".___html2canvas___pseudoelement_before:before{\n    content: \"\" !important;\n    display: none !important;\n}\n         .___html2canvas___pseudoelement_after:after{\n    content: \"\" !important;\n    display: none !important;\n}",
+    ];
+
     public function __construct(
         private ChannelRegistry $registry,
         private AbuseGateRegistry $abuseGates,
@@ -49,5 +62,24 @@ final readonly class VisualFeedback
     public function extendAbuse(string $driver, Closure $factory): void
     {
         $this->abuseGates->register($driver, $factory);
+    }
+
+    /**
+     * The hash sources a Content-Security-Policy that admits inline styles by hash lists in
+     * `style-src` for a capture, each quoted as the header writes it.
+     *
+     * A capture of the DOM stage writes two style blocks into the copy of the page it draws, and
+     * the copy is held to the page's policy. Under a nonce they carry the nonce. A policy without
+     * one refuses both unless it lists these hashes: animations keep running while the copy is
+     * drawn, and the renderer cannot hide the real pseudo-elements while it draws its own.
+     *
+     * @return list<non-empty-string>
+     */
+    public function cspStyleHashes(): array
+    {
+        return array_map(
+            static fn (string $block): string => "'sha256-".base64_encode(hash('sha256', $block, true))."'",
+            self::CAPTURE_STYLE_BLOCKS,
+        );
     }
 }

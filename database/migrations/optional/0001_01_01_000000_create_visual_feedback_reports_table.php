@@ -27,15 +27,16 @@ use Illuminate\Support\Facades\Schema;
  * validator accepts the value, the row write answers `22001`, and the report reaches every other
  * channel while the reporter still sees the success screen. SQLite will not warn you: it does not
  * enforce lengths, so a write that PostgreSQL or MySQL refuses succeeds there.
- * The package's own suite holds the shipped defaults against these widths, so the pair cannot
- * drift apart here — but only the shipped defaults: once this file is yours, the pairing is too.
+ * Every release checks the shipped defaults against these widths, so the pair cannot drift apart
+ * here — but only the shipped defaults: once this file is yours, the pairing is too.
  * `message` (mediumText) and `user_agent` (truncated at the write site, the way
  * `metadata.user_agent_max` is allowed to exceed its column) are outside the pairing.
  *
  * Cross-engine notes: `message` is mediumText — MySQL `text` caps at 64 KB bytes, and 50 000
  * multibyte characters blow that (PG/SQLite would not, so only MySQL would fall over). The
  * reporter is denormalized (no FK to the host users table, whose PK type and name are unknown).
- * JSON columns use portable `json()`, never Postgres-only `jsonb()`.
+ * JSON columns use `json()`. `jsonb()` is translated on every engine as well (MySQL `json`,
+ * SQLite `text`), so the choice between the two only matters on PostgreSQL.
  */
 return new class extends Migration
 {
@@ -79,12 +80,11 @@ return new class extends Migration
             // WHERE predicate of `visual-feedback:forget`, the DSAR erasure, and was the one
             // filtered column with no index: a sequential scan on every chunk. A `(mode,
             // created_at)` composite stood here too and served nothing: Postgres declined it even
-            // for the query it was shaped for. The report browser filters on `mode` alone, a
-            // column of two or three values whose filtered page walks the `created_at` index, so
-            // `mode` stays without one. `category`, which the browser and the documented recipe
-            // filter on, gets its index from a later migration of its own, because this file
-            // freezes at 0.1.0 and every later change to it is a second publish plus a migration
-            // in every consumer's tree.
+            // for the query it was shaped for. `mode`, which the report browser filters on and
+            // lists for its filter, and `category`, which the browser and the documented recipe
+            // filter on, each get their index from a later migration of their own, because this
+            // file freezes at 0.1.0 and every later change to it is a second publish plus a
+            // migration in every consumer's tree.
             $table->index('created_at');
             $table->index('reporter_email');
         });

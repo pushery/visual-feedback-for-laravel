@@ -627,7 +627,7 @@
        The message naming this state lives at the end of the form, so without a mark here a
        reporter reads "you captured a screenshot but have not attached it yet" and then has to
        find what it refers to. `warning` rather than `danger`: nothing is broken, a choice is
-       open -- the form submits fine from here, it simply sends without the image.
+       open -- the form submits fine from here, it sends without the image.
 
        It disappears by itself, because it is keyed on the state rather than set by a handler:
        attaching moves the status to `attached`, discarding resets it, and either way this
