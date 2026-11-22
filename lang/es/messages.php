@@ -20,6 +20,7 @@ return [
         'message_placeholder' => '¿Qué ha pasado?',
         'submit' => 'Enviar',
         'submitting' => 'Enviando…',
+        'loading' => 'Cargando el formulario…',
         'success' => 'Gracias, hemos recibido tus comentarios.',
         'error' => 'Algo ha salido mal. Inténtalo de nuevo.',
         'rate_limited' => '{1} Has enviado varios informes en poco tiempo. Inténtalo de nuevo dentro de :minutes minuto.|[2,*] Has enviado varios informes en poco tiempo. Inténtalo de nuevo dentro de :minutes minutos.',

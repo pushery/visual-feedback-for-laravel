@@ -109,7 +109,7 @@
         @unless ($submitted)
             {{-- Re-measure metadata in the capture phase, before Livewire's own submit
                  handler fires, so the report carries the state at submit — not at open. --}}
-            <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)">
+            <form wire:submit="submit" novalidate x-on:submit.capture="$wire.$set('metadata', vfMeta(), false)" @if ($mode === 'modal' && ! $formRendered) aria-busy="true" @endif>
                 {{-- The modal's opening focus is anchored here, not left to the UA. Left alone, the
                      browser picks the first focusable descendant — today the close button, which
                      tells a screen-reader user nothing about what just opened. vfOpen() focuses the
@@ -124,6 +124,12 @@
                 @if ($notice !== null)
                     <p id="visual-feedback-notice" class="visual-feedback-notice">{{ $notice }}</p>
                 @endif
+
+                {{-- A modal's fields arrive with the round trip that opens it. The first response of a page
+                     carries the form element, the heading the opening focus lands on and the notice the
+                     dialog names as its description, and everything below them only once the widget was
+                     opened (see ReportWidget::$formRendered). An inline form is shown at once. --}}
+                @if ($mode === 'inline' || $formRendered)
 
                 {{-- Honeypot: off-screen, hidden from assistive tech, never tab-reachable.
                      Bots fill it; a non-empty value is silently rejected by the pipeline. --}}
@@ -538,6 +544,9 @@
                 </p>
 
                 <button type="submit" class="visual-feedback-submit">{{ $widgetTexts['submit'] }}</button>
+                @else
+                    <p class="visual-feedback-loading">{{ __('visual-feedback::messages.widget.loading') }}</p>
+                @endif
             </form>
         @endunless
     </dialog>

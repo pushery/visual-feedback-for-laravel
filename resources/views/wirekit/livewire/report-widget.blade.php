@@ -68,15 +68,25 @@
              header id that then never existed. The result was a dialog with no accessible
              name at all. modal.header supplies that id, and with it the keyboard-reachable
              close button the plain tree already had. --}}
-        <x-wirekit::modal :name="\Pushery\VisualFeedback\Support\WidgetInstance::modalName($instance)" :describedby="$notice !== null ? 'visual-feedback-notice' : null">
+        <x-wirekit::modal :name="\Pushery\VisualFeedback\Support\WidgetInstance::modalName($instance)" :describedby="$formRendered && $notice !== null ? 'visual-feedback-notice' : null">
             <x-wirekit::modal.header>
                 <h2 id="visual-feedback-heading" tabindex="-1">
                     {{ $widgetTexts['heading'] }}
                 </h2>
             </x-wirekit::modal.header>
 
+            {{-- The form arrives with the round trip that opens the modal: the first response of a page
+                 carries the header and this body, and the kit's spinner says the form is on its way.
+                 The notice stands in the form, so the modal names it as its description only once the
+                 form is there, and no reference points at an element the page does not have. --}}
             <x-wirekit::modal.body class="visual-feedback-panel">
-                @include('visual-feedback::wirekit.livewire._report-form', ['headingInHeader' => true])
+                @if ($formRendered)
+                    @include('visual-feedback::wirekit.livewire._report-form', ['headingInHeader' => true])
+                @else
+                    <div class="visual-feedback-loading">
+                        <x-wirekit::spinner :label="__('visual-feedback::messages.widget.loading')" />
+                    </div>
+                @endif
             </x-wirekit::modal.body>
         </x-wirekit::modal>
     @else

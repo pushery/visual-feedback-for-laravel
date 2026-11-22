@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'Wat is er gebeurd?',
         'submit' => 'Versturen',
         'submitting' => 'Bezig met versturen…',
+        'loading' => 'Het formulier wordt geladen…',
         'success' => 'Bedankt, je feedback is verstuurd.',
         'error' => 'Er ging iets mis. Probeer het opnieuw.',
         'rate_limited' => '{1} Je hebt in korte tijd meerdere meldingen gestuurd. Probeer het over :minutes minuut opnieuw.|[2,*] Je hebt in korte tijd meerdere meldingen gestuurd. Probeer het over :minutes minuten opnieuw.',

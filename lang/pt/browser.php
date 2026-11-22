@@ -18,6 +18,7 @@ return [
     'clear' => 'Limpar filtros',
     'none_title' => 'Nada para mostrar',
     'none' => 'Nenhum relatório corresponde a estes filtros.',
+    'none_yet' => 'Ainda não foi enviado nenhum relatório.',
     'caption' => 'Relatórios de feedback, os mais recentes primeiro',
     'col_date' => 'Recebido',
     'col_mode' => 'Modo',

@@ -18,6 +18,7 @@ return [
     'clear' => 'Filters wissen',
     'none_title' => 'Niets te tonen',
     'none' => 'Geen rapport komt overeen met deze filters.',
+    'none_yet' => 'Er is nog geen rapport verzonden.',
     'caption' => 'Feedback-rapporten, nieuwste eerst',
     'col_date' => 'Ontvangen',
     'col_mode' => 'Modus',

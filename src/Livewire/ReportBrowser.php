@@ -168,6 +168,12 @@ final class ReportBrowser extends Component
         $this->selected = '';
     }
 
+    /** Whether any filter of the list is set. */
+    private function filtered(): bool
+    {
+        return $this->filterMode !== '' || $this->filterCategory !== '' || $this->filterFrom !== '' || $this->filterTo !== '';
+    }
+
     public function clearFilters(): void
     {
         $this->authorizeBrowsing();
@@ -497,6 +503,9 @@ final class ReportBrowser extends Component
             'attachments' => $detail === null ? [] : $this->attachmentsShown($detail->attachments ?? null),
             'categories' => $categories,
             'modes' => $modes,
+            // Whether a filter is set: an empty list says whether the filters or the absence of any report empties
+            // it, and the reset shows only while there is a filter to clear.
+            'filtered' => $this->filtered(),
             // The words a person reads for each stored value: a category as the widget names it, a mode
             // as this browser names it. A value without a translation reads as its own words.
             'categoryLabels' => array_combine($categories, array_map(app(CategoryLabels::class)->label(...), $categories)),

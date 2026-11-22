@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'Was ist passiert?',
         'submit' => 'Senden',
         'submitting' => 'Wird gesendet…',
+        'loading' => 'Das Formular wird geladen…',
         'success' => 'Danke – dein Feedback wurde gesendet.',
         'error' => 'Etwas ist schiefgelaufen. Bitte versuch es noch mal.',
         'rate_limited' => '{1} Du hast in kurzer Zeit mehrere Reports gesendet. Bitte versuch es in :minutes Minute noch mal.|[2,*] Du hast in kurzer Zeit mehrere Reports gesendet. Bitte versuch es in :minutes Minuten noch mal.',

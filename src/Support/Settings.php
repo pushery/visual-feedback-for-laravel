@@ -97,6 +97,17 @@ final readonly class Settings
     }
 
     /**
+     * Whether `@include('visual-feedback::style')` writes the sheet into the page rather than linking it.
+     *
+     * Only `inline` says so. Any other value links the file the package serves, which is the default, so a
+     * typo leaves the page carrying one line rather than the whole sheet.
+     */
+    public function inlineStylesheet(): bool
+    {
+        return $this->config()->get('visual-feedback.ui.stylesheet', 'link') === 'inline';
+    }
+
+    /**
      * Whether the WireKit tree is the one that should render.
      *
      * `auto` asks whether a new enough WireKit is actually installed, so a host that has it gets
@@ -167,7 +178,8 @@ final readonly class Settings
      * default may be restrictive about volume and must not be restrictive about who.
      *
      * An unreadable value reads as off for the same reason: `false` is the documented default, so
-     * degrading to it is degrading to what the file promises.
+     * degrading to it is degrading to what the file promises. On wherever notFoundForGuests() is on,
+     * which includes everything this switch does.
      */
     public function requiresAuthentication(): bool
     {
@@ -178,6 +190,20 @@ final readonly class Settings
         // which is the exact trap the shipped config file documents at length for its env reads.
         return filter_var(
             $this->config()->get('visual-feedback.require_authentication'),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE,
+        ) === true || $this->notFoundForGuests();
+    }
+
+    /**
+     * Whether every request of the widget without an account answers 404: the page that mounts it, every update of
+     * it and the standalone endpoints. It includes requiresAuthentication(), so the drawing and the submit pipeline
+     * follow it without a second question. An unreadable value reads as off, for the reason that switch gives.
+     */
+    public function notFoundForGuests(): bool
+    {
+        return filter_var(
+            $this->config()->get('visual-feedback.not_found_for_guests'),
             FILTER_VALIDATE_BOOLEAN,
             FILTER_NULL_ON_FAILURE,
         ) === true;

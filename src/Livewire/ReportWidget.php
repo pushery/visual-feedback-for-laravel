@@ -349,6 +349,19 @@ class ReportWidget extends Component
 
     public bool $privacyAcknowledged = false;
 
+    /**
+     * Whether a modal's form is part of the render.
+     *
+     * A modal renders its form only once it was opened. The widget sits in the host's layout and so in every
+     * response, the form is most of its weight, and few visitors open the dialog, so the first response of a
+     * page carries the dialog's heading and leaves the rest out. markOpened() sets this, and from that round
+     * trip on every render carries the form. An inline widget shows its form at once and never reads it.
+     *
+     * A client may set it like any other property of the display, and nothing but the render depends on it: a
+     * client that sets it gets the form it would get by opening the dialog.
+     */
+    public bool $formRendered = false;
+
     public bool $submitted = false;
 
     public bool $failed = false;
@@ -668,6 +681,18 @@ class ReportWidget extends Component
         }
 
         return config('visual-feedback.ui.trigger') === 'inline' ? 'inline' : 'modal';
+    }
+
+    /**
+     * Livewire's hook on every request of this component, the one that mounts it and every update after it. With
+     * `not_found_for_guests` on, a request without an account answers 404, as a page answers a guest it does not
+     * serve, so a snapshot that outlived its session reaches nothing.
+     */
+    public function boot(): void
+    {
+        if (app(Settings::class)->notFoundForGuests() && app(ResolvesReporter::class)->resolve()->isGuest) {
+            abort(404);
+        }
     }
 
     /**
@@ -1014,13 +1039,16 @@ class ReportWidget extends Component
      * only ever moves it to the server's own time — a client can call it, but calling it is
      * indistinguishable from opening the form, and every call makes the trap stricter.
      *
-     * It renders the widget like any other round trip. A renderless open would save that render,
-     * but below Livewire 4.4.0 a renderless call skips the render of every call batched with it,
-     * and this package supports Livewire from 4.3.0.
+     * It renders the widget like any other round trip, and the first time that render is what brings a
+     * modal its form: the first response of a page leaves the form out (see `formRendered`). A renderless
+     * open would save the later renders, but below Livewire 4.4.0 a renderless call skips the render of
+     * every call batched with it, and this package supports Livewire from 4.3.0.
      */
     public function markOpened(): void
     {
         app(FormOpenedAt::class)->stamp($this->anchorKey(), Carbon::now()->getTimestamp());
+
+        $this->formRendered = true;
     }
 
     /**
@@ -2083,8 +2111,10 @@ class ReportWidget extends Component
             'uploadsOneAtATime' => FileUploadConfiguration::isUsingS3(),
             // The challenge view, or null. Resolved here for the same reason as the master switch
             // above: both view trees render this same component, so a lookup written into one
-            // template would be missing from the other the moment a host publishes.
-            'challengeView' => $this->resolvedChallengeView(),
+            // template would be missing from the other the moment a host publishes. Only for a
+            // render that shows the form, which holds the challenge region: a modal's first
+            // response leaves the form out, and a missing view is then nothing to warn about.
+            'challengeView' => ($this->mode === 'inline' || $this->formRendered) ? $this->resolvedChallengeView() : null,
             // Guest identity fields show only when there is no authenticated reporter —
             // decided by the same resolver the submission uses, so the two never disagree.
             // The block itself renders while any of the three is on; each one then decides

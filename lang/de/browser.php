@@ -18,6 +18,7 @@ return [
     'clear' => 'Filter zurücksetzen',
     'none_title' => 'Nichts anzuzeigen',
     'none' => 'Kein Report passt zu diesen Filtern.',
+    'none_yet' => 'Es wurde noch kein Report gesendet.',
     'caption' => 'Feedback-Reports, neueste zuerst',
     'col_date' => 'Eingegangen',
     'col_mode' => 'Modus',

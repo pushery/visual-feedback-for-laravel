@@ -8,9 +8,11 @@ use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Foundation\CachesConfiguration;
+use Illuminate\Contracts\Foundation\CachesRoutes;
 use Illuminate\Contracts\Translation\Loader;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Override;
@@ -40,6 +42,8 @@ use Pushery\VisualFeedback\Support\ConfiguredLocale;
 use Pushery\VisualFeedback\Support\LanguageFallbackLoader;
 use Pushery\VisualFeedback\Support\PublishedBundle;
 use Pushery\VisualFeedback\Support\Settings;
+use Pushery\VisualFeedback\Support\Stylesheet;
+use Pushery\VisualFeedback\Support\StylesheetController;
 use Pushery\VisualFeedback\Support\StylesheetPresence;
 
 final class VisualFeedbackServiceProvider extends ServiceProvider
@@ -238,6 +242,16 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // A Settings of its own rather than the container's singleton, so the boot resolves nothing
         // of the package's that a request would then inherit.
         $this->loadViewsFrom(self::viewPaths(new Settings), 'visual-feedback');
+
+        // The one route the package registers by itself: the stylesheet `@include('visual-feedback::style')` links. A
+        // host's layout names the sheet with that include and nothing else, so the file it links has to be served
+        // without a route the host writes. Outside the `web` group, so the answer sets no cookie and a shared cache
+        // may keep it; the digest in the address is what lets it be kept.
+        if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
+            Route::get('visual-feedback/stylesheet/{version}.css', StylesheetController::class)
+                ->where('version', '[0-9a-f]{16}')
+                ->name(Stylesheet::ROUTE);
+        }
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);
 

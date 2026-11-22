@@ -18,6 +18,7 @@ return [
     'clear' => 'Azzera i filtri',
     'none_title' => 'Niente da mostrare',
     'none' => 'Nessuna segnalazione corrisponde a questi filtri.',
+    'none_yet' => 'Non è ancora stata inviata nessuna segnalazione.',
     'caption' => 'Segnalazioni di feedback, dalla più recente',
     'col_date' => 'Ricevuto',
     'col_mode' => 'Modalità',

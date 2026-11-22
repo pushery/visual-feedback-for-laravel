@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'O que aconteceu?',
         'submit' => 'Enviar',
         'submitting' => 'A enviar…',
+        'loading' => 'A carregar o formulário…',
         'success' => 'Obrigado, os teus comentários foram enviados.',
         'error' => 'Algo correu mal. Tenta novamente.',
         'rate_limited' => '{1} Enviaste vários relatos em pouco tempo. Tenta novamente daqui a :minutes minuto.|[2,*] Enviaste vários relatos em pouco tempo. Tenta novamente daqui a :minutes minutos.',

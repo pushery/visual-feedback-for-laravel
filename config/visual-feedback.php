@@ -81,6 +81,15 @@ return [
     // second answer could only disagree with the first.
     'require_authentication' => EnvSwitch::read(env('VISUAL_FEEDBACK_REQUIRE_AUTHENTICATION', false), false),
 
+    // Not found for guests. On, everything `require_authentication` does applies, and every request
+    // of the widget without an account answers 404 as well: the page that mounts it, every update of
+    // it and both endpoints of the standalone widget, which knows no session. It is for a host that
+    // draws the widget only behind its own sign-in and asks every Livewire request for its right.
+    //
+    // Off by default. Drawn on a page a guest sees, the widget would turn that page into a 404. With
+    // it off, a submit after a session ended gets the line that asks the reporter to sign in.
+    'not_found_for_guests' => EnvSwitch::read(env('VISUAL_FEEDBACK_NOT_FOUND_FOR_GUESTS', false), false),
+
     /*
     |--------------------------------------------------------------------------
     | Categories
@@ -873,6 +882,12 @@ return [
         // colors from the kit and ignores both keys.
         'dark_mode' => env('VISUAL_FEEDBACK_UI_DARK_MODE', 'media'), // media|class
         'dark_selector' => env('VISUAL_FEEDBACK_UI_DARK_SELECTOR', '.dark'),
+
+        // How `@include('visual-feedback::style')` brings the widget's stylesheet into a page. `link` writes a
+        // <link> to the file the package serves at `visual-feedback/stylesheet/<digest>.css`, which a browser
+        // keeps until the sheet changes. `inline` writes the whole sheet into every page, for a setup that
+        // cannot load it as a file. An include given `['inline' => true]` or `false` decides for itself.
+        'stylesheet' => env('VISUAL_FEEDBACK_UI_STYLESHEET', 'link'), // link|inline
         'assets' => env('VISUAL_FEEDBACK_UI_ASSETS'),
 
         // Subresource Integrity on all four bundles: the two script tags, `visual-feedback-widget.iife.js`
