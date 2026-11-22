@@ -277,8 +277,10 @@ or the webhooks platform's delivery log, and it says so in its output.
 **If the application runs a content security policy**, it needs five allowances, and two of the
 failures are silent rather than loud:
 
-- `style-src` for `@include('visual-feedback::style')`, which renders an inline `<style>` — without
-  a nonce, a hash or `'unsafe-inline'` the widget renders completely unstyled.
+- `style-src` for `@include('visual-feedback::style')`, which links the stylesheet as a file from the
+  application's own origin: `'self'` admits it, and so does the nonce the link carries. Written
+  inline (`['inline' => true]`, or `ui.stylesheet` set to `inline`), it is a `<style>` block, and
+  without a nonce, a hash or `'unsafe-inline'` the widget renders completely unstyled.
 - `img-src blob:` for the preview. **This one is the quiet one:** without it the preview box is
   empty while the buttons under it still offer attach, discard and retake, so the reporter attaches
   a screenshot they were never shown — and the documentation promises they review it first.
@@ -325,7 +327,7 @@ A policy that forbids style **attributes** (`style-src-attr 'none'`, or any `sty
 `'unsafe-inline'`, which it falls back to) drops the honeypot's inline concealment, and a visible
 honeypot is filled in by real people whose report is then discarded. Both trees carry the class as
 a second mechanism, and `@include('visual-feedback::style')` is what supplies its rule — including
-on the WireKit tree, where that include renders a layout-only block rather than nothing. The
+on the WireKit tree, where that include links a layout-only sheet rather than nothing. The
 reasoning is in the
 [integration contract](https://docs.pushery.com/visual-feedback-for-laravel/integration-contract).
 
@@ -461,8 +463,8 @@ application wants:
 works and is the right move when the application genuinely wants to **edit** the templates — but
 publishing to merely choose between them leaves the host maintaining a copy of the package's
 views, which every update then silently leaves behind. That is what `ui.variant` was added to
-replace. The stylesheet needs no attention either way: it carries the same switch and renders
-nothing under the WireKit tree.
+replace. The stylesheet needs no attention either way: it carries the same switch and links a
+layout-only sheet under the WireKit tree.
 
 **Needs WireKit 2.70 or newer**, the oldest release this version supports — the report dialog
 shows one scrollbar in a short window from 2.70, the soft buttons
@@ -696,8 +698,8 @@ are isolated from each other: one failing never stops the rest.
   publishing to choose leaves the application maintaining a copy of the package's templates that
   every update silently leaves behind. Publish it when you want to edit it, not otherwise.
 - Do not remove `@include('visual-feedback::style')` from the layout on the assumption that the
-  WireKit tree makes it dead. It is not dead there: it withholds the palette and renders a
-  layout-only block — spacing, the flex row under the screenshot preview, and the honeypot's
+  WireKit tree makes it dead. It is not dead there: it withholds the palette and links a
+  layout-only sheet — spacing, the flex row under the screenshot preview, and the honeypot's
   concealment rule. Strip it and a strict `style-src` leaves that field visible.
 - Do not write a channel that stores reports without `RetainsReport`. Nothing fails when you
   forget it; the attachments are gone by the time anyone opens the report.

@@ -65,11 +65,13 @@
                             />
                         </x-wirekit::row>
 
-                        <x-wirekit::row>
-                            <x-wirekit::button intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
-                                {{ __('visual-feedback::browser.clear') }}
-                            </x-wirekit::button>
-                        </x-wirekit::row>
+                        @if ($filtered)
+                            <x-wirekit::row>
+                                <x-wirekit::button intent="neutral" wire:click="clearFilters" loading-target="clearFilters">
+                                    {{ __('visual-feedback::browser.clear') }}
+                                </x-wirekit::button>
+                            </x-wirekit::row>
+                        @endif
                     </x-wirekit::stack>
                 </x-wirekit::card.body>
             </x-wirekit::card>
@@ -78,7 +80,7 @@
                 <x-wirekit::empty-state
                     :level="$sectionLevel"
                     :title="__('visual-feedback::browser.none_title')"
-                    :description="__('visual-feedback::browser.none')"
+                    :description="$filtered ? __('visual-feedback::browser.none') : __('visual-feedback::browser.none_yet')"
                 />
             @else
                 <x-wirekit::table hoverable responsive>

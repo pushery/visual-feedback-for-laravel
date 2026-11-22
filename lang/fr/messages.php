@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'Que s’est-il passé ?',
         'submit' => 'Envoyer',
         'submitting' => 'Envoi…',
+        'loading' => 'Chargement du formulaire…',
         'success' => 'Merci, ton retour a bien été envoyé.',
         'error' => 'Une erreur est survenue. Réessaie.',
         'rate_limited' => '{1} Tu as envoyé plusieurs signalements en peu de temps. Réessaie dans :minutes minute.|[2,*] Tu as envoyé plusieurs signalements en peu de temps. Réessaie dans :minutes minutes.',

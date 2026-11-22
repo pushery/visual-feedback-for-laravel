@@ -18,6 +18,7 @@ return [
     'clear' => 'Clear filters',
     'none_title' => 'Nothing to show',
     'none' => 'No report matches these filters.',
+    'none_yet' => 'No report has been sent yet.',
     'caption' => 'Feedback reports, newest first',
     'col_date' => 'Received',
     'col_mode' => 'Mode',

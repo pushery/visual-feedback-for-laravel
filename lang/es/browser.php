@@ -18,6 +18,7 @@ return [
     'clear' => 'Borrar filtros',
     'none_title' => 'Nada que mostrar',
     'none' => 'Ningún informe coincide con estos filtros.',
+    'none_yet' => 'Todavía no se ha enviado ningún informe.',
     'caption' => 'Informes de feedback, los más recientes primero',
     'col_date' => 'Recibido',
     'col_mode' => 'Modo',

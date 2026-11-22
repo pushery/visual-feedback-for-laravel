@@ -60,14 +60,16 @@
                 <input type="date" wire:model.live="filterTo">
             </label>
 
-            <button type="button" class="visual-feedback-browser-clear" wire:click="clearFilters" wire:loading.attr="disabled" wire:target="clearFilters">
-                {{ __('visual-feedback::browser.clear') }}
-            </button>
+            @if ($filtered)
+                <button type="button" class="visual-feedback-browser-clear" wire:click="clearFilters" wire:loading.attr="disabled" wire:target="clearFilters">
+                    {{ __('visual-feedback::browser.clear') }}
+                </button>
+            @endif
         </form>
 
         @if ($reports !== null && $reports->total() === 0)
             <h{{ $sectionLevel }} class="visual-feedback-browser-empty-title">{{ __('visual-feedback::browser.none_title') }}</h{{ $sectionLevel }}>
-            <p class="visual-feedback-browser-empty">{{ __('visual-feedback::browser.none') }}</p>
+            <p class="visual-feedback-browser-empty">{{ $filtered ? __('visual-feedback::browser.none') : __('visual-feedback::browser.none_yet') }}</p>
         @else
             {{-- The table scrolls inside its own frame, so a narrow screen does not push the whole
                  page sideways. The WireKit tree's table does the same through its `responsive`

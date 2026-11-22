@@ -4,6 +4,22 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.34.0] - 2026-11-22
+
+### ✨ Added
+
+- **`PruneExpiredCacheKeys` also prunes behind a `failover` store and a `storage` store.** Both of these Laravel cache drivers leave expired entries behind as a database or a file store does. A failover store writes each entry into the first of its stores that answers, so the pruner goes through each of its stores once. A storage store lays its files out on a filesystem disk the way a file store does in its directory, and the pruner deletes the expired files the store laid out there and leaves every other file on the disk alone.
+- **`not_found_for_guests` answers every request of the widget without an account with `404`.** A host that draws the widget only behind its own sign-in could still be reached by a guest: an update reaches the component through its own snapshot, so a page that outlived its session kept the widget working, and without `require_authentication` its report arrived as a guest's. With `VISUAL_FEEDBACK_NOT_FOUND_FOR_GUESTS=true`, the page that mounts the widget, every update of it and both endpoints of the standalone widget answer a request without an account with `404`, as a page answers a guest it does not serve, and everything `require_authentication` does applies too. It ships off: with it on, a page that draws the widget for a guest answers that guest with `404`.
+
+### ⚡ Performance
+
+- **`@include('visual-feedback::style')` links the widget's stylesheet as a file instead of writing it into every page.** The package serves it at `visual-feedback/stylesheet/<digest>.css` from a route of its own, outside the `web` group so the answer sets no cookie, and a browser keeps it until the sheet changes, because a changed sheet gets a new digest. A page used to carry the whole sheet with every response, 12 KB on the WireKit tree alone. Under a content security policy the link needs `style-src 'self'` or the nonce it carries, which the include passes on as before. **Upgrade:** nothing, unless a page has to carry the sheet itself: `@include('visual-feedback::style', ['inline' => true])` writes it there, and `VISUAL_FEEDBACK_UI_STYLESHEET=inline` does so for every include. A published copy of `style.blade.php` keeps writing the sheet inline; the rules now stand in `stylesheet.blade.php` and `stylesheet-wirekit.blade.php`, which `vendor:publish --tag=visual-feedback-views` copies beside it.
+- **A modal leaves its form out of a page's first response and brings it with the round trip that opens it.** The widget sits in the layout and so in every response, and its form was most of its weight, 39 KB of the 45 KB the WireKit tree wrote, for a dialog few visitors open. The first response carries the dialog and its heading; until the fields arrive, the plain tree shows a short loading note and the WireKit tree the kit's spinner. An inline widget shows its form at once, as before. A challenge view that is configured but missing is reported by the render that shows the form, so a page whose modal stays closed logs no warning for it. **Upgrade:** a host's own test that reads the fields of a modal widget opens it first: `->call('markOpened')` on the Livewire test, or a wait for the form after the click on the trigger in a browser test.
+
+### 🐛 Fixed
+
+- **The empty report browser says no report was sent yet where no filter is set, and offers to clear filters only where one is.** It said "No report matches these filters." and showed "Clear filters" on a first visit, so a reader looked for a filter that was not set.
+
 ## [0.33.0] - 2026-11-21
 
 ### ✨ Added
@@ -1554,7 +1570,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.30.0...v0.31.0

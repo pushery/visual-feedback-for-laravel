@@ -36,6 +36,18 @@ Then place the widget once in your layout and point the mail channel somewhere â
 `VISUAL_FEEDBACK_MAIL_TO` ships empty, and a report with nowhere to go still shows the
 reporter a success screen. Needs PHP 8.4+, Laravel 12+ and Livewire 4.3.4+.
 
+To publish one part on its own and edit the copy, name its tag:
+
+```bash
+php artisan vendor:publish --tag=visual-feedback-config
+php artisan vendor:publish --tag=visual-feedback-views
+php artisan vendor:publish --tag=visual-feedback-lang
+```
+
+The configuration lands in `config/visual-feedback.php`, the views in
+`resources/views/vendor/visual-feedback` and the translations in `lang/vendor/visual-feedback`,
+where Laravel reads them before the package's own.
+
 ## What it does
 
 - A Livewire widget in **modal or inline** mode â€” built-in floating button, standalone trigger,

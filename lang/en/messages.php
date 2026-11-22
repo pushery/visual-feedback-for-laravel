@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'What happened?',
         'submit' => 'Send',
         'submitting' => 'Sending…',
+        'loading' => 'Loading the form…',
         'success' => 'Thanks — your feedback was sent.',
         'error' => 'Something went wrong. Please try again.',
         'rate_limited' => '{1} You have sent several reports in a short time. Please try again in :minutes minute.|[2,*] You have sent several reports in a short time. Please try again in :minutes minutes.',

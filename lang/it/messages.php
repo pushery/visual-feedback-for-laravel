@@ -20,6 +20,7 @@ return [
         'message_placeholder' => 'Cosa è successo?',
         'submit' => 'Invia',
         'submitting' => 'Invio…',
+        'loading' => 'Caricamento del modulo…',
         'success' => 'Grazie, il tuo feedback è stato inviato.',
         'error' => 'Qualcosa è andato storto. Riprova.',
         'rate_limited' => '{1} Hai inviato diverse segnalazioni in poco tempo. Riprova tra :minutes minuto.|[2,*] Hai inviato diverse segnalazioni in poco tempo. Riprova tra :minutes minuti.',

@@ -57,6 +57,11 @@ final readonly class StandaloneController
      */
     public function form(StandaloneToken $tokens, Settings $settings): JsonResponse
     {
+        // The standalone widget knows no session, so every caller is a guest, and `not_found_for_guests` answers 404.
+        if ($settings->notFoundForGuests()) {
+            abort(404);
+        }
+
         return new JsonResponse(
             ['token' => $tokens->issue(Carbon::now()->getTimestamp()), 'ready_in' => $settings->minFillSeconds()],
             200,
@@ -66,6 +71,10 @@ final readonly class StandaloneController
 
     public function store(Request $request, SubmitReport $submit, ResolvesReporter $reporters, Settings $settings): JsonResponse
     {
+        if ($settings->notFoundForGuests()) {
+            abort(404);
+        }
+
         // The token stands where the Livewire widget's seal and its session stamp stand. Without a valid one the form
         // is answered as expired, before anything is stored: reopening it is all the reporter has to do.
         $openedAt = app(StandaloneToken::class)->openedAt($this->text($request, 'token'), Carbon::now()->getTimestamp());
