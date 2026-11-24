@@ -4,6 +4,22 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.34.1] - 2026-11-24
+
+### 🔧 Changed
+
+- **`symfony/console` is a declared dependency.** The commands escape what they print with its output formatter. Every Laravel version the package supports installs the component already, so no installation resolves differently.
+
+### 🐛 Fixed
+
+- **`visual-feedback:forget`, `visual-feedback:prune` and `visual-feedback:sweep-orphans` print their messages as they stand.** Symfony's console formatter read a part of a message that looks like a style tag as styling and dropped it, in the reporter an erasure names or in a line a host overrides in its translations.
+- **The guest's form hands the name of each contact field to its script whole.** The standalone form built a JavaScript string around the name of the field in the binding of its invalid state, `vfInvalid('…')`, so a quote in a name would have closed the string early, and an application whose suite holds every view to encoded arguments found the published copy red. The WireKit tree passes the name through WireKit's `AlpinePayload`, and the plain tree reads it from the control itself.
+
+### 📚 Documentation
+
+- **The documentation says that the `octane` store of Laravel Octane is out of the pruner's reach.** The store keeps an expired entry in a table of a fixed number of rows, `octane.cache.rows`, until its key is written again or the server restarts, and the scheduler, where the pruner runs, sees an empty store. Once the table is full, writing a new key fails, so the documentation advises against making `octane` the default cache store of an application that runs this package.
+- **The documentation names a third way a guest can choose the address the rate limit counts.** Below `laravel/framework` 12.73.0 on 12.x and 13.43.0 on 13.x, an application that trusts no proxy and whose web server answers any host name takes a header the visitor sends as the mark of a Forge or Vapor proxy (GHSA-559m-v249-7qw2). The section on the guest bucket says so, with the three ways out it names: a newer framework, a list of trusted proxies, or a web server that answers only the application's own host names.
+
 ## [0.34.0] - 2026-11-22
 
 ### ✨ Added
@@ -1570,7 +1586,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.1...HEAD
+[0.34.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.31.0...v0.32.0

@@ -14,6 +14,7 @@ use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Privacy\ErasedReporters;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
  * The DSAR erasure: delete every stored report of a reporter and its attachment files.
@@ -83,7 +84,7 @@ final class ForgetReporter extends Command
         };
 
         if ($refusal !== null) {
-            $this->error($refusal);
+            $this->error(OutputFormatter::escape($refusal));
 
             return self::INVALID;
         }
@@ -167,10 +168,10 @@ final class ForgetReporter extends Command
                     }
                 });
 
-            $this->info(trans_choice($erasedLine, $forgotten, ['count' => $forgotten, ...$subject]));
+            $this->info(OutputFormatter::escape(trans_choice($erasedLine, $forgotten, ['count' => $forgotten, ...$subject])));
 
             if ($kept > 0) {
-                $this->error(trans_choice($keptLine, $kept, ['count' => $kept, ...$subject]));
+                $this->error(OutputFormatter::escape(trans_choice($keptLine, $kept, ['count' => $kept, ...$subject])));
                 $failed = true;
             }
         }

@@ -119,7 +119,7 @@
                         {{ $vfFieldLabels[$vfField] }}@if (in_array($vfField, $vfRequired, true))<span class="visual-feedback-required-mark" aria-hidden="true">*</span>@endif
                     </label>
                     <input id="visual-feedback-{{ $vfField }}" type="{{ $vfType }}" name="{{ $vfField }}" autocomplete="{{ $vfAutocomplete }}"
-                        :aria-invalid="vfInvalid('{{ $vfField }}')" :aria-describedby="vfDescribedBy('{{ $vfField }}')"
+                        :aria-invalid="vfInvalid($el.name)" :aria-describedby="vfDescribedBy($el.name)"
                         @required(in_array($vfField, $vfRequired, true))>
                 @endif
             @endforeach
