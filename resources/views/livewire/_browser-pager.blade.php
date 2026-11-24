@@ -8,13 +8,13 @@
         @if ($paginator->onFirstPage())
             <span class="visual-feedback-browser-pager-edge" aria-disabled="true">{{ __('visual-feedback::browser.newer') }}</span>
         @else
-            <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" wire:loading.attr="disabled">{{ __('visual-feedback::browser.newer') }}</button>
+            <button type="button" wire:click="previousPage({{ json_encode($paginator->getPageName()) }})" wire:loading.attr="disabled">{{ __('visual-feedback::browser.newer') }}</button>
         @endif
 
         <span class="visual-feedback-browser-pager-position">{{ __('visual-feedback::browser.page_of', ['page' => $paginator->currentPage(), 'pages' => $paginator->lastPage()]) }}</span>
 
         @if ($paginator->hasMorePages())
-            <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" wire:loading.attr="disabled">{{ __('visual-feedback::browser.older') }}</button>
+            <button type="button" wire:click="nextPage({{ json_encode($paginator->getPageName()) }})" wire:loading.attr="disabled">{{ __('visual-feedback::browser.older') }}</button>
         @else
             <span class="visual-feedback-browser-pager-edge" aria-disabled="true">{{ __('visual-feedback::browser.older') }}</span>
         @endif

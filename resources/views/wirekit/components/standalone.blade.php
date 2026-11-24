@@ -131,7 +131,7 @@
                         id="visual-feedback-{{ $vfField }}" name="{{ $vfField }}" type="{{ $vfType }}" autocomplete="{{ $vfAutocomplete }}"
                         :label="$vfFieldLabels[$vfField]"
                         :required="in_array($vfField, $vfRequired, true)"
-                        x-bind:aria-invalid="vfInvalid('{{ $vfField }}')" x-bind:aria-describedby="vfDescribedBy('{{ $vfField }}')" />
+                        x-bind:aria-invalid="vfInvalid({{ \Pushery\WireKit\Support\AlpinePayload::string($vfField) }})" x-bind:aria-describedby="vfDescribedBy({{ \Pushery\WireKit\Support\AlpinePayload::string($vfField) }})" />
                 @endif
             @endforeach
 

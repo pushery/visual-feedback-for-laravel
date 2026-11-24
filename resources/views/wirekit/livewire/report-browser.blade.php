@@ -112,7 +112,7 @@
                                     {{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}
                                 </x-wirekit::table.td>
                                 <x-wirekit::table.td align="right">
-                                    <x-wirekit::button size="sm" wire:click="open('{{ $report->uuid }}')" loading-target="open('{{ $report->uuid }}')">
+                                    <x-wirekit::button size="sm" wire:click="open({{ \Pushery\WireKit\Support\AlpinePayload::string($report->uuid) }})" :loading-target="'open('.\Pushery\WireKit\Support\AlpinePayload::string($report->uuid).')'">
                                         {{ __('visual-feedback::browser.open') }}
                                     </x-wirekit::button>
                                     {{-- wire:confirm rather than an inline handler: Livewire's own
@@ -128,7 +128,7 @@
                                     <x-wirekit::button
                                         size="sm"
                                         intent="danger"
-                                        wire:click="$wire['delete']('{{ $report->uuid }}')"
+                                        wire:click="$wire['delete']({{ \Pushery\WireKit\Support\AlpinePayload::string($report->uuid) }})"
                                         wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
                                         loading-target="delete"
                                     >

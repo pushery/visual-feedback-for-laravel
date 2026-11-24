@@ -34,7 +34,8 @@
         "ext-mbstring": "*",
         "laravel/framework": "^12.0 || ^13.0",
         "livewire/livewire": "^4.3.4",
-        "psr/log": "^1.0 || ^2.0 || ^3.0"
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
+        "symfony/console": "^7.0 || ^8.0"
     },
     "require-dev": {
         "cweagans/composer-patches": "^2.0",
@@ -53,12 +54,12 @@
         "pestphp/pest-plugin-evals": "^5.1",
         "pestphp/pest-plugin-laravel": "^5.0",
         "pestphp/pest-plugin-phpstan": "5.3.1",
-        "pestphp/pest-plugin-type-coverage": "^5.0",
-        "phpstan/phpstan": "2.3.5",
+        "pestphp/pest-plugin-type-coverage": "^5.1.1",
+        "phpstan/phpstan": "2.3.6",
         "phpstan/phpstan-deprecation-rules": "2.0.5",
-        "pushery/legal-consent-for-laravel": "^0.45 || ^0.46 || ^0.47 || ^0.48 || ^0.49 || ^0.50 || ^0.51 || ^0.52 || ^0.53 || ^0.54 || ^0.55 || ^0.56 || ^0.57 || ^0.58 || ^0.59 || ^0.60",
+        "pushery/legal-consent-for-laravel": "^0.45 || ^0.46 || ^0.47 || ^0.48 || ^0.49 || ^0.50 || ^0.51 || ^0.52 || ^0.53 || ^0.54 || ^0.55 || ^0.56 || ^0.57 || ^0.58 || ^0.59 || ^0.60 || ^0.61",
         "pushery/matomo-analytics-for-laravel": "^0.17 || ^0.19 || ^0.20 || ^0.21 || ^0.22 || ^0.23 || ^0.24 || ^0.25 || ^0.26 || ^0.27 || ^0.28 || ^0.29 || ^0.30 || ^0.31 || ^0.32 || ^0.33 || ^0.34 || ^0.35 || ^0.36 || ^0.37 || ^0.38 || ^0.39 || ^0.40 || ^0.41 || ^0.42 || ^0.43 || ^0.44 || ^0.45 || ^0.46",
-        "pushery/sqlens-for-laravel": "^0.35.0",
+        "pushery/sqlens-for-laravel": "^0.35.1",
         "pushery/webhooks-for-laravel": "^2.0 || ^3.0",
         "pushery/wirekit": "^2.73.0",
         "rector/rector": "2.8.4",

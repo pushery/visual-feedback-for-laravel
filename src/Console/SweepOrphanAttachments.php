@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
  * The age-based orphan sweep — the backstop for a lost cleanup refcount: if the cache-backed refcount is evicted, a transient report's attachments are
@@ -86,10 +87,10 @@ final class SweepOrphanAttachments extends Command
             $pruner->prune($disk, $batch, $directory);
         }
 
-        $this->info(trans_choice('visual-feedback::messages.console.sweep.swept', $swept, ['count' => $swept, 'minutes' => $minAgeMinutes]));
+        $this->info(OutputFormatter::escape(trans_choice('visual-feedback::messages.console.sweep.swept', $swept, ['count' => $swept, 'minutes' => $minAgeMinutes])));
 
         if ($failed > 0) {
-            $this->error(trans_choice('visual-feedback::messages.console.sweep.failed', $failed, ['count' => $failed]));
+            $this->error(OutputFormatter::escape(trans_choice('visual-feedback::messages.console.sweep.failed', $failed, ['count' => $failed])));
 
             return self::FAILURE;
         }

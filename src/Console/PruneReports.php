@@ -13,6 +13,7 @@ use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Support\EnvFlag;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
  * Deletes reports past the retention cutoff — and their attachment files. This is
@@ -63,7 +64,7 @@ final class PruneReports extends Command
         // or after it, and every report would go. Refused rather than read as "keep forever", so a
         // scheduler that runs this command reports the value instead of quietly keeping everything.
         if ((int) $days < 1) {
-            $this->error((string) __('visual-feedback::messages.console.prune.below_one_day', ['days' => (string) $days]));
+            $this->error(OutputFormatter::escape((string) __('visual-feedback::messages.console.prune.below_one_day', ['days' => (string) $days])));
 
             return self::FAILURE;
         }
@@ -109,10 +110,10 @@ final class PruneReports extends Command
                 }
             });
 
-        $this->info(trans_choice('visual-feedback::messages.console.prune.pruned', $pruned, ['count' => $pruned]));
+        $this->info(OutputFormatter::escape(trans_choice('visual-feedback::messages.console.prune.pruned', $pruned, ['count' => $pruned])));
 
         if ($kept > 0) {
-            $this->error(trans_choice('visual-feedback::messages.console.prune.kept', $kept, ['count' => $kept]));
+            $this->error(OutputFormatter::escape(trans_choice('visual-feedback::messages.console.prune.kept', $kept, ['count' => $kept])));
 
             return self::FAILURE;
         }

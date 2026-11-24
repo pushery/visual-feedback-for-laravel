@@ -98,7 +98,7 @@
                                      the normal case rather than a defect. --}}
                                 <td {{ $redact }}>{{ $report->reporter_name ?: __('visual-feedback::browser.guest') }}</td>
                                 <td class="visual-feedback-browser-actions">
-                                    <button type="button" wire:click="open('{{ $report->uuid }}')" wire:loading.attr="disabled" wire:target="open('{{ $report->uuid }}')">
+                                    <button type="button" wire:click="open({{ json_encode($report->uuid) }})" wire:loading.attr="disabled" wire:target="open({{ json_encode($report->uuid) }})">
                                         {{ __('visual-feedback::browser.open') }}
                                     </button>
                                     {{-- wire:confirm rather than a JS confirm(): it is Livewire's own
@@ -114,7 +114,7 @@
                                          delete false in instanceof new null true typeof undefined void. --}}
                                     <button
                                         type="button"
-                                        wire:click="$wire['delete']('{{ $report->uuid }}')"
+                                        wire:click="$wire['delete']({{ json_encode($report->uuid) }})"
                                         wire:confirm="{{ __('visual-feedback::browser.confirm_delete') }}"
                                         wire:loading.attr="disabled"
                                         wire:target="delete"
