@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Campo obrigatório',
         'add_files' => 'Adicionar ficheiros',
         'remove_file' => 'Remover :name',
+        'remove_file_dialog' => [
+            'title' => 'Remover :name?',
+            'description' => 'O ficheiro sai desta comunicação. Podes voltar a adicioná-lo antes de a enviar.',
+            'confirm' => 'Remover',
+        ],
         'capture_screenshot' => 'Capturar ecrã',
         'screenshot_native_hint' => 'O teu navegador pode pedir para partilhar este separador para uma captura exata ao pixel; podes recusar e faremos a captura de outra forma.',
         'screenshot_capturing' => 'A capturar…',

@@ -74,6 +74,7 @@ final class PublishedBundle
             PublishedBundleStatus::Stale => 'OUT OF DATE — run: php artisan vendor:publish --tag=visual-feedback-assets --force',
             PublishedBundleStatus::NotPublished => 'not published — run: php artisan vendor:publish --tag=visual-feedback-assets',
             PublishedBundleStatus::ServedExternally => 'served from a configured base URL',
+            PublishedBundleStatus::ServedByRoute => "served by the package's own route, nothing to publish",
         };
     }
 
@@ -222,6 +223,12 @@ final class PublishedBundle
 
         if (is_string($base) && $base !== '') {
             return PublishedBundleStatus::ServedExternally;
+        }
+
+        // The route serves the files straight out of `dist/`, so there is no copy to compare, and a
+        // copy left in `public/` by an earlier publish is not what the page loads.
+        if ($this->config->get('visual-feedback.ui.scripts') === ScriptBundles::ROUTED) {
+            return PublishedBundleStatus::ServedByRoute;
         }
 
         $stale = false;

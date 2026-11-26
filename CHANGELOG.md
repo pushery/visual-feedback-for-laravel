@@ -4,6 +4,23 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.35.0] - 2026-11-26
+
+### ✨ Added
+
+- **The scripts can come from the package itself, under a digest of all four files.** `VISUAL_FEEDBACK_UI_SCRIPTS=route` (`ui.scripts`) has the package serve the widget's four scripts at `/visual-feedback/script/<digest>/<file>`, with no publish step. A server that holds other bytes answers that address with `no-cache`, so where several servers switch to a release one after the other, no cache keeps an older file under a newer address. `published` stays the default, and `ui.assets` wins over both. `PublishedBundle::status()` reports the new state `served-by-route`, and the **Published bundle** line of `php artisan about` says the package serves the scripts itself.
+
+### 🔧 Changed
+
+- **A switch set to a spelling that says neither on nor off stops the boot.** This holds for every switch of the config that reads its variable through `EnvSwitch::read()`, from `VISUAL_FEEDBACK_ENABLED` to `VISUAL_FEEDBACK_UI_ASSETS_INTEGRITY`. A value such as `ture` kept the value the package ships. The boot and `config:cache` now stop with an `InvalidArgumentException` that names the variable, the value as written and every spelling for on and off. A missing or empty line and `empty`, `(empty)`, `null` and `(null)` keep the shipped value, as before. `webhook.include_reporter` and `matomo.enabled` read their values as they did.
+
+  **Upgrade:** a host whose `.env` gives one of these variables another spelling corrects it, or deletes the line to keep the default.
+- **Removing an attachment from the WireKit form asks first.** Where the form lists the queued files itself, the trash button is red and opens WireKit's alert dialog, and its Remove button takes the file out of the report, as the house conventions of WireKit 2.74 hold a removal to. The plain form removes a file at once, as before. A host that published the package's translations adds `widget.remove_file_dialog.title`, `widget.remove_file_dialog.description` and `widget.remove_file_dialog.confirm`.
+
+### 📚 Documentation
+
+- **The requirements name the versions the package is tested on.** PHP 8.4.27, 8.5.x and 8.6.x, PostgreSQL 18.7 and MySQL 8.4.13, in the README and on the start page of the documentation.
+
 ## [0.34.1] - 2026-11-24
 
 ### 🔧 Changed
@@ -1586,7 +1603,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.1...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.32.0...v0.33.0

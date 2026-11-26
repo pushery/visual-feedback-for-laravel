@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Campo obligatorio',
         'add_files' => 'Añadir archivos',
         'remove_file' => 'Quitar :name',
+        'remove_file_dialog' => [
+            'title' => '¿Quitar :name?',
+            'description' => 'El archivo sale de este informe. Puedes volver a añadirlo antes de enviarlo.',
+            'confirm' => 'Quitar',
+        ],
         'capture_screenshot' => 'Capturar pantalla',
         'screenshot_native_hint' => 'Puede que tu navegador pida compartir esta pestaña para una captura exacta; puedes rechazarlo y la haremos de otra forma.',
         'screenshot_capturing' => 'Capturando…',

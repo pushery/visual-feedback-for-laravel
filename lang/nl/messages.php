@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Verplicht veld',
         'add_files' => 'Bestanden toevoegen',
         'remove_file' => ':name verwijderen',
+        'remove_file_dialog' => [
+            'title' => ':name verwijderen?',
+            'description' => 'Het bestand gaat uit deze melding. Je kunt het opnieuw toevoegen voordat je de melding verstuurt.',
+            'confirm' => 'Verwijderen',
+        ],
         'capture_screenshot' => 'Schermafbeelding maken',
         'screenshot_native_hint' => 'Je browser vraagt mogelijk om dit tabblad te delen voor een pixelnauwkeurige schermafbeelding; je kunt weigeren, dan maken we hem op een andere manier.',
         'screenshot_capturing' => 'Bezig met vastleggen…',

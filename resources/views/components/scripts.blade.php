@@ -11,7 +11,8 @@
     All visible text comes from the widget's Blade/lang, never this bundle — the config island
     carries only behavior (locale, capture clamps, redact attribute), no user-facing strings, so
     the committed dist/ can never fall behind the 7 locales. The base URL is the `ui.assets`
-    config or the published `vendor/visual-feedback` path.
+    config, the package's own route where `ui.scripts` is `route`, or the published
+    `vendor/visual-feedback` path.
 
     Under a nonce-based content security policy the tags carry the nonce passed as
     `<x-visual-feedback::scripts :nonce="$nonce" />`, or else the one the application gave
@@ -58,6 +59,15 @@
     // from disk unless APP_DEBUG is on, and renders no inline script: a policy that admits the
     // bundles by path alone, with no nonce, would refuse one.
     app(\Pushery\VisualFeedback\Support\PublishedBundle::class)->warnIfUnusable();
+
+    // Where `ui.scripts` is `route` and `ui.assets` is empty, the package serves the scripts itself, under a
+    // digest of all four files in the path. That address needs no token, and the renderer and the editor are
+    // found beside the capture bundle under the same digest, so neither tag hands a token over. See ScriptBundles.
+    $scriptBundles = app(\Pushery\VisualFeedback\Support\ScriptBundles::class);
+    $routed = $scriptBundles->served();
+    $src = fn (string $bundle): string => $routed
+        ? $scriptBundles->url($bundle)
+        : $assetBase.'/'.$bundle.'?id='.rawurlencode($cacheToken($bundle));
 @endphp
 {{-- Master switch. The host places this tag in its own layout, so the widget cannot take it away
      by rendering nothing itself — this component has to ask too, exactly as the fab and the
@@ -116,8 +126,8 @@
      never initialized at all: an empty scope, and every directive on it dead, with only the browser
      console to show for it.
      Unconditional for that reason and affordable because of its size, under 12 KB. --}}
-<script src="{{ $assetBase }}/visual-feedback-widget.iife.js?id={{ rawurlencode($cacheToken('visual-feedback-widget.iife.js')) }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
+<script src="{{ $src('visual-feedback-widget.iife.js') }}" @if ($integrity('visual-feedback-widget.iife.js')) integrity="{{ $integrity('visual-feedback-widget.iife.js') }}" crossorigin="anonymous" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @if ($clientConfig['screenshot']['strategy'] !== 'off')
-<script src="{{ $assetBase }}/visual-feedback.iife.js?id={{ rawurlencode($cacheToken('visual-feedback.iife.js')) }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif data-renderer-token="{{ $cacheToken('visual-feedback-renderer.iife.js') }}" @if ($clientConfig['screenshot']['editor']) @if ($integrity('visual-feedback-editor.iife.js')) data-editor-integrity="{{ $integrity('visual-feedback-editor.iife.js') }}" @endif data-editor-token="{{ $cacheToken('visual-feedback-editor.iife.js') }}" @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
+<script src="{{ $src('visual-feedback.iife.js') }}" @if ($integrity('visual-feedback.iife.js')) integrity="{{ $integrity('visual-feedback.iife.js') }}" crossorigin="anonymous" @endif @if ($integrity('visual-feedback-renderer.iife.js')) data-renderer-integrity="{{ $integrity('visual-feedback-renderer.iife.js') }}" @endif @unless ($routed) data-renderer-token="{{ $cacheToken('visual-feedback-renderer.iife.js') }}" @endunless @if ($clientConfig['screenshot']['editor']) @if ($integrity('visual-feedback-editor.iife.js')) data-editor-integrity="{{ $integrity('visual-feedback-editor.iife.js') }}" @endif @unless ($routed) data-editor-token="{{ $cacheToken('visual-feedback-editor.iife.js') }}" @endunless @endif @if ($nonce !== null) nonce="{{ $nonce }}" @endif data-navigate-once defer></script>
 @endif
 @endif

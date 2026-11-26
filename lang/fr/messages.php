@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Champ obligatoire',
         'add_files' => 'Ajouter des fichiers',
         'remove_file' => 'Retirer :name',
+        'remove_file_dialog' => [
+            'title' => 'Retirer :name ?',
+            'description' => 'Le fichier quitte ce signalement. Tu peux l\'ajouter à nouveau avant de l\'envoyer.',
+            'confirm' => 'Retirer',
+        ],
         'capture_screenshot' => 'Capturer l’écran',
         'screenshot_native_hint' => 'Ton navigateur peut te demander de partager cet onglet pour une capture fidèle au pixel ; tu peux refuser, on la fera autrement.',
         'screenshot_capturing' => 'Capture en cours…',
