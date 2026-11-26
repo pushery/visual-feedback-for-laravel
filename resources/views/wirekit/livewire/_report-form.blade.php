@@ -396,14 +396,32 @@
                         <span class="visual-feedback-file-name">{{ $file->getClientOriginalName() }}</span>
                         {{-- The trash icon, never a typed character: a cross means close. The name stays in the
                              button as visually hidden text and shows in the tooltip, which does not describe the
-                             control with its own name a second time. --}}
-                        <x-wirekit::tooltip :text="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])" :describes="false">
-                            <x-wirekit::button type="button" intent="neutral" size="sm" icon-only
-                                wire:click="removeAttachment({{ $index }})" loading-target="removeAttachment({{ $index }})">
-                                <x-slot:iconLeft><x-wirekit::icon name="trash" size="sm" aria-hidden="true" /></x-slot:iconLeft>
-                                {{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}
-                            </x-wirekit::button>
-                        </x-wirekit::tooltip>
+                             control with its own name a second time.
+
+                             A removal is red and asks first, as WireKit's conventions hold it: the trash
+                             button opens the kit's question, and the question's own button removes the file.
+                             The trash button keeps the loading target of that call, so it stays held while
+                             the removal runs. The dialog closes on the confirmation, and its focus goes to
+                             what survives the row. --}}
+                        <x-wirekit::alert-dialog :name="'vf-remove-file-'.hash('xxh128', $file->getFilename())" close-on-confirm>
+                            <x-slot:trigger>
+                                <x-wirekit::tooltip :text="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])" :describes="false">
+                                    <x-wirekit::button type="button" intent="danger" size="sm" icon-only
+                                        loading-target="removeAttachment({{ $index }})">
+                                        <x-slot:iconLeft><x-wirekit::icon name="trash" size="sm" aria-hidden="true" /></x-slot:iconLeft>
+                                        {{ __('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()]) }}
+                                    </x-wirekit::button>
+                                </x-wirekit::tooltip>
+                            </x-slot:trigger>
+
+                            <x-wirekit::alert-dialog.title>{{ __('visual-feedback::messages.widget.remove_file_dialog.title', ['name' => $file->getClientOriginalName()]) }}</x-wirekit::alert-dialog.title>
+                            <x-wirekit::alert-dialog.description>{{ __('visual-feedback::messages.widget.remove_file_dialog.description') }}</x-wirekit::alert-dialog.description>
+                            <x-wirekit::alert-dialog.actions>
+                                <x-wirekit::alert-dialog.cancel />
+                                <x-wirekit::button type="button" intent="danger" size="sm" class="visual-feedback-remove-confirm" data-wk-dialog-primary
+                                    wire:click="removeAttachment({{ $index }})">{{ __('visual-feedback::messages.widget.remove_file_dialog.confirm') }}</x-wirekit::button>
+                            </x-wirekit::alert-dialog.actions>
+                        </x-wirekit::alert-dialog>
                     </li>
                 @endforeach
             </ul>

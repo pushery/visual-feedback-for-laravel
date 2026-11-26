@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Required field',
         'add_files' => 'Add files',
         'remove_file' => 'Remove :name',
+        'remove_file_dialog' => [
+            'title' => 'Remove :name?',
+            'description' => 'The file leaves this report. You can add it again before you send it.',
+            'confirm' => 'Remove',
+        ],
         'capture_screenshot' => 'Capture screenshot',
         'screenshot_native_hint' => 'Your browser may ask to share this tab for a pixel-exact screenshot; you can decline and we will capture it another way.',
         'screenshot_capturing' => 'Capturing…',

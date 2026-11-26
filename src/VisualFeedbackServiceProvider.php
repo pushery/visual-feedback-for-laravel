@@ -41,6 +41,8 @@ use Pushery\VisualFeedback\Support\CategoryLabels;
 use Pushery\VisualFeedback\Support\ConfiguredLocale;
 use Pushery\VisualFeedback\Support\LanguageFallbackLoader;
 use Pushery\VisualFeedback\Support\PublishedBundle;
+use Pushery\VisualFeedback\Support\ScriptBundles;
+use Pushery\VisualFeedback\Support\ScriptController;
 use Pushery\VisualFeedback\Support\Settings;
 use Pushery\VisualFeedback\Support\Stylesheet;
 use Pushery\VisualFeedback\Support\StylesheetController;
@@ -243,14 +245,20 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // of the package's that a request would then inherit.
         $this->loadViewsFrom(self::viewPaths(new Settings), 'visual-feedback');
 
-        // The one route the package registers by itself: the stylesheet `@include('visual-feedback::style')` links. A
-        // host's layout names the sheet with that include and nothing else, so the file it links has to be served
-        // without a route the host writes. Outside the `web` group, so the answer sets no cookie and a shared cache
+        // The two routes the package registers by itself. The first serves the stylesheet
+        // `@include('visual-feedback::style')` links: a host's layout names the sheet with that include and nothing
+        // else, so the file it links has to be served without a route the host writes. The second serves the
+        // scripts where `ui.scripts` is `route`, under a digest of their bytes, so a server on another release
+        // cannot answer for them. Both run outside the `web` group, so an answer sets no cookie and a shared cache
         // may keep it; the digest in the address is what lets it be kept.
         if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
             Route::get('visual-feedback/stylesheet/{version}.css', StylesheetController::class)
                 ->where('version', '[0-9a-f]{16}')
                 ->name(Stylesheet::ROUTE);
+            Route::get('visual-feedback/script/{version}/{file}', ScriptController::class)
+                ->where('version', '[0-9a-f]{16}')
+                ->whereIn('file', ScriptBundles::FILES)
+                ->name(ScriptBundles::ROUTE);
         }
 
         Livewire::component('visual-feedback.report-widget', ReportWidget::class);

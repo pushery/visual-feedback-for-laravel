@@ -53,6 +53,11 @@ return [
         'required_legend' => 'Pflichtfeld',
         'add_files' => 'Dateien hinzufügen',
         'remove_file' => ':name entfernen',
+        'remove_file_dialog' => [
+            'title' => ':name entfernen?',
+            'description' => 'Die Datei verlässt diesen Report. Vor dem Senden kannst du sie wieder hinzufügen.',
+            'confirm' => 'Entfernen',
+        ],
         'capture_screenshot' => 'Screenshot aufnehmen',
         'screenshot_native_hint' => 'Dein Browser fragt dich eventuell, ob du diesen Tab für einen pixelgenauen Screenshot teilen möchtest; du kannst ablehnen, dann nehmen wir ihn anders auf.',
         'screenshot_capturing' => 'Aufnahme läuft…',
