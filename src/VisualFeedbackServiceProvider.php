@@ -20,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use Pushery\VisualFeedback\Abuse\AbuseGateManager;
 use Pushery\VisualFeedback\Abuse\AbuseGateRegistry;
 use Pushery\VisualFeedback\Abuse\BuiltinAbuseGate;
+use Pushery\VisualFeedback\Abuse\TurnstileAbuseGate;
 use Pushery\VisualFeedback\Channels\ChannelRegistry;
 use Pushery\VisualFeedback\Channels\DatabaseChannel;
 use Pushery\VisualFeedback\Channels\MailChannel;
@@ -198,8 +199,15 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // drivers (botgate) layered on top when available — so a provider outage
         // or a botgate-less install can never remove the floor.
         // The registry is a singleton: a host registers its driver once, at boot, and every
-        // resolution of the gate must see that registration.
-        $this->app->singleton(AbuseGateRegistry::class);
+        // resolution of the gate must see that registration. It starts with the driver this
+        // package ships, `turnstile`; a host that registers a gate under the same name replaces it,
+        // because a registration overwrites by name.
+        $this->app->singleton(AbuseGateRegistry::class, static function (Application $app): AbuseGateRegistry {
+            $registry = new AbuseGateRegistry($app->make(Settings::class), $app->make(LoggerInterface::class));
+            $registry->register('turnstile', static fn (): AbuseGate => $app->make(TurnstileAbuseGate::class));
+
+            return $registry;
+        });
 
         $this->app->bind(AbuseGate::class, fn (Application $app): AbuseGate => new AbuseGateManager(
             $app->make(BuiltinAbuseGate::class),

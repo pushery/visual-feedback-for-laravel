@@ -112,6 +112,7 @@
             <div class="visual-feedback-honeypot" aria-hidden="true" style="position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px;">
                 <label>
                     {{ __('visual-feedback::messages.widget.honeypot_label') }}
+                    {{-- raw field: a trap for bots in a box no person sees, so it takes none of the kit's label, hint or error --}}
                     <input type="text" name="feedback_reference" tabindex="-1" autocomplete="off">
                 </label>
             </div>
@@ -220,12 +221,11 @@
                 </div>
             @endif
 
-            {{-- No file field where the server takes no file: `attachments.max_files` of 0. A native field, as in the
-                 plain view: the kit's dropzone hands its files to Livewire's upload, which a cached page does not have,
-                 and the script sends what the field holds. --}}
+            {{-- No file field where the server takes no file: `attachments.max_files` of 0. --}}
             @if ($vfPolicy->maxFiles() > 0)
             <div class="visual-feedback-attachments">
                 <label for="visual-feedback-files">{{ __('visual-feedback::messages.widget.attachments_label') }}</label>
+                {{-- raw field: the kit's dropzone hands its files to Livewire's upload, which a cached page does not have, so a native field holds them, as in the plain view, and the script sends what it holds --}}
                 <input id="visual-feedback-files" class="visual-feedback-file-input" type="file" name="attachments[]" multiple
                     accept="{{ $vfPolicy->acceptAttribute() }}" aria-describedby="visual-feedback-files-limit"
                     :aria-invalid="vfInvalid('files')">

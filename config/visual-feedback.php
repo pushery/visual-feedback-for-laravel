@@ -398,7 +398,9 @@ return [
     |
     | `driver` selects an additional layer that runs on
     | top of the floor and can only ever reject more, never less: `builtin` (floor
-    | only), `none` (floor still on), or any key you register yourself with
+    | only), `turnstile` (Cloudflare Turnstile, which ships, and what `builtin`
+    | becomes once both `turnstile` keys are set), `none` (floor still on), or any
+    | key you register yourself with
     | `VisualFeedback::extendAbuse($key, fn () => new YourGate)`. The set is
     | deliberately open — naming a key with no gate registered logs a warning and
     | leaves the floor carrying the request, it never protects nothing silently.
@@ -410,7 +412,7 @@ return [
     |
     */
     'abuse' => [
-        'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|none|any key you register
+        'driver' => env('VISUAL_FEEDBACK_ABUSE_DRIVER', 'builtin'), // builtin|turnstile|none|any key you register
         // per authenticated user per hour. The floor is 1: a per-sender limit cannot be switched
         // off, so anything below 1 keeps the shipped value, here as in Settings. Only
         // `global_rate_limit` below reads `0` as off.
@@ -520,12 +522,28 @@ return [
         'drivers' => [],
 
         /*
+         * Cloudflare Turnstile, the additional driver this package ships. Both keys belong to a
+         * widget created in the Cloudflare dashboard: the site key is public and goes into the
+         * page, the secret key stays on the server and verifies each token with Cloudflare.
+         *
+         * Off while either key is missing. With both set, `driver` at `builtin` becomes
+         * `turnstile`: the form shows the widget, and the gate verifies its token after the floor,
+         * which still runs first. Any other `driver`, `none` included, keeps its meaning. What an
+         * outage at Cloudflare does is `drivers.turnstile.on_error`, or `driver_on_error`.
+         */
+        'turnstile' => [
+            'site_key' => env('VISUAL_FEEDBACK_ABUSE_TURNSTILE_SITE_KEY'),
+            'secret_key' => env('VISUAL_FEEDBACK_ABUSE_TURNSTILE_SECRET_KEY'),
+        ],
+
+        /*
          * A Blade view rendered inside the form, for a challenge widget your gate verifies.
-         * Null renders nothing at all. The view is included as-is inside `wire:ignore`, so
-         * Livewire's DOM morphing cannot destroy a third-party widget between updates — the
-         * failure that costs everyone who wires one of these by hand. Bind whatever the widget
-         * produces into `challenge` (e.g. `wire:model="challenge.token"`); it reaches your gate
-         * on `ReportAttempt::$challenge`, untouched and untrusted.
+         * Null renders nothing at all, or the Turnstile widget while the shipped `turnstile`
+         * driver is on. The view is included as-is inside `wire:ignore`, so Livewire's DOM
+         * morphing cannot destroy a third-party widget between updates — the failure that costs
+         * everyone who wires one of these by hand. Bind whatever the widget produces into
+         * `challenge` (e.g. `wire:model="challenge.token"`); it reaches your gate on
+         * `ReportAttempt::$challenge`, untouched and untrusted.
          */
         'challenge_view' => null,
     ],

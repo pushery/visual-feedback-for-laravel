@@ -70,7 +70,8 @@ where Laravel reads them before the package's own.
   nothing outside the request; the rate limits go through your cache, and what happens when that
   is down is a setting. The one deliberate off switch is `abuse.min_fill_seconds = 0`, which
   disarms the time trap — the value test suites reach for, and worth checking before it reaches
-  a published config.
+  a published config. Cloudflare Turnstile ships as an option: with its two keys set, the form
+  shows the widget and each report needs a token Cloudflare accepts.
 - Built to **WCAG 2.1 AA**, proven rather than asserted: a full axe sweep over every widget state
   in both trees, a keyboard-only run through the whole flow, and contrast measured on the values
   the browser actually rendered.

@@ -221,12 +221,17 @@ final readonly class Settings
      * (AbuseGateRegistry::additional()), which is strictly louder than degrading in silence. No
      * value of this setting can reduce protection — the registry only ever adds gates on top of a
      * floor that is unconditional.
+     *
+     * `builtin` reads as `turnstile` once both keys under `abuse.turnstile` are set, which is how
+     * the shipped driver is switched on without naming it. Any other name, `none` included, is
+     * returned as configured.
      */
     public function abuseDriver(): string
     {
         $driver = $this->config()->get('visual-feedback.abuse.driver');
+        $driver = is_string($driver) && $driver !== '' ? $driver : 'builtin';
 
-        return is_string($driver) && $driver !== '' ? $driver : 'builtin';
+        return $driver === 'builtin' && $this->turnstileConfigured() ? 'turnstile' : $driver;
     }
 
     /**
@@ -236,12 +241,43 @@ final readonly class Settings
      * to be the cheap, silent path rather than an error. A non-string is treated as null for the
      * same reason a missing key is: this decides what gets rendered, and a broken value must not
      * take the form down with it.
+     *
+     * With no view named, the shipped `turnstile` driver brings its own widget, as long as it has a
+     * site key to render it with. A view the host names still wins, so a host that wires its own
+     * Turnstile markup keeps it.
      */
     public function challengeView(): ?string
     {
         $view = $this->config()->get('visual-feedback.abuse.challenge_view');
 
-        return is_string($view) && $view !== '' ? $view : null;
+        if (is_string($view) && $view !== '') {
+            return $view;
+        }
+
+        return $this->abuseDriver() === 'turnstile' && $this->turnstileSiteKey() !== null
+            ? 'visual-feedback::challenges.turnstile'
+            : null;
+    }
+
+    /**
+     * The site key of the Turnstile widget, or null while none is set. It is public: the page
+     * carries it, and Cloudflare's script reads it there.
+     */
+    public function turnstileSiteKey(): ?string
+    {
+        return $this->filledString('visual-feedback.abuse.turnstile.site_key');
+    }
+
+    /** The secret key that verifies a Turnstile token with Cloudflare, or null while none is set. */
+    public function turnstileSecretKey(): ?string
+    {
+        return $this->filledString('visual-feedback.abuse.turnstile.secret_key');
+    }
+
+    /** Whether both Turnstile keys are set, which is what switches the shipped driver on. */
+    public function turnstileConfigured(): bool
+    {
+        return $this->turnstileSiteKey() !== null && $this->turnstileSecretKey() !== null;
     }
 
     /** Authenticated per-hour submit limit. Missing/invalid → the restrictive default. */
@@ -414,6 +450,14 @@ final readonly class Settings
     public function fieldIsRequired(string $field): bool
     {
         return $this->fieldMode($field) === self::FIELD_REQUIRED;
+    }
+
+    /** A string with something in it besides white space, trimmed, or null for anything else. */
+    private function filledString(string $key): ?string
+    {
+        $value = $this->config()->get($key);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     private function positiveInt(string $key, int $default): int
