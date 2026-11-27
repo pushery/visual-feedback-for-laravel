@@ -115,6 +115,7 @@
             style="position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px;">
             <label>
                 {{ __('visual-feedback::messages.widget.honeypot_label') }}
+                {{-- raw field: a trap for bots in a box no person sees, so it takes none of the kit's label, hint or error --}}
                 <input type="text" wire:model="feedbackReference" tabindex="-1" autocomplete="off">
             </label>
         </div>

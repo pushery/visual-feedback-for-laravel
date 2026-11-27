@@ -1517,6 +1517,15 @@ class ReportWidget extends Component
             // and none of them means the reporter typed something wrong.
             invalid: $result->rejectionReason === RejectionReason::Validation,
         );
+
+        // A challenge token goes to its provider once, whatever the answer, and the abuse check runs
+        // before validation, so a failed attempt has usually spent it. The challenge is cleared and
+        // the widget is told to re-arm, as between two reports: the next attempt would otherwise send
+        // the spent token and fail for that alone.
+        if ($this->challenge !== []) {
+            $this->challenge = [];
+            $this->dispatch('visual-feedback:challenge-reset');
+        }
     }
 
     /**

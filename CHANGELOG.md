@@ -4,6 +4,17 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.36.0] - 2026-11-27
+
+### ✨ Added
+
+- **Cloudflare Turnstile ships as an optional challenge.** With `VISUAL_FEEDBACK_ABUSE_TURNSTILE_SITE_KEY` and `VISUAL_FEEDBACK_ABUSE_TURNSTILE_SECRET_KEY` both set, `abuse.driver` at `builtin` becomes `turnstile`: the form shows the widget in both view trees, and each report needs a token that Cloudflare's siteverify accepts, checked after the floor. Either key alone changes nothing, and a driver chosen in the configuration keeps its meaning. A missing or expired token is refused visibly, and the widget issues a new one. When Cloudflare cannot be reached or refuses the secret key, `abuse.driver_on_error` decides, `open` by default. Under a content security policy, `script-src` and `frame-src` need `https://challenges.cloudflare.com` before the keys are set.
+
+### 🔧 Changed
+
+- **The WireKit views say why three of their form fields are drawn without the kit.** The two honeypots and the file field of the standalone widget each stand after a `{{-- raw field: … --}}` comment that gives the reason, so a host that publishes the views and checks them for fields WireKit could draw finds these three declared. Nothing on the page changes.
+- **A failed attempt clears its challenge token and dispatches `visual-feedback:challenge-reset`.** A token is verified once, and the abuse check runs before validation, so the next attempt sent a spent one and failed for that alone. The Livewire tree now tells a challenge widget to issue a new token after a failed attempt, as it did between two reports, and the standalone form does so after every attempt it sent.
+
 ## [0.35.0] - 2026-11-26
 
 ### ✨ Added
@@ -1603,7 +1614,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.33.0...v0.34.0

@@ -55,7 +55,7 @@ a stale copy is the one failure this setup produces on its own.
 
 There are **four** of them, and they fail differently.
 
-`visual-feedback-widget.iife.js` is under 12 KB, always ships, and registers the Alpine
+`visual-feedback-widget.iife.js` is under 14 KB, always ships, and registers the Alpine
 components the templates bind to — so a page missing that one renders a widget whose
 every control does nothing, with only the browser console to show for it.
 
@@ -545,7 +545,12 @@ Then set `abuse.driver` to `acme`. Registering alone activates nothing, and a dr
 gate registered logs a warning rather than silently protecting nothing — the floor still carries
 the request either way.
 
-For an **interactive** challenge (Turnstile, proof-of-work), point `abuse.challenge_view` at a
+**Turnstile ships with the package.** Its two keys are `VISUAL_FEEDBACK_ABUSE_TURNSTILE_SITE_KEY`
+and `VISUAL_FEEDBACK_ABUSE_TURNSTILE_SECRET_KEY`. With both set, `abuse.driver` at `builtin` becomes
+`turnstile`: the form renders the widget, and the gate verifies each token with Cloudflare after the
+floor. Nothing else needs wiring, and a `driver` the host named, `none` included, keeps its meaning.
+
+For another **interactive** challenge (another provider, proof-of-work), point `abuse.challenge_view` at a
 Blade view. It renders inside the form in both view trees, wrapped in `wire:ignore` — required,
 because a challenge widget is third-party DOM with its own JavaScript and Livewire's morphing
 would otherwise destroy it on the next update. Bind whatever it produces into `challenge`
