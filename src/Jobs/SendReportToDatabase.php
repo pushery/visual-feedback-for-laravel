@@ -74,7 +74,7 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
                     'message' => $this->report->message,
                     'reporter_id' => $this->report->reporter->id,
                     'reporter_name' => $this->report->reporter->name,
-                    'reporter_email' => $this->report->reporter->email,
+                    'reporter_email' => $this->storedAddress($this->report->reporter->email),
                     'reporter_phone' => $this->report->reporter->phone,
                     'is_guest' => $this->report->reporter->isGuest,
                     'context' => $this->json($serialized['context']),
@@ -140,5 +140,14 @@ final class SendReportToDatabase implements ShouldBeEncrypted, ShouldQueue
         $table = $config->get('visual-feedback.database.table');
 
         return is_string($table) && $table !== '' ? $table : 'visual_feedback_reports';
+    }
+
+    /**
+     * The address in lower case, the form every report is stored under, so `visual-feedback:forget` reaches it in any
+     * case on every engine and stays on the `reporter_email` index. Folded in PHP, as the command folds a request.
+     */
+    private function storedAddress(?string $address): ?string
+    {
+        return $address === null ? null : mb_strtolower(trim($address));
     }
 }

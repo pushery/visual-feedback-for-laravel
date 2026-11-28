@@ -3,8 +3,9 @@
 
      The package's script renders the widget into the container and puts each token into the
      hidden field, which Livewire reads through `wire:model` and the standalone form sends under
-     its name. Cloudflare's own script loads only on a page that shows this view. Under a content
-     security policy, `script-src` and `frame-src` have to allow https://challenges.cloudflare.com. --}}
+     its name. Cloudflare's own script loads once this container is drawn, when the reporter opens the
+     form, so a page that only carries a closed widget contacts no one. Under a content security
+     policy, `script-src` and `frame-src` have to allow https://challenges.cloudflare.com. --}}
 <div class="visual-feedback-turnstile"
      data-sitekey="{{ app(\Pushery\VisualFeedback\Support\Settings::class)->turnstileSiteKey() }}"
      data-action="{{ \Pushery\VisualFeedback\Abuse\TurnstileAbuseGate::ACTION }}"

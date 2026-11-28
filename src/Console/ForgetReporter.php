@@ -14,6 +14,7 @@ use Pushery\VisualFeedback\Channels\Webhook\WebhooksPlatform;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Privacy\ErasedReporters;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
@@ -38,14 +39,13 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  * copy in the queue's failed jobs, and with the webhook platform installed its delivery log keeps
  * the payload for the platform's own retention. Erasing those is the host's responsibility.
  *
- * Whether an address matches regardless of case is the database's decision, and nothing else
- * is. Nothing normalizes the address — not the widget, not the guard resolver that reads it off
- * the host's user model, and not the write path — and the query compares with the column's
- * collation, which keeps it on the `reporter_email` index. MySQL's default `utf8mb4` collations
- * ignore case, PostgreSQL and SQLite do not: a request in another case erases on MySQL and
- * reports "no reports found" on the other two. An operator who gets that message should re-run
- * with the spelling as it was submitted. This is stated in the argument description too, because
- * that is what an operator reads at the moment the command finds nothing.
+ * Every report is stored under its address in lower case: the database channel folds it with
+ * `mb_strtolower()` as it writes. The command asks for the address as requested and in lower
+ * case, both on the `reporter_email` index, so a request in any case reaches every report stored
+ * that way, on every engine. A report stored before the channel folded addresses keeps the
+ * spelling it was submitted with until the published migration that folds the column has run.
+ * Until then that spelling reaches it, and on PostgreSQL and SQLite only that spelling, while
+ * MySQL's default `utf8mb4` collations ignore case anyway.
  *
  * The same MySQL collations also ignore accents, character width and letters spelled out, so the
  * query alone takes `josé@example.com` for `jose@example.com` and `straße@example.com` for
@@ -53,16 +53,16 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  * its address equals the requested one up to case (sameAddress()), so on every engine the answer
  * is negative rather than falsely positive, and no report of another address is erased.
  *
- * Folding case on every engine belongs at the write path, both sides at once, never in a
- * `lower()` wrapper in this query: that drops the index, and SQL `lower()` and PHP
- * `mb_strtolower()` do not agree on non-ASCII local parts.
+ * The fold happens in PHP on both sides, never in a `lower()` wrapper in this query: that drops
+ * the index, and SQL `lower()` and PHP `mb_strtolower()` do not agree on non-ASCII local parts.
  */
+#[AsCommand(name: 'visual-feedback:forget')]
 final class ForgetReporter extends Command
 {
     use ResolvesReportStorage;
 
     protected $signature = 'visual-feedback:forget
-        {email? : The reporter email address to erase, matched exactly except that MySQL ignores its case, so use the spelling the report was submitted with}
+        {email? : The reporter email address to erase, in any case. A report stored before addresses were folded is reached only by its submitted spelling, on PostgreSQL and SQLite, until the fold migration has run}
         {--guests-only : With an email, erase only the reports sent as a guest under it, and keep the signed-in reports of any account that used the same address}
         {--reporter= : Instead of an email, erase every report of the signed-in reporter with this id, under any address it used}
         {--guest-email= : With --reporter, also erase the reports sent as a guest under this address}';
@@ -101,14 +101,14 @@ final class ForgetReporter extends Command
 
             if ($guestEmail !== null) {
                 $erased->rememberGuest($guestEmail);
-                $erasures[] = [static fn (Builder $query): Builder => $query->where('reporter_email', $guestEmail)->where('is_guest', true), 'visual-feedback::messages.console.forget.erased_guest', 'visual-feedback::messages.console.forget.kept_guest', ['email' => $guestEmail], $guestEmail];
+                $erasures[] = [static fn (Builder $query): Builder => $query->whereIn('reporter_email', self::spellings($guestEmail))->where('is_guest', true), 'visual-feedback::messages.console.forget.erased_guest', 'visual-feedback::messages.console.forget.kept_guest', ['email' => $guestEmail], $guestEmail];
             }
         } elseif ($email !== null && $guestsOnly) {
             $erased->rememberGuest($email);
-            $erasures[] = [static fn (Builder $query): Builder => $query->where('reporter_email', $email)->where('is_guest', true), 'visual-feedback::messages.console.forget.erased_guest', 'visual-feedback::messages.console.forget.kept_guest', ['email' => $email], $email];
+            $erasures[] = [static fn (Builder $query): Builder => $query->whereIn('reporter_email', self::spellings($email))->where('is_guest', true), 'visual-feedback::messages.console.forget.erased_guest', 'visual-feedback::messages.console.forget.kept_guest', ['email' => $email], $email];
         } elseif ($email !== null) {
             $erased->remember($email);
-            $erasures[] = [static fn (Builder $query): Builder => $query->where('reporter_email', $email), 'visual-feedback::messages.console.forget.erased', 'visual-feedback::messages.console.forget.kept', ['email' => $email], $email];
+            $erasures[] = [static fn (Builder $query): Builder => $query->whereIn('reporter_email', self::spellings($email)), 'visual-feedback::messages.console.forget.erased', 'visual-feedback::messages.console.forget.kept', ['email' => $email], $email];
         } else {
             $this->error((string) __('visual-feedback::messages.console.forget.no_subject'));
 
@@ -223,5 +223,17 @@ final class ForgetReporter extends Command
         if ($platform->isInstalled()) {
             $this->warn((string) __('visual-feedback::messages.console.forget.platform_note'));
         }
+    }
+
+    /**
+     * The address as requested and in lower case, the form every report is stored under. A report stored before the
+     * database channel folded addresses keeps its submitted spelling until the fold migration has run, so the query
+     * asks for both.
+     *
+     * @return non-empty-list<string>
+     */
+    private static function spellings(string $address): array
+    {
+        return array_values(array_unique([$address, mb_strtolower(trim($address))]));
     }
 }

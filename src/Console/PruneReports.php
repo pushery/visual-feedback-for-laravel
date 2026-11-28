@@ -13,6 +13,7 @@ use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Support\EnvFlag;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
@@ -27,6 +28,7 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  * writer is excluded, see hasPendingDelivery). Without the opt-in table it is a clean no-op — a
  * default install has no table to prune.
  */
+#[AsCommand(name: 'visual-feedback:prune')]
 final class PruneReports extends Command
 {
     use ResolvesReportStorage;

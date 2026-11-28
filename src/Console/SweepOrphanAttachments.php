@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Pushery\VisualFeedback\Attachments\EmptyDirectoryPruner;
 use Pushery\VisualFeedback\Console\Concerns\ResolvesReportStorage;
 use Pushery\VisualFeedback\Support\TableLookup;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
@@ -27,6 +28,7 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  * (latency + tries × backoff) so a file a retrying mail job still needs is never swept — the
  * config default (24 h) clears any realistic backoff.
  */
+#[AsCommand(name: 'visual-feedback:sweep-orphans')]
 final class SweepOrphanAttachments extends Command
 {
     use ResolvesReportStorage;

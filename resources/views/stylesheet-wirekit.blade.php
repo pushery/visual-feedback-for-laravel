@@ -244,6 +244,13 @@
         margin-block-start: 0;
     }
 
+    {{-- The group around the upload field and its list of files, where a removal hands focus back.
+       The list sat one step below the field as a child of the form, and this keeps that step inside
+       the group. --}}
+    .visual-feedback-attachments > * + * {
+        margin-block-start: var(--space-wk-md, 1rem);
+    }
+
     {{-- Every rejection the reporter can see, in a box that reads as one.
        Owner directive: an error message is always in the red box.
 
