@@ -4,6 +4,29 @@ All notable changes to `pushery/visual-feedback-for-laravel` are documented here
 
 Every entry that changes what a consuming application has to do carries an **Upgrade** note. A release without one is a release you can take without reading.
 
+## [0.37.0] - 2026-11-28
+
+### ⚠️ Breaking
+
+- **The Turnstile driver refuses a token whose verdict names no action.** It refused a token issued for another widget's action and let one through whose verdict carried an empty action or none. Only a token issued for the form's own action, `visual-feedback`, passes now. The shipped view always sends that action, so a host that renders the widget through the package notices nothing.
+
+  **Upgrade:** a view of the host's own that renders the Turnstile widget sends `data-action` with the value of `\Pushery\VisualFeedback\Abuse\TurnstileAbuseGate::ACTION`. Without it, every report from that view is refused as a failed challenge.
+
+### 🔧 Changed
+
+- **Every reporter address is stored in lower case, and `visual-feedback:forget` reaches it in any case.** The database channel stored an address as it was typed, and on PostgreSQL and SQLite `forget` found a report only under that spelling, so an erasure request with the address of an account in its usual form left a guest report sent as `Ada@Example.com` in place. The channel now stores the address in lower case, and `forget` asks for the requested address as given and in lower case, both on the `reporter_email` index. The new migration `0001_01_01_000004_fold_reporter_emails_in_visual_feedback_reports_table.php` folds the addresses already stored.
+
+  **Upgrade:** copy the new migration from `vendor/pushery/visual-feedback-for-laravel/database/migrations/optional/` into `database/migrations/` and run `php artisan migrate`. Until it has run, a report stored earlier is reached by the spelling it was submitted with. The migration cannot be rolled back, because the case each address was submitted in is kept nowhere, and its `down()` says so. An export of a person's reports that reads the table asks for the address in lower case.
+
+### ⚡ Performance
+
+- **A start of the console builds none of the package's commands.** `visual-feedback:forget`, `visual-feedback:prune` and `visual-feedback:sweep-orphans` carry `#[AsCommand]` with the name of their signature, so Laravel keeps each in the map of its loader and builds it only when it runs. Before, every start of a host's console built all three through the container, for each run of the schedule, each queue worker and each `artisan` call, whatever ran.
+
+### 🐛 Fixed
+
+- **Removing an attachment in the WireKit form hands focus to the attachments field.** With uploads staged on S3 the form lists the queued files itself, and the dialog that removes one closed with its row gone and with it the button that opened it, so focus fell to the page's `<body>`. A host that publishes the WireKit views and checks its views for this found the dialog without a focus target. The dialog now hands focus to a group around the upload field and its list, which stands after every removal, the last one included.
+- **The standalone widget asks Cloudflare for its Turnstile script only once the form is open.** It carries its form in the closed dialog from the first byte of a cached page, and the Turnstile container in that form loaded Cloudflare's script at once, so a page that only carried the widget contacted Cloudflare and started a challenge for readers who never opened it. The script now waits until the container is drawn, which a container in a closed dialog is not. The Livewire widget renders its form only with the round trip that opens it, so it asked only then already.
+
 ## [0.36.0] - 2026-11-27
 
 ### ✨ Added
@@ -1614,7 +1637,8 @@ Two settings decide whether parts of the package work at all, and both live outs
 
 Everything above is covered in full at <https://docs.pushery.com/visual-feedback-for-laravel/>.
 
-[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.37.0...HEAD
+[0.37.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/pushery/visual-feedback-for-laravel/compare/v0.34.0...v0.34.1

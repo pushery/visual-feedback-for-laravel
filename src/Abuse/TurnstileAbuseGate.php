@@ -86,10 +86,11 @@ final readonly class TurnstileAbuseGate implements AbuseGate
             throw new RuntimeException('Cloudflare refused to verify the Turnstile token: '.implode(', ', $blamed).'.');
         }
 
-        // A widget without an action carries none, so only an action that names another widget is refused.
+        // Only a token issued for this form's action passes. The shipped view always names it, so a
+        // verdict with another action, an empty one or none comes from a widget not rendered for this form.
         $action = $verdict['action'] ?? null;
 
-        if (! $verdict['success'] || (is_string($action) && $action !== '' && $action !== self::ACTION)) {
+        if (! $verdict['success'] || $action !== self::ACTION) {
             return AbuseDecision::reject(RejectionReason::ChallengeFailed, visible: true, detail: 'turnstile_refused');
         }
 

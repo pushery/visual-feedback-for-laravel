@@ -350,12 +350,14 @@ final class VisualFeedbackServiceProvider extends ServiceProvider
         // The optional DatabaseChannel migrations. Deliberately not in the umbrella (like wirekit):
         // a standard install must not get the table — only a consumer who publishes this tag and
         // migrates opts in. Their 0001_… prefixes keep them first, before the host's own
-        // migrations, and in the order they have to run: the table, then the indexes added to it.
+        // migrations, and in the order they have to run: the table, the indexes added to it, then the
+        // fold of the addresses stored before the channel stored them in lower case.
         $this->publishes([
             __DIR__.'/../database/migrations/optional/0001_01_01_000000_create_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000000_create_visual_feedback_reports_table.php'),
             __DIR__.'/../database/migrations/optional/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000001_add_reporter_id_index_to_visual_feedback_reports_table.php'),
             __DIR__.'/../database/migrations/optional/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000002_add_category_index_to_visual_feedback_reports_table.php'),
             __DIR__.'/../database/migrations/optional/0001_01_01_000003_add_mode_index_to_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000003_add_mode_index_to_visual_feedback_reports_table.php'),
+            __DIR__.'/../database/migrations/optional/0001_01_01_000004_fold_reporter_emails_in_visual_feedback_reports_table.php' => $this->app->databasePath('migrations/0001_01_01_000004_fold_reporter_emails_in_visual_feedback_reports_table.php'),
         ], 'visual-feedback-migrations');
     }
 

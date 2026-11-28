@@ -381,6 +381,12 @@
              pick into a slot of its own, and the files already queued are listed below it from the
              component, which holds them; the dropzone's own list only knows the latest pick. --}}
         @if ($uploadsOneAtATime)
+        {{-- The group the remove dialogs below hand focus back to. Confirming removes the file's row and
+             with it the button that opened the dialog, and removing the last file removes the list as
+             well, so neither can take focus. The group stands as long as the field does, and
+             tabindex="-1" lets it take focus without adding a tab stop. --}}
+        <div id="visual-feedback-attachments" class="visual-feedback-attachments" role="group" tabindex="-1"
+             aria-label="{{ __('visual-feedback::messages.widget.attachments_label') }}">
         <x-wirekit::file-upload
             id="visual-feedback-files" :error="$vfInvalidField === 'files' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
             wire:model="attachmentUpload"
@@ -402,9 +408,9 @@
                              A removal is red and asks first, as WireKit's conventions hold it: the trash
                              button opens the kit's question, and the question's own button removes the file.
                              The trash button keeps the loading target of that call, so it stays held while
-                             the removal runs. The dialog closes on the confirmation, and its focus goes to
-                             what survives the row. --}}
-                        <x-wirekit::alert-dialog :name="'vf-remove-file-'.hash('xxh128', $file->getFilename())" close-on-confirm>
+                             the removal runs. The dialog closes on the confirmation and hands focus to the
+                             group around the field, which survives the row and the list. --}}
+                        <x-wirekit::alert-dialog :name="'vf-remove-file-'.hash('xxh128', $file->getFilename())" focus-return-to="#visual-feedback-attachments" close-on-confirm>
                             <x-slot:trigger>
                                 <x-wirekit::tooltip :text="__('visual-feedback::messages.widget.remove_file', ['name' => $file->getClientOriginalName()])" :describes="false">
                                     <x-wirekit::button type="button" intent="danger" size="sm" icon-only
@@ -427,6 +433,7 @@
                 @endforeach
             </ul>
         @endif
+        </div>
         @else
         <x-wirekit::file-upload
             id="visual-feedback-files" :error="$vfInvalidField === 'files' ? ($failedMessage ?? __('visual-feedback::messages.widget.error')) : null"
